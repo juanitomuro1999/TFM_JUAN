@@ -48,6 +48,50 @@ Registro cronológico del progreso técnico del TFM.
 
 ---
 
+### 21 de mayo (continuación) — SLAM Toolbox operativo
+
+**Diagnóstico del problema:**
+
+El nodo `async_slam_toolbox_node` arrancaba pero no publicaba `/map`. Diagnóstico en el robot:
+```
+ros2 lifecycle list /slam_toolbox
+```
+El nodo se encontraba en estado `unconfigured` — es un **lifecycle node** de ROS 2 que requiere transiciones explícitas `configure → active` antes de operar.
+
+**Causa raíz:** el `slam_toolbox.launch.py` original lanzaba el nodo sin gestión de ciclo de vida. El nodo esperaba ser configurado externamente.
+
+**Solución aplicada:**
+
+1. **Verificación manual:** se configuró y activó el nodo manualmente con:
+   ```bash
+   ros2 lifecycle set /slam_toolbox configure
+   ros2 lifecycle set /slam_toolbox activate
+   ```
+   Confirmando que `/map` y `/map_metadata` empezaron a publicarse inmediatamente.
+
+2. **Corrección del launch file:** se añadió un nodo `lifecycle_manager` (de `nav2_lifecycle_manager`) con `autostart: true` y `bond_timeout: 0.0`:
+   - `autostart: true` — configura y activa `slam_toolbox` automáticamente al arrancar.
+   - `bond_timeout: 0.0` — deshabilita el heartbeat de monitorización que `slam_toolbox` no implementa y que causaba un error de bond en los logs.
+
+3. **Resultado:** log de lanzamiento limpio:
+   ```
+   [lifecycle_manager]: Configuring slam_toolbox
+   [slam_toolbox]: Configuring
+   [slam_toolbox]: Using solver plugin solver_plugins::CeresSolver
+   [lifecycle_manager]: Activating slam_toolbox
+   [slam_toolbox]: Activating
+   [lifecycle_manager]: Managed nodes are active
+   [slam_toolbox]: Registering sensor: [Custom Described Lidar]
+   ```
+   Topics publicados: `/map`, `/map_metadata`, `/slam_toolbox/feedback`, `/slam_toolbox/scan_visualization`, `/slam_toolbox/graph_visualization`.
+
+**Estado al cierre:**
+- ✅ SLAM Toolbox operativo: nodo activo, `/map` publicando
+- ✅ `slam_toolbox.launch.py` corregido con lifecycle manager
+- 🔄 Pendiente: mover robot para poblar el mapa y guardarlo
+
+---
+
 ## Junio 2026 (planificado)
 
 ### Semana 1–2 — Integración de SLAM Toolbox
