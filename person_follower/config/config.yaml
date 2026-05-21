@@ -4,10 +4,16 @@ control_node:
     # camera_enabled: True  → FSM espera gesto "start_tracking" de la cámara
     # camera_enabled: False → FSM empieza a seguir automáticamente sin gesto (modo headless)
     camera_enabled: False
+    # Tiempo (s) que el robot sigue moviéndose tras perder la detección antes de parar
+    tracking_loss_timeout: 1.5
 
 tracking_node:
   ros__parameters:
     enabled: True
+    max_speed: 0.4          # m/s máximo al seguir a la persona
+    target_distance: 0.4    # m — zona muerta: el robot se para a esta distancia
+    acc_limit: 0.05         # m/s por ciclo de scan (≈0.5 m/s² a 10 Hz)
+    angular_gain: 2.0       # ganancia proporcional del giro
 
 visual_detection_node:
   ros__parameters:

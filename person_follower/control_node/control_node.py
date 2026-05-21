@@ -37,11 +37,15 @@ class ControlNode(Node):
         self.current_state = 'INIT'
 
         # ───────────── Variables de estado ─────────────
+        self.declare_parameter('tracking_loss_timeout', 1.5)
+        self.tracking_loss_timeout = self.get_parameter('tracking_loss_timeout').value
+
         self.person_detected        = False
         self.user_authorized        = self.ignore_gesture
         self.tracking_service_ready = False
         self._last_tracking_enable  = None
-        self.shutdown_requested = False
+        self.shutdown_requested     = False
+        self._lost_person_time      = None
 
         # ───────────── Terminal settings ─────────────
         self.tty_fd = None
@@ -235,9 +239,18 @@ class ControlNode(Node):
     def person_detected_callback(self, msg):
         self.person_detected = msg.data
         if self.current_state == 'IDLE' and self.person_detected and self.user_authorized:
+            self._lost_person_time = None
             self.transition_to('TRACKING')
+        elif self.current_state == 'TRACKING' and self.person_detected:
+            self._lost_person_time = None
         elif self.current_state == 'TRACKING' and not self.person_detected:
-            self.transition_to('IDLE')
+            # Histéresis: esperar tracking_loss_timeout antes de volver a IDLE
+            if self._lost_person_time is None:
+                self._lost_person_time = self.get_clock().now()
+            elapsed = (self.get_clock().now() - self._lost_person_time).nanoseconds * 1e-9
+            if elapsed >= self.tracking_loss_timeout:
+                self._lost_person_time = None
+                self.transition_to('IDLE')
 
     def shutdown_confirmation_callback(self, msg):
         if msg.data:

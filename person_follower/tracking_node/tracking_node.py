@@ -30,9 +30,17 @@ class TrackingNode(Node):
         # Inicializar shutdown
         self.initialize_shutdown_listener()
 
-        # Parámetro de evasión de obstáculos
+        # Parámetros de evasión y velocidad
         self.declare_parameter('obstacle_avoidance_enabled', True)
+        self.declare_parameter('max_speed', 0.4)
+        self.declare_parameter('target_distance', 0.4)
+        self.declare_parameter('acc_limit', 0.05)
+        self.declare_parameter('angular_gain', 2.0)
         self.obstacle_avoidance_enabled = self.get_parameter('obstacle_avoidance_enabled').value
+        self.max_speed       = self.get_parameter('max_speed').value
+        self.target_distance = self.get_parameter('target_distance').value
+        self.acc_limit       = self.get_parameter('acc_limit').value
+        self.angular_gain    = self.get_parameter('angular_gain').value
 
         # Filtro de Kalman para posición de persona
         self.kalman_state = np.zeros(4)  # [x, y, vx, vy]
@@ -134,18 +142,18 @@ class TrackingNode(Node):
         return adjustment, linear_factor
 
     def listener_callback(self, scan_msg):
-        # Condiciones de parada
-        if not self.tracking_enabled or not self.person_detected or not self.person_position:
+        if not self.tracking_enabled or not self.person_position:
             self.stop_robot()
             return
-        # Timeout
+        # El Kalman predice la posición mientras haya actualizaciones recientes.
+        # Sólo parar si el timeout de posición se agota (persona realmente perdida).
         elapsed = (self.get_clock().now() - self.last_person_update_time).nanoseconds * 1e-9
         if elapsed > self.timeout_duration:
-            self.get_logger().warn("Timeout -> Detener robot")
+            self.get_logger().warn("Timeout de posición -> Detener robot")
             self.stop_robot()
             return
 
-        # Cálculo objetivo
+        # Cálculo objetivo sobre estado Kalman
         dx, dy = self.person_position.x, self.person_position.y
         distance = math.hypot(dx, dy)
         angle_to_person = math.atan2(dy, dx)
@@ -153,20 +161,17 @@ class TrackingNode(Node):
         # Evasión avanzada
         angle_adj, lin_factor = self.avoid_obstacles(scan_msg)
 
-        # Velocidad lineal con suavizado
-        max_speed = 0.8
-        acc_limit = 0.005
-        smooth = 0.4
-        target_vx = (min(max_speed, max(0.0, max_speed * (distance - 0.1) / 0.9))
-                     if distance > 0.1 else 0.0)
-        filtered_vx = self.previous_vx * smooth + target_vx * (1 - smooth)
-        vx = self.previous_vx + min(acc_limit, max(-acc_limit, filtered_vx - self.previous_vx))
+        # Velocidad lineal: rampa suave con acc_limit configurable
+        # Zona muerta = target_distance; velocidad máxima a target_distance + 1m
+        d_eff = max(0.0, distance - self.target_distance)
+        target_vx = min(self.max_speed, self.max_speed * d_eff)
+        vx = self.previous_vx + min(self.acc_limit, max(-self.acc_limit, target_vx - self.previous_vx))
         self.previous_vx = vx
         vx *= lin_factor
 
-        # Velocidad angular
+        # Velocidad angular proporcional
         angle_diff = -angle_to_person
-        wz = 2.0 * angle_diff + angle_adj
+        wz = self.angular_gain * angle_diff + angle_adj
         wz = max(-1.6, min(1.6, wz))
 
         # Publicar comando
