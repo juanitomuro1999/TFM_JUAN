@@ -144,6 +144,39 @@ pip3 install /tmp/*.whl --break-system-packages  # en el robot
 
 ---
 
+### 21 de mayo (continuación) — Corrección del movimiento a tirones
+
+**Problema observado:** el robot se movía a tirones (arranques y parones repetidos) al seguir a una persona.
+
+**Diagnóstico:** tres causas identificadas:
+
+1. **FSM sin histéresis** — cualquier scan sin detección provocaba `TRACKING→IDLE→TRACKING` varias veces por segundo. Causa: `person_detected_callback` hacía la transición inmediatamente en cada mensaje.
+
+2. **`tracking_node` paraba en cada fallo de scan** — la condición `if not person_detected: stop_robot()` actuaba antes de que el filtro de Kalman pudiera predecir la posición.
+
+3. **`acc_limit = 0.005`** — la aceleración máxima era 0.05 m/s², tardando 16 segundos en alcanzar la velocidad de seguimiento; el robot nunca llegaba a velocidad antes del siguiente parón.
+
+**Correcciones aplicadas:**
+
+| Componente | Antes | Después |
+|------------|-------|---------|
+| `control_node` — histéresis | Transición IDLE inmediata al perder detección | `tracking_loss_timeout: 1.5 s` — espera antes de volver a IDLE |
+| `tracking_node` — continuidad Kalman | Paraba al primer scan sin detección | Solo para si el timeout de posición (2 s) expira |
+| `tracking_node` — aceleración | `acc_limit: 0.005` (0.05 m/s²) | `acc_limit: 0.05` (0.5 m/s²) |
+| `tracking_node` — zona muerta | 10 cm | `target_distance: 0.4 m` |
+| `tracking_node` — velocidad máxima | 0.8 m/s | `max_speed: 0.4 m/s` |
+
+**Resultado verificado en logs del robot:**
+- Antes: oscilaciones `TRACKING↔IDLE` cada ~200 ms
+- Después: fases de TRACKING continuas de **11 s y 24 s**
+
+**Estado al cierre de sesión (batería agotada):**
+- ✅ Correcciones compiladas y desplegadas en el robot
+- ✅ Fases de TRACKING estables confirmadas en log
+- 🔄 Pendiente: prueba de seguimiento real en el laboratorio (sesión siguiente)
+
+---
+
 ### 21 de mayo (continuación) — Mapa del laboratorio
 
 **Movimiento de exploración:**
