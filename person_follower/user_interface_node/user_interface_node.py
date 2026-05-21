@@ -17,6 +17,7 @@ from visualization_msgs.msg import Marker
 from std_msgs.msg import ColorRGBA
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import subprocess
+from ament_index_python.packages import get_package_share_directory
 
 class UserInterfaceNode(Node):
     def __init__(self):
@@ -77,10 +78,17 @@ class UserInterfaceNode(Node):
         self.get_logger().info("Nodo de Interfaz de Usuario iniciado.")
 
     def start_rviz(self):
-        rviz_config = '/home/usuario/ros2_ws/src/rviz/config.rviz'
+        try:
+            pkg_share = get_package_share_directory('person_follower')
+            rviz_config = os.path.join(pkg_share, 'config', 'user_interface.rviz')
+        except Exception:
+            rviz_config = None
         self.stop_rviz()
         try:
-            self.rviz_process = subprocess.Popen(['rviz2', '-d', rviz_config])
+            cmd = ['rviz2']
+            if rviz_config and os.path.exists(rviz_config):
+                cmd += ['-d', rviz_config]
+            self.rviz_process = subprocess.Popen(cmd)
             self.get_logger().info(f"RViz2 iniciado con configuración: {rviz_config}")
         except Exception as e:
             self.get_logger().error(f"No se pudo iniciar RViz2: {e}")

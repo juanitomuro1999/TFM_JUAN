@@ -52,8 +52,6 @@ class TrackingNode(Node):
             Bool, '/person_detected', self.detection_callback, 10)
         self.scan_subscription = self.create_subscription(
             LaserScan, '/scan', self.listener_callback, 10)
-        self.shutdown_subscription = self.create_subscription(
-            Bool, '/system_shutdown', self.shutdown_callback, 10)
 
         self.velocity_publisher = self.create_publisher(Twist, '/tracking/velocity_cmd', 10)
         self.position_publisher = self.create_publisher(Point, '/expected_person_position', 10)
