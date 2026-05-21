@@ -88,7 +88,42 @@ El nodo se encontraba en estado `unconfigured` — es un **lifecycle node** de R
 **Estado al cierre:**
 - ✅ SLAM Toolbox operativo: nodo activo, `/map` publicando
 - ✅ `slam_toolbox.launch.py` corregido con lifecycle manager
-- 🔄 Pendiente: mover robot para poblar el mapa y guardarlo
+- ✅ Mapa del laboratorio generado y guardado (ver sección siguiente)
+
+---
+
+### 21 de mayo (continuación) — Mapa del laboratorio
+
+**Movimiento de exploración:**
+
+Con SLAM activo, se ejecutó una secuencia de movimiento autónoma desde el PC vía `/commands/velocity`:
+
+| Paso | Movimiento | Duración | Distancia |
+|------|-----------|----------|-----------|
+| 1 | Adelante (0.2 m/s) | 3 s | ~0.6 m |
+| 2 | Giro izquierda (0.4 rad/s) | 2 s | — |
+| 3 | Adelante (0.2 m/s) | 3 s | ~0.6 m |
+| 4 | Giro derecha (−0.4 rad/s) | 3 s | — |
+| 5 | Adelante (0.2 m/s) | 2 s | ~0.4 m |
+
+**Resultado del mapa (`/map_metadata`):**
+- Resolución: 0.05 m/celda (5 cm)
+- Tamaño: 261 × 338 celdas ≈ 13 × 17 metros
+- Origen: (−8.32, −11.35) m
+
+**Guardado con `map_saver_cli`:**
+```
+[map_io]: Received a 261 X 338 map @ 0.05 m/pix
+[map_io]: Writing map occupancy data to mapa_laboratorio.pgm
+[map_saver]: Map saved successfully
+```
+
+Archivos generados en `maps/`:
+- `mapa_laboratorio.pgm` — imagen de ocupación (87 KB)
+- `mapa_laboratorio.yaml` — metadatos (resolución, origen, umbrales)
+
+**Estado:**
+- ✅ Fase 2 completada: SLAM operativo + mapa del laboratorio guardado
 
 ---
 
