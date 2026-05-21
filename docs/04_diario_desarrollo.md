@@ -92,6 +92,58 @@ El nodo se encontraba en estado `unconfigured` — es un **lifecycle node** de R
 
 ---
 
+### 21 de mayo (continuación) — Test del sistema person_follower completo
+
+**Contexto:** con SLAM activo en el robot, se lanzó `bringup_full.launch.py slam_enabled:=false` para probar los 6 nodos del sistema de seguimiento.
+
+**Bugs encontrados y corregidos:**
+
+| Nodo | Bug | Corrección |
+|------|-----|-----------|
+| `visual_detection_node` | `import mediapipe` falla si no está instalado → crash | `try/except ImportError` + auto-desactivación con log de aviso |
+| `visual_detection_node` | `publish_status()` llamado antes de crear el publisher (cuando `enabled=False`) | Publisher creado antes del check de `enabled` |
+| `collision_handling_node` | Mismo bug: `publish_status()` antes del publisher | Igual que arriba |
+
+**mediapipe no disponible en el robot:** el NUC-225 no tiene acceso a internet (pip y apt fallan). El `visual_detection_node` se desactiva automáticamente con un aviso y el sistema continúa en modo solo-LiDAR.
+
+**sklearn no disponible:** igual, sin internet. Se descargaron los wheels en el PC local y se transfirieron vía SCP:
+```bash
+pip3 download scikit-learn --python-version 312 --platform manylinux2014_x86_64 --only-binary=:all: -d /tmp/sklearn_wheels/
+sshpass -p 'qwerty' scp /tmp/sklearn_wheels/*.whl user@10.48.0.1:/tmp/
+pip3 install /tmp/*.whl --break-system-packages  # en el robot
+```
+
+**Resultado del lanzamiento:**
+
+| Nodo | Estado |
+|------|--------|
+| `detection_node` | ✅ Activo, detectando persona a 0.7–1.1m |
+| `visual_detection_node` | ⚠️ Desactivado automáticamente (sin mediapipe) |
+| `tracking_node` | ✅ Activo, publicando velocity_cmd |
+| `control_node` | ✅ Activo, FSM IDLE→TRACKING |
+| `collision_handling_node` | ✅ Activo, obstacle a 0.57m detectado |
+| `user_interface_node` | ✅ Activo (RViz no carga en headless, no fatal) |
+
+**Pipeline completo verificado:**
+```
+/scan → detection_node (DBSCAN) → /person_detected
+→ control_node (FSM) → /tracking/velocity_cmd
+→ /commands/velocity (Kobuki) @ ~10 Hz
+```
+
+**Ajustes en config.yaml:**
+- `camera_enabled: False` — FSM entra en TRACKING automáticamente sin gesto (modo headless)
+- `dbscan_min_samples: 5`, `min_leg_cluster_size: 5` — parámetros reducidos para detectar piernas a 0.5–2m con RPLIDAR A2M8 (57 pts/m de arco → ~5 pts por pierna a 1m)
+
+**Estado:**
+- ✅ Sistema person_follower completo probado en el robot real
+- ✅ Detección LiDAR funcionando (DBSCAN con sklearn)
+- ✅ FSM IDLE↔TRACKING funcionando
+- ✅ Robot recibe velocidades de seguimiento (~10 Hz)
+- 🔄 Pendiente: instalar mediapipe (necesita conexión o paquete offline)
+
+---
+
 ### 21 de mayo (continuación) — Mapa del laboratorio
 
 **Movimiento de exploración:**

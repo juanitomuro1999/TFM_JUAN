@@ -8,10 +8,16 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32MultiArray, String, Bool
 from cv_bridge import CvBridge
-import cv2
-import mediapipe as mp
 import numpy as np
 import time
+
+try:
+    import cv2
+    import mediapipe as mp
+    _VISION_AVAILABLE = True
+except ImportError as _e:
+    _VISION_AVAILABLE = False
+    _VISION_IMPORT_ERROR = str(_e)
 
 class VisualDetectionNode(Node):
     def __init__(self):
@@ -57,11 +63,20 @@ class VisualDetectionNode(Node):
         hands_min_det = self.get_parameter('hands_min_detection_confidence').value
         hands_min_track = self.get_parameter('hands_min_tracking_confidence').value
 
+        self.status_publisher = self.create_publisher(String, '/camera/status', 10)
+
         if not self.enabled:
             self.get_logger().info("Nodo de Cámara desactivado.")
             self.publish_status("Nodo desactivado.")
             return
 
+        if not _VISION_AVAILABLE:
+            self.get_logger().warn(
+                f"mediapipe/cv2 no disponible ({_VISION_IMPORT_ERROR}). "
+                "Nodo de cámara desactivado automáticamente."
+            )
+            self.publish_status("Sin mediapipe — nodo desactivado.")
+            return
 
         # Variables de estado
         self.bridge = CvBridge()
@@ -87,11 +102,6 @@ class VisualDetectionNode(Node):
         self.gesture_pub = self.create_publisher(
             String,
             '/gesture_command',
-            10
-        )
-        self.status_publisher = self.create_publisher(
-            String,
-            '/camera/status',
             10
         )
         self.image_pub = self.create_publisher(

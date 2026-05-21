@@ -1,21 +1,29 @@
 control_node:
   ros__parameters:
-    enabled: True          # Controla si el tracking_node está activo o no.
-    camera_enabled: True   # Controla si el visual_detection_node se va a usar, en caso de estar activado no se utilizará el control por gestos.
+    enabled: True
+    # camera_enabled: True  → FSM espera gesto "start_tracking" de la cámara
+    # camera_enabled: False → FSM empieza a seguir automáticamente sin gesto (modo headless)
+    camera_enabled: False
 
 tracking_node:
   ros__parameters:
-    enabled: True  # Controla si el tracking_node está activo o no.
+    enabled: True
 
 visual_detection_node:
   ros__parameters:
-    enabled: True   # Controla si el visual_detection_node está activo o no.
+    # Requiere mediapipe y usb_cam corriendo. Desactivar si no hay cámara disponible.
+    enabled: False
 
 detection_node:
   ros__parameters:
-    enabled: True   # Controla si el detection_node está activo o no.
+    enabled: True
+    # Parámetros DBSCAN ajustados para RPLIDAR A2M8 a distancias 0.5–2m
+    # (RPLIDAR a 1m genera ~57 pts/m de arco; pierna ~0.1m → ~5-9 pts sin interpolar)
+    dbscan_min_samples: 5
+    min_leg_cluster_size: 5
+    max_leg_cluster_size: 150
 
 user_interface_node:
   ros__parameters:
-    enabled: True  # Controla si el user_interface_node está activo o no.
+    enabled: True
 

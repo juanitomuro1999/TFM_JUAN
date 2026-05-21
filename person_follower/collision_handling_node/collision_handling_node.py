@@ -14,13 +14,13 @@ class CollisionHandlingNode(Node):
         # Declaración del parámetro 'enabled' y verificación de activación
         self.declare_parameter('enabled', True)
         self.enabled = self.get_parameter('enabled').value
+        self.status_publisher = self.create_publisher(String, '/collision_handling/status', 10)
         if not self.enabled:
             self.get_logger().info("Nodo de Manejo de Colisiones desactivado.")
             self.publish_status("Nodo de Manejo de Colisiones desactivado.")
             return
 
         # Inicialización de suscriptores y publicadores solo si el nodo está activo
-        self.status_publisher = self.create_publisher(String, '/collision_handling/status', 10)
         self.lidar_subscriber = self.create_subscription(LaserScan, '/scan', self.lidar_callback, 10)
         self.collision_publisher = self.create_publisher(Bool, '/collision_detected', 10)
         self.min_distance = 0.4  # Distancia mínima para detección de colisiones
