@@ -54,11 +54,11 @@ Limitaciones asumidas:
 
 | Fase | Descripción | Periodo | Estado |
 |------|-------------|---------|--------|
-| 1 | Definición, revisión del sistema, redacción inicial | Mayo 2026 | ✅ |
-| 2 | Módulo de interacción, integración SLAM | Junio 2026 | 🔄 |
-| 3 | Navegación autónoma completa | Julio 2026 | ⏳ |
-| 4 | Validación experimental (entorno UJI) | Agosto 2026 | ⏳ |
-| 5 | Cierre, memoria final, defensa | Septiembre 2026 | ⏳ |
+| 1 | Definición, revisión del sistema, redacción inicial | Mayo 2026 |
+| 2 | Módulo de interacción, integración SLAM | Junio 2026 | 
+| 3 | Navegación autónoma completa | Julio 2026 |
+| 4 | Validación experimental (entorno UJI) | Agosto 2026 | 
+| 5 | Cierre, memoria final, defensa | Septiembre 2026 | 
 
 ## 1.5 Estructura de este documento
 
