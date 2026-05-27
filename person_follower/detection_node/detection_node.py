@@ -68,6 +68,18 @@ class DetectionNode(Node):
         self.visual_count = 0
         self.last_visual_time = self.get_clock().now()
 
+        # ── Filtro de persistencia temporal ──────────────────────────────
+        # Un objeto debe detectarse N scans consecutivos para ser considerado persona.
+        # Evita falsos positivos por objetos estáticos (sillas, patas de mesa).
+        self.declare_parameter('detection_confirm_frames', 3)   # scans consecutivos requeridos
+        self.declare_parameter('detection_loss_frames',    4)   # scans fallidos para perder
+        self._confirm_frames = self.get_parameter('detection_confirm_frames').value
+        self._loss_frames    = self.get_parameter('detection_loss_frames').value
+        self._detect_streak  = 0   # scans consecutivos con detección
+        self._loss_streak    = 0   # scans consecutivos sin detección
+        self._confirmed      = False   # persona "confirmada" (supera umbral)
+        self._last_confirmed_pos: tuple | None = None  # posición cuando se confirmó
+
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
 
@@ -96,14 +108,32 @@ class DetectionNode(Node):
             interpolated_angles[1] - interpolated_angles[0]
         )
 
-        # Fusión LIDAR + cámara simplificada
+        # ── Fusión LIDAR + cámara ─────────────────────────────────────────
         elapsed = (self.get_clock().now() - self.last_visual_time).nanoseconds * 1e-9
         visual_valid = (elapsed < self.camera_timeout) and (self.visual_count >= self.camera_debounce_count)
-        final_detection = person_detected or visual_valid
+        raw_detection = person_detected or visual_valid
+
+        # ── Filtro de persistencia temporal ──────────────────────────────
+        # Requiere N detecciones consecutivas para "confirmar" y
+        # M pérdidas consecutivas para "perder" → elimina falsas sillas/patas.
+        if raw_detection:
+            self._detect_streak += 1
+            self._loss_streak    = 0
+            if self._detect_streak >= self._confirm_frames:
+                self._confirmed = True
+        else:
+            self._loss_streak   += 1
+            self._detect_streak  = 0
+            if self._loss_streak >= self._loss_frames:
+                self._confirmed = False
+
+        final_detection = self._confirmed
 
         self.detection_publisher.publish(Bool(data=final_detection))
         if final_detection:
-            self.log_info("Persona detectada (fusion LIDAR+cam)", {'lidar': person_detected, 'cam': visual_valid})
+            self.log_info("Persona detectada (fusion LIDAR+cam)",
+                          {'lidar': person_detected, 'cam': visual_valid,
+                           'streak': self._detect_streak})
 
     def initialize_shutdown_listener(self):
         self.create_subscription(Bool, '/system_shutdown', self.shutdown_callback, 10)

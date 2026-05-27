@@ -144,6 +144,96 @@ pip3 install /tmp/*.whl --break-system-packages  # en el robot
 
 ---
 
+### 27 de mayo — Sesión de integración completa (bugs críticos + cámara)
+
+**Objetivo:** depurar el sistema completo con batería nueva tras la sesión anterior. El robot golpeaba la silla al intentar seguir.
+
+#### Bugs críticos corregidos
+
+**Bug 1 — `control_node`: callbacks de la FSM nunca se procesaban**
+
+`wait_for_service()` llamaba a `rclpy.spin_once(self, timeout_sec=1.0)` dentro de `__init__`.
+En ROS 2 Jazzy esto vincula el nodo a un executor temporal; cuando después `main()` llama a `rclpy.spin(node)`,
+el nodo ya está asociado a otro executor y las callbacks nunca se ejecutan (fallo silencioso).
+
+*Corrección:* sustituir `spin_once` por `time.sleep(0.5)` en el bucle de espera.
+
+**Bug 2 — `control_node`: proceso muerto por Ctrl-C del proceso anterior**
+
+Al lanzar con `ros2 launch`, el carácter `\x03` (Ctrl-C) que mató la sesión anterior quedaba en el
+buffer del tty. El hilo de teclado lo leía, el driver enviaba SIGINT al nuevo proceso y `rclpy.spin()`
+terminaba a los ~2.5 s.
+
+*Corrección:* añadir `if not sys.stdin.isatty(): return` en `start_keyboard_listener()` para desactivar
+el teclado cuando no hay terminal interactivo (como es siempre el caso con `ros2 launch`).
+
+**Bug 3 — `detection_node`: persona nunca detectada**
+
+Dos causas:
+- `max_leg_radius = 0.05 m` demasiado pequeño para el RPLIDAR A2M8 interpolado (radio real: 0.03–0.12 m).
+- `min_leg_cluster_size = 5` con comparación estricta (`> 5`) → requería ≥ 6 puntos.
+
+*Corrección:* `max_leg_radius → 0.15 m`, `min_leg_cluster_size → 4` con `>=`.
+
+**Bug 4 — Robot seguía sillas**
+
+El detector no distinguía piernas de patas de silla (clusters similares en tamaño).
+
+*Corrección A (multi-feature):* se añade `_cluster_features()` + `_is_leg_cluster()` con 6 filtros geométricos:
+tamaño, radio, aspect ratio (< 4.5), dimensiones bounding box (< 0.30 m), circularity (> 0.3), scatter.
+
+*Corrección B (persistencia temporal):* un objeto debe detectarse `detection_confirm_frames = 3` scans
+consecutivos antes de "confirmar" a la persona, y `detection_loss_frames = 4` scans sin detección para
+perderla. Las sillas estáticas generan detecciones intermitentes y quedan filtradas.
+
+#### Mejoras en el modelo de seguimiento (tracking_node v3)
+
+| Parámetro/Feature | Antes | Después |
+|---|---|---|
+| Kalman filter | 4-state (px, py, vx, vy) CV | 6-state (px, py, vx, vy, ax, ay) CA |
+| Gate Mahalanobis | No | χ²(95%, 2DOF) = 5.991, reinit si > 4× |
+| Control angular | Solo P (Kp=2.0) | PD (Kp=2.0, Kd=0.3) — amortigua oscilaciones |
+| Rampa velocidad | Lineal | Adaptativa: `vel_ramp_exp=1.5` |
+| Telemetría | Ninguna | `/follower/telemetry` JSON @10Hz |
+| Predicción oclusión | No | Predicción Kalman si `obs_age > 0.3 s` |
+
+#### Integración de cámara Logitech C270
+
+- **Hardware verificado:** `/dev/video0` accesible, OpenCV 4.9.0 lo abre directamente.
+- **Limitación:** MediaPipe no está instalado en el robot (sin internet → no `pip install`).
+- **Solución:** `visual_detection_node` reescrito para usar el **detector HOG de OpenCV** (incluido en python3-opencv, sin dependencias externas).
+  - Captura directa de `/dev/video0` en hilo independiente (~2.5 Hz).
+  - Crop central del 70% del frame para evitar bordes ruidosos.
+  - Umbral de confianza HOG configurable (`hog_min_weight: 0.40`).
+  - Fallback automático a MediaPipe si en el futuro se instala.
+  - No requiere `usb_cam` ni `cv_bridge`.
+- **Publicación:** `/person_detected_visual` → fusión OR con LIDAR en `detection_node`.
+- **Estado verificado:** nodo activo, publicando a 2.5 Hz, `enabled: True` en config.
+
+#### Verificación del sistema completo
+
+```
+Nodos activos (12): /kobuki /rplidar_node /slam_toolbox /detection_node
+                    /tracking_node /control_node /collision_handling_node
+                    /visual_detection_node /user_interface_node
+                    /lifecycle_manager_slam /static_transform_publisher ...
+/scan:                  13.1 Hz ✅
+/person_detected:       10.1 Hz ✅
+/person_detected_visual: 2.5 Hz ✅ (HOG, C270)
+FSM: IDLE → TRACKING al detectar persona ✅
+```
+
+**Estado al cierre de sesión:**
+- ✅ Sistema estable — persona detectada, FSM transiciona correctamente
+- ✅ Cámara C270 integrada vía HOG (sin MediaPipe)
+- ✅ Robot no sigue sillas (filtro de persistencia + multi-feature)
+- ✅ Control angular PD + Kalman 6-estado en producción
+- 🔄 Pendiente: prueba completa de seguimiento real (persona caminando en línea recta)
+- 🔄 Pendiente: instalar MediaPipe offline si se obtiene paquete wheel
+- 🔄 Pendiente: evaluación cuantitativa con `evo` (RMSE trayectoria)
+
+---
+
 ### 21 de mayo (continuación) — Corrección del movimiento a tirones
 
 **Problema observado:** el robot se movía a tirones (arranques y parones repetidos) al seguir a una persona.

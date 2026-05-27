@@ -74,9 +74,13 @@ class ControlNode(Node):
         self.transition_to('IDLE')
 
     def wait_for_service(self, client, name):
+        # FIX: rclpy.spin_once(self) conflicta con rclpy.spin() posterior en Jazzy
+        # (el nodo queda vinculado a un executor temporal y el spin() principal falla).
+        # Solución: usar time.sleep en lugar de spin_once para esperar el servicio.
+        import time
         while not client.service_is_ready():
             self.get_logger().info(f"Esperando servicio {name}...")
-            rclpy.spin_once(self, timeout_sec=1.0)
+            time.sleep(0.5)
         self.get_logger().info(f"Servicio {name} listo.")
         self.tracking_service_ready = True
 
@@ -106,6 +110,15 @@ class ControlNode(Node):
 
     # Iniciar hilo para escuchar teclado en modo MANUAL
     def start_keyboard_listener(self):
+        # FIX: no abrir /dev/tty si no estamos en terminal interactivo.
+        # Al lanzar via ros2 launch, el Ctrl-C previo queda en el buffer
+        # del tty y es leído por el nuevo proceso → SIGINT inesperado.
+        import sys
+        if not sys.stdin.isatty():
+            self.get_logger().info(
+                "Sin terminal interactivo → teclado MANUAL desactivado "
+                "(usar 'q' solo en ejecución directa con terminal)")
+            return
         thread = threading.Thread(target=self.keyboard_loop, daemon=True)
         thread.start()
 

@@ -21,8 +21,20 @@ tracking_node:
 
 visual_detection_node:
   ros__parameters:
-    # Requiere mediapipe y usb_cam corriendo. Desactivar si no hay cámara disponible.
-    enabled: False
+    # Detección visual con HOG (OpenCV) o MediaPipe (si instalado).
+    # No requiere usb_cam ni cv_bridge — captura directa de /dev/video0.
+    enabled: True
+    camera_device: 0           # índice de /dev/videoN (0 = C270)
+    frame_width: 320
+    frame_height: 240
+    detection_interval: 0.4    # s entre frames procesados (~2.5 Hz)
+    use_mediapipe: True        # usar MP si disponible, si no → HOG automático
+    # HOG detector
+    hog_win_stride: 8
+    hog_scale: 1.05
+    hog_padding: 8
+    hog_min_weight: 0.40       # umbral confianza HOG (mayor = menos falsos positivos)
+    hog_center_crop_ratio: 0.7 # analizar solo el 70% central del frame
 
 detection_node:
   ros__parameters:
@@ -44,6 +56,11 @@ detection_node:
     # ── Distancia entre centros de los dos clústeres de pierna ────────────
     min_leg_distance: 0.05        # m (ligeramente aumentado de 0.04)
     max_leg_distance: 0.35        # m (ligeramente aumentado de 0.30)
+    # ── Persistencia temporal (anti-sillas/falsos positivos) ──────────────
+    # Un objeto debe verse N scans seguidos para ser "persona".
+    # Sillas estáticas generan detecciones intermitentes → quedan filtradas.
+    detection_confirm_frames: 3   # scans consecutivos para confirmar persona
+    detection_loss_frames: 4      # scans sin detección para perder seguimiento
 
 user_interface_node:
   ros__parameters:
