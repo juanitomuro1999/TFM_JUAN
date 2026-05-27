@@ -1,219 +1,262 @@
-# Copyright 2026 omixxxer
-# Author: omixxxer
+# Copyright 2026 Juan Muriel Rovira
 # SPDX-License-Identifier: Apache-2.0
+#
+# tracking_node.py — v2: Kalman dt real + PD angular + velocidad adaptativa + telemetría
 
-import rclpy
-import numpy as np
 import math
+import time
+import json
+
+import numpy as np
+import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, Point
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from std_srvs.srv import SetBool
 
+
 class TrackingNode(Node):
     def __init__(self):
         super().__init__('tracking_node')
 
-        # Verificar si el nodo está habilitado
+        # ── Parámetros ────────────────────────────────────────────────────
         self.declare_parameter('enabled', True)
-        self.enabled = self.get_parameter('enabled').value
+        self.declare_parameter('obstacle_avoidance_enabled', True)
+        self.declare_parameter('max_speed',        0.4)
+        self.declare_parameter('target_distance',  0.4)
+        self.declare_parameter('acc_limit',        0.05)
+        self.declare_parameter('angular_gain',     2.0)
+        self.declare_parameter('angular_d_gain',   0.3)   # NUEVO: derivada angular
+        self.declare_parameter('vel_ramp_exp',     1.5)   # NUEVO: exponente rampa (1=lineal, >1=suave)
+        self.declare_parameter('kalman_q',         0.02)  # NUEVO: ruido proceso Kalman
+        self.declare_parameter('kalman_r',         0.04)  # NUEVO: ruido medida Kalman
 
+        self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
-            self.get_logger().info("Nodo de Seguimiento desactivado.")
-            self.publish_status("Nodo desactivado.")
+            self.get_logger().info("TrackingNode desactivado.")
+            self._pub_status = self.create_publisher(String, '/tracking/status', 10)
+            self._pub_status.publish(String(data="Nodo desactivado."))
             return
 
-        # Estado del nodo de seguimiento
-        self.tracking_enabled = False
-
-        # Inicializar shutdown
-        self.initialize_shutdown_listener()
-
-        # Parámetros de evasión y velocidad
-        self.declare_parameter('obstacle_avoidance_enabled', True)
-        self.declare_parameter('max_speed', 0.4)
-        self.declare_parameter('target_distance', 0.4)
-        self.declare_parameter('acc_limit', 0.05)
-        self.declare_parameter('angular_gain', 2.0)
         self.obstacle_avoidance_enabled = self.get_parameter('obstacle_avoidance_enabled').value
         self.max_speed       = self.get_parameter('max_speed').value
         self.target_distance = self.get_parameter('target_distance').value
         self.acc_limit       = self.get_parameter('acc_limit').value
-        self.angular_gain    = self.get_parameter('angular_gain').value
+        self.ang_kp          = self.get_parameter('angular_gain').value
+        self.ang_kd          = self.get_parameter('angular_d_gain').value
+        self.vel_ramp_exp    = self.get_parameter('vel_ramp_exp').value
+        kq                   = self.get_parameter('kalman_q').value
+        kr                   = self.get_parameter('kalman_r').value
 
-        # Filtro de Kalman para posición de persona
-        self.kalman_state = np.zeros(4)  # [x, y, vx, vy]
-        self.kalman_covariance = np.eye(4) * 0.1
-        self.kalman_F = np.eye(4)
-        self.kalman_H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
-        self.kalman_R = np.eye(2) * 0.05
-        self.kalman_Q = np.eye(4) * 0.01
+        # ── Kalman (estado: [x, y, vx, vy]) ──────────────────────────────
+        self.kf_x   = np.zeros(4)
+        self.kf_P   = np.eye(4) * 0.5
+        self.kf_H   = np.array([[1, 0, 0, 0],
+                                 [0, 1, 0, 0]], dtype=float)
+        self.kf_R   = np.eye(2) * kr
+        self.kf_Q   = np.eye(4) * kq
+        self._last_kf_time: float | None = None   # timestamp float (s)
 
-        # Servicio para habilitar/deshabilitar seguimiento
-        self.create_service(SetBool, 'enable_tracking', self.enable_tracking_callback)
+        # ── Estado de control ─────────────────────────────────────────────
+        self.tracking_enabled      = False
+        self.person_detected       = False
+        self.person_position: Point | None = None
+        self.last_person_update_t: float | None = None
+        self.timeout_duration      = 2.0   # s sin observación → parar
 
-        # Publicadores y suscripciones
-        self.person_position_subscription = self.create_subscription(
-            Point, '/person_position', self.person_position_callback, 10)
-        self.person_detected_subscription = self.create_subscription(
-            Bool, '/person_detected', self.detection_callback, 10)
-        self.scan_subscription = self.create_subscription(
-            LaserScan, '/scan', self.listener_callback, 10)
+        self.prev_vx     = 0.0
+        self.prev_angle  = 0.0            # para derivada angular
 
-        self.velocity_publisher = self.create_publisher(Twist, '/tracking/velocity_cmd', 10)
-        self.position_publisher = self.create_publisher(Point, '/expected_person_position', 10)
-        self.status_publisher = self.create_publisher(String, '/tracking/status', 10)
+        # ── Publicadores ─────────────────────────────────────────────────
+        self.vel_pub      = self.create_publisher(Twist,  '/tracking/velocity_cmd', 10)
+        self.pos_pub      = self.create_publisher(Point,  '/expected_person_position', 10)
+        self.status_pub   = self.create_publisher(String, '/tracking/status', 10)
+        self.telem_pub    = self.create_publisher(String, '/follower/telemetry', 10)
 
-        # Variables de control
-        self.person_detected = False
-        self.person_position = None
-        self.last_person_update_time = None
-        self.timeout_duration = 2.0  # segundos
-        self.previous_vx = 0.0
+        # ── Suscripciones ─────────────────────────────────────────────────
+        self.create_subscription(Point,     '/person_position', self._on_position, 10)
+        self.create_subscription(Bool,      '/person_detected', self._on_detected,  10)
+        self.create_subscription(LaserScan, '/scan',            self._on_scan,      10)
 
-        self.get_logger().info("Nodo de Seguimiento iniciado")
-        self.publish_status("Nodo OK.")
+        # ── Servicio enable/disable ───────────────────────────────────────
+        self.create_service(SetBool, 'enable_tracking', self._on_enable)
 
-    def enable_tracking_callback(self, request, response):
-        self.tracking_enabled = request.data
-        response.success = True
-        response.message = f"{'Enabled' if self.tracking_enabled else 'Disabled'}"
-        self.get_logger().info(response.message)
-        self.publish_status(response.message) 
-        return response
+        # ── Shutdown ──────────────────────────────────────────────────────
+        self.create_subscription(Bool, '/system_shutdown', self._on_shutdown, 10)
+        self._shutdown_pub = self.create_publisher(Bool, '/shutdown_confirmation', 10)
 
-    def detection_callback(self, msg):
+        self._pub_status("Nodo OK (v2 PD+Kalman-dt)")
+        self.get_logger().info("TrackingNode v2 iniciado — PD angular, Kalman dt real, telemetría")
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Callbacks de suscripción
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _on_detected(self, msg: Bool):
         self.person_detected = msg.data
 
-    def person_position_callback(self, msg):
-        # Observación de la persona
-        z = np.array([msg.x, msg.y])
-        # Predicción Kalman
-        self.kalman_F[:2, 2:] = np.eye(2) * 0.1
-        pred_state = self.kalman_F @ self.kalman_state
-        pred_cov = self.kalman_F @ self.kalman_covariance @ self.kalman_F.T + self.kalman_Q
-        # Actualización con observación
-        y = z - (self.kalman_H @ pred_state)
-        S = self.kalman_H @ pred_cov @ self.kalman_H.T + self.kalman_R
-        K = pred_cov @ self.kalman_H.T @ np.linalg.inv(S)
-        self.kalman_state = pred_state + K @ y
-        self.kalman_covariance = (np.eye(4) - K @ self.kalman_H) @ pred_cov
+    def _on_position(self, msg: Point):
+        """Actualiza el filtro de Kalman con nueva observación."""
+        now = time.monotonic()
+        dt = (now - self._last_kf_time) if self._last_kf_time is not None else 0.1
+        dt = max(0.01, min(dt, 0.5))   # saturar entre 10ms y 500ms
+        self._last_kf_time = now
 
-        # Publicar posición estimada
-        self.person_position = Point(x=self.kalman_state[0], y=self.kalman_state[1])
-        self.last_person_update_time = self.get_clock().now()
-        self.position_publisher.publish(self.person_position)
-        self.get_logger().info(
-            f"Kalman -> x={self.person_position.x:.2f}, y={self.person_position.y:.2f}")
+        # Matriz de transición con dt real
+        F = np.eye(4)
+        F[0, 2] = dt
+        F[1, 3] = dt
 
-    def avoid_obstacles(self, scan_msg):
-        """
-        Evasión avanzada: reconoce múltiples obstáculos en ±45°
-        y calcula un vector de repulsión (ajuste angular) y un
-        factor de reducción lineal.
-        """
+        # Predicción
+        x_pred = F @ self.kf_x
+        P_pred = F @ self.kf_P @ F.T + self.kf_Q
+
+        # Corrección (innovación)
+        z   = np.array([msg.x, msg.y])
+        inn = z - self.kf_H @ x_pred
+        S   = self.kf_H @ P_pred @ self.kf_H.T + self.kf_R
+        K   = P_pred @ self.kf_H.T @ np.linalg.inv(S)
+        self.kf_x = x_pred + K @ inn
+        self.kf_P = (np.eye(4) - K @ self.kf_H) @ P_pred
+
+        self.person_position = Point(x=float(self.kf_x[0]), y=float(self.kf_x[1]))
+        self.last_person_update_t = now
+        self.pos_pub.publish(self.person_position)
+
+    def _on_scan(self, scan: LaserScan):
+        """Bucle principal de control: se ejecuta a ~10-12 Hz con cada scan."""
+        if not self.tracking_enabled or self.person_position is None:
+            self._stop()
+            return
+
+        # Comprobar timeout de observación
+        elapsed = time.monotonic() - self.last_person_update_t
+        if elapsed > self.timeout_duration:
+            self.get_logger().warn(f"Timeout posición ({elapsed:.1f}s) → parar")
+            self._stop()
+            return
+
+        dx, dy   = self.person_position.x, self.person_position.y
+        distance = math.hypot(dx, dy)
+        angle_to = math.atan2(dy, dx)
+
+        # ── Velocidad lineal: rampa adaptativa ───────────────────────────
+        d_eff     = max(0.0, distance - self.target_distance)
+        # Rampa con exponente configurable: más suave al acercarse, más rápida lejos
+        norm      = min(1.0, d_eff / 1.0)          # 1.0 m de referencia
+        target_vx = self.max_speed * (norm ** self.vel_ramp_exp)
+        # Rampas de aceleración/frenada
+        delta     = target_vx - self.prev_vx
+        delta     = max(-self.acc_limit, min(self.acc_limit, delta))
+        vx        = self.prev_vx + delta
+        self.prev_vx = vx
+
+        # ── Velocidad angular: PD ────────────────────────────────────────
+        angle_err  = -angle_to                      # error (negativo: izq)
+        d_angle    = angle_err - self.prev_angle    # derivada (aproximada a 10Hz)
+        wz         = self.ang_kp * angle_err + self.ang_kd * d_angle
+        wz         = max(-1.8, min(1.8, wz))
+        self.prev_angle = angle_err
+
+        # ── Evasión de obstáculos ────────────────────────────────────────
+        ang_adj, lin_factor = self._obstacle_avoidance(scan)
+        vx  *= lin_factor
+        wz  += ang_adj
+
+        # ── Publicar ─────────────────────────────────────────────────────
+        cmd = Twist()
+        cmd.linear.x  = float(vx)
+        cmd.angular.z = float(wz)
+        self.vel_pub.publish(cmd)
+
+        # ── Telemetría (JSON, ~10Hz) ──────────────────────────────────────
+        self._publish_telemetry(distance, angle_to, vx, wz, lin_factor, elapsed)
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Evasión de obstáculos mejorada
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _obstacle_avoidance(self, scan: LaserScan):
         if not self.obstacle_avoidance_enabled:
             return 0.0, 1.0
 
-        repulsive_force = 0.0
-        count = 0
-        # Analizar sólo ángulo frontal ±45°
-        for i, distance in enumerate(scan_msg.ranges):
-            angle = scan_msg.angle_min + i * scan_msg.angle_increment
-            if abs(angle) <= math.radians(45) and scan_msg.range_min < distance < 0.6:
-                # Peso mayor cuanto más cerca y centrado
-                weight = (0.6 - distance) * math.cos(angle)
-                repulsive_force += weight * -angle
-                count += 1
+        repulsion = 0.0
+        threat    = 0.0
+        n_front   = 0
 
-        if count == 0:
+        for i, r in enumerate(scan.ranges):
+            ang = scan.angle_min + i * scan.angle_increment
+            if abs(ang) > math.radians(50):
+                continue
+            if not (scan.range_min < r < 0.65):
+                continue
+            w = (0.65 - r) * math.cos(ang)          # peso: más cerca y más central
+            repulsion += w * (-ang)                  # empujar en dirección contraria
+            threat    += w
+            n_front   += 1
+
+        if n_front == 0:
             return 0.0, 1.0
 
-        # Ajuste angular promedio, limitado
-        adjustment = repulsive_force / count
-        adjustment = max(-1.5, min(1.5, adjustment))
-        # Reducción lineal proporcional al nivel de amenaza
-        threat_ratio = min(1.0, count / (len(scan_msg.ranges) * 0.25))
-        linear_factor = 1.0 - 0.5 * threat_ratio
+        adj        = max(-1.5, min(1.5, repulsion / n_front))
+        lin_factor = max(0.3, 1.0 - 0.6 * min(1.0, threat / 0.5))
 
         self.get_logger().warn(
-            f"Evasión -> angle_adj={adjustment:.2f}, lin_factor={linear_factor:.2f}")
-        return adjustment, linear_factor
+            f"Obstáculo frontal: adj={adj:.2f} lin_factor={lin_factor:.2f}")
+        return adj, lin_factor
 
-    def listener_callback(self, scan_msg):
-        if not self.tracking_enabled or not self.person_position:
-            self.stop_robot()
-            return
-        # El Kalman predice la posición mientras haya actualizaciones recientes.
-        # Sólo parar si el timeout de posición se agota (persona realmente perdida).
-        elapsed = (self.get_clock().now() - self.last_person_update_time).nanoseconds * 1e-9
-        if elapsed > self.timeout_duration:
-            self.get_logger().warn("Timeout de posición -> Detener robot")
-            self.stop_robot()
-            return
+    # ─────────────────────────────────────────────────────────────────────
+    # Telemetría
+    # ─────────────────────────────────────────────────────────────────────
 
-        # Cálculo objetivo sobre estado Kalman
-        dx, dy = self.person_position.x, self.person_position.y
-        distance = math.hypot(dx, dy)
-        angle_to_person = math.atan2(dy, dx)
+    def _publish_telemetry(self, dist, angle, vlin, vang, lin_factor, elapsed_obs):
+        """Publica JSON en /follower/telemetry para grabación en tiempo real."""
+        payload = {
+            "t":          round(time.time(), 3),
+            "dist":       round(dist, 3),
+            "angle_deg":  round(math.degrees(angle), 1),
+            "vlin":       round(vlin, 3),
+            "vang":       round(vang, 3),
+            "lin_factor": round(lin_factor, 2),
+            "obs_age":    round(elapsed_obs, 3),
+            "kf_vx":      round(float(self.kf_x[2]), 3),
+            "kf_vy":      round(float(self.kf_x[3]), 3),
+        }
+        self.telem_pub.publish(String(data=json.dumps(payload)))
 
-        # Evasión avanzada
-        angle_adj, lin_factor = self.avoid_obstacles(scan_msg)
+    # ─────────────────────────────────────────────────────────────────────
+    # Utilidades
+    # ─────────────────────────────────────────────────────────────────────
 
-        # Velocidad lineal: rampa suave con acc_limit configurable
-        # Zona muerta = target_distance; velocidad máxima a target_distance + 1m
-        d_eff = max(0.0, distance - self.target_distance)
-        target_vx = min(self.max_speed, self.max_speed * d_eff)
-        vx = self.previous_vx + min(self.acc_limit, max(-self.acc_limit, target_vx - self.previous_vx))
-        self.previous_vx = vx
-        vx *= lin_factor
+    def _stop(self):
+        self.prev_vx = 0.0
+        self.vel_pub.publish(Twist())
 
-        # Velocidad angular proporcional
-        angle_diff = -angle_to_person
-        wz = self.angular_gain * angle_diff + angle_adj
-        wz = max(-1.6, min(1.6, wz))
+    def _pub_status(self, msg: str):
+        self.status_pub.publish(String(data=msg))
 
-        # Publicar comando
-        cmd = Twist()
-        cmd.linear.x = vx
-        cmd.angular.z = wz
-        self.velocity_publisher.publish(cmd)
+    def _on_enable(self, req, resp):
+        self.tracking_enabled = req.data
+        resp.success = True
+        resp.message = "enabled" if req.data else "disabled"
+        self.get_logger().info(f"Tracking {'habilitado' if req.data else 'deshabilitado'}")
+        self._pub_status(resp.message)
+        return resp
 
-    def stop_robot(self):
-        # Detiene el robot publicando velocidades cero
-        cmd = Twist()
-        cmd.linear.x = 0.0
-        cmd.angular.z = 0.0
-        self.velocity_publisher.publish(cmd)
-
-    def publish_status(self, message):
-        self.status_publisher.publish(String(data=message))
-
-    # --- Shutdown handling ---
-    def initialize_shutdown_listener(self):
-            self.create_subscription(Bool, '/system_shutdown', self.shutdown_callback, 10)
-            self.shutdown_confirmation_publisher = self.create_publisher(Bool, '/shutdown_confirmation', 10)
-
-    def shutdown_callback(self, msg):
+    def _on_shutdown(self, msg: Bool):
         if msg.data:
-            self.get_logger().info("Shutdown detectado -> confirmando")
-            try:
-                # Se asume existencia de este publisher
-                self.shutdown_confirmation_publisher.publish(Bool(data=True))
-            except Exception as e:
-                self.get_logger().error(f"Error conf shutdown: {e}")
-            finally:
-                self.destroy_node()
+            self._shutdown_pub.publish(Bool(data=True))
+            self.destroy_node()
 
 
 def main(args=None):
-    rclpy.init()
+    rclpy.init(args=args)
     node = TrackingNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("TrackingNode detenido con Ctrl-C.")
+        pass
     finally:
         node.destroy_node()
 

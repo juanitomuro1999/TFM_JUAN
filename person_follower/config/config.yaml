@@ -13,7 +13,11 @@ tracking_node:
     max_speed: 0.4          # m/s máximo al seguir a la persona
     target_distance: 0.4    # m — zona muerta: el robot se para a esta distancia
     acc_limit: 0.05         # m/s por ciclo de scan (≈0.5 m/s² a 10 Hz)
-    angular_gain: 2.0       # ganancia proporcional del giro
+    angular_gain: 2.0       # ganancia proporcional del giro (Kp)
+    angular_d_gain: 0.3     # ganancia derivativa del giro (Kd) — amortigua oscilaciones
+    vel_ramp_exp: 1.5       # exponente rampa velocidad (1=lineal, 2=cuadrática suave)
+    kalman_q: 0.02          # ruido de proceso Kalman (mayor = sigue cambios bruscos)
+    kalman_r: 0.04          # ruido de medida Kalman (mayor = más filtrado)
 
 visual_detection_node:
   ros__parameters:
@@ -23,13 +27,24 @@ visual_detection_node:
 detection_node:
   ros__parameters:
     enabled: True
-    # Parámetros DBSCAN ajustados para RPLIDAR A2M8 a distancias 0.5–2m
-    # (RPLIDAR a 1m genera ~57 pts/m de arco; pierna ~0.1m → ~5-9 pts sin interpolar)
-    dbscan_min_samples: 5
-    min_leg_cluster_size: 5
-    max_leg_cluster_size: 150
+    # ── DBSCAN ────────────────────────────────────────────────────────────
+    # RPLIDAR A2M8 a 1m → ~57 pts/m de arco
+    # Con interpolación x2 → ~114 pts/m → pierna 0.1m → 10-12 pts interpolados
+    dbscan_eps: 0.12              # m — distancia máxima entre pts del mismo clúster
+    dbscan_min_samples: 4         # mínimo de pts para formar clúster (bajado de 5)
+    # ── Filtros de clúster de pierna ──────────────────────────────────────
+    min_leg_cluster_size: 4       # BUG FIX: era 5 con comparación estricta (> 5 = 6+ pts)
+    max_leg_cluster_size: 200     # ampliado: pierna cercana puede tener >150 pts interp.
+    # ── Radio del clúster de pierna ───────────────────────────────────────
+    # Radio medio del clúster desde su centroide.
+    # A 1m con 10 pts en 0.1m: radio ≈ 0.03-0.08m
+    # A 0.5m con 20 pts en 0.1m: radio ≈ 0.02-0.06m
+    min_leg_radius: 0.01          # m (sin cambio)
+    max_leg_radius: 0.15          # m (BUG FIX: era 0.05 → rechazaba ~50% de piernas)
+    # ── Distancia entre centros de los dos clústeres de pierna ────────────
+    min_leg_distance: 0.05        # m (ligeramente aumentado de 0.04)
+    max_leg_distance: 0.35        # m (ligeramente aumentado de 0.30)
 
 user_interface_node:
   ros__parameters:
     enabled: True
-
