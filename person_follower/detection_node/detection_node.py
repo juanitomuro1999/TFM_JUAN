@@ -189,19 +189,86 @@ class DetectionNode(Node):
         self.log_info("No se encontraron pares de piernas válidos")
         return False
 
+    def _cluster_features(self, cl: np.ndarray) -> dict:
+        """
+        Extrae features geométricas de un clúster.
+        Inspirado en ros2_leg_detector (mowito) y leg_detector (ROS 1 Spencer).
+
+        Features:
+          size        — número de puntos
+          radius      — radio medio (dist. al centroide)
+          width       — ancho de la bounding box
+          height      — alto  de la bounding box
+          aspect      — ratio ancho/alto (1.0 = cuadrado)
+          circularity — 4π·área / perímetro² (1.0 = círculo perfecto)
+          compactness — perímetro² / área
+          scatter     — desviación estándar de radios (uniformidad)
+        """
+        centroid = np.mean(cl, axis=0)
+        radii    = np.linalg.norm(cl - centroid, axis=1)
+        xmin, ymin = cl.min(axis=0)
+        xmax, ymax = cl.max(axis=0)
+        w = xmax - xmin
+        h = ymax - ymin
+
+        # Área y perímetro aproximados por bounding box
+        area      = max(w * h, 1e-6)
+        perimeter = 2 * (w + h) if (w + h) > 0 else 1e-6
+        circularity = (4 * np.pi * area) / (perimeter ** 2)
+
+        return {
+            "size":        len(cl),
+            "radius":      float(radii.mean()),
+            "scatter":     float(radii.std()),
+            "width":       float(w),
+            "height":      float(h),
+            "aspect":      float(w / h) if h > 1e-4 else 99.0,
+            "circularity": float(circularity),
+            "compactness": float(perimeter ** 2 / area),
+        }
+
+    def _is_leg_cluster(self, cl: np.ndarray) -> bool:
+        """
+        Clasificador geométrico multi-feature para detectar clústeres de pierna.
+        Combina los filtros del código original con features adicionales de
+        ros2_leg_detector para reducir falsos positivos/negativos.
+        """
+        f = self._cluster_features(cl)
+
+        # 1. Tamaño del clúster
+        if not (self.min_leg_cluster_size <= f["size"] <= self.max_leg_cluster_size):
+            return False
+
+        # 2. Radio medio (ajustado con max_leg_radius ampliado en config)
+        if not (self.min_leg_radius <= f["radius"] <= self.max_leg_radius):
+            return False
+
+        # 3. Forma no demasiado elongada (pierna ≈ circular en planta)
+        if f["aspect"] > 4.5 or f["aspect"] < 0.22:
+            return False
+
+        # 4. No demasiado grande en ninguna dimensión
+        #    (pierna: diámetro ~0.08–0.15m → width/height < 0.25m)
+        if f["width"] > 0.30 or f["height"] > 0.30:
+            return False
+
+        # 5. Circularity: una pierna debería ser razonablemente compacta
+        #    (pared/esquina tiene circularity muy baja)
+        if f["circularity"] < 0.3:
+            return False
+
+        # 6. Scatter bajo → puntos concentrados (no ruido disperso)
+        if f["scatter"] > self.max_leg_radius * 0.8:
+            return False
+
+        return True
+
     def detect_leg_clusters(self, clusters):
         leg_clusters, all_clusters = [], []
         for cl in clusters:
             all_clusters.append(cl)
-            size = len(cl)
-            if self.min_leg_cluster_size < size < self.max_leg_cluster_size:
-                xmin, ymin = cl.min(axis=0)
-                xmax, ymax = cl.max(axis=0)
-                w, h = xmax - xmin, ymax - ymin
-                if min(w, h) > 0 and max(w, h) / min(w, h) < 5.0:
-                    radii = np.linalg.norm(cl - np.mean(cl, axis=0), axis=1)
-                    if self.min_leg_radius < radii.mean() < self.max_leg_radius:
-                        leg_clusters.append(cl)
+            if self._is_leg_cluster(cl):
+                leg_clusters.append(cl)
         return all_clusters, leg_clusters
 
     def publish_general_clusters(self, points, labels):
