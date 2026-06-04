@@ -10,14 +10,16 @@ control_node:
 tracking_node:
   ros__parameters:
     enabled: True
-    max_speed: 0.4          # m/s máximo al seguir a la persona
-    target_distance: 0.4    # m — zona muerta: el robot se para a esta distancia
+    max_speed: 0.3          # m/s máximo (reducido de 0.4 para mayor estabilidad)
+    target_distance: 1.0    # m — zona muerta: el robot se para a esta distancia
     acc_limit: 0.05         # m/s por ciclo de scan (≈0.5 m/s² a 10 Hz)
     angular_gain: 2.0       # ganancia proporcional del giro (Kp)
     angular_d_gain: 0.3     # ganancia derivativa del giro (Kd) — amortigua oscilaciones
     vel_ramp_exp: 1.5       # exponente rampa velocidad (1=lineal, 2=cuadrática suave)
-    kalman_q: 0.02          # ruido de proceso Kalman (mayor = sigue cambios bruscos)
-    kalman_r: 0.04          # ruido de medida Kalman (mayor = más filtrado)
+    kalman_q: 0.01          # reducido: estimación de velocidad más suave
+    kalman_r: 0.15          # aumentado: posición medida con más filtrado → menos oscilación
+    obstacle_avoidance_enabled: True
+    obstacle_threshold: 0.35  # m — obstáculos más cercanos que esto activan evasión (0.35 excluye cuerpo del robot)
 
 visual_detection_node:
   ros__parameters:
@@ -59,8 +61,9 @@ detection_node:
     # ── Persistencia temporal (anti-sillas/falsos positivos) ──────────────
     # Un objeto debe verse N scans seguidos para ser "persona".
     # Sillas estáticas generan detecciones intermitentes → quedan filtradas.
+    max_detection_distance: 2.5    # reducido de 6.0 — elimina pares de piernas lejanos erróneos
     detection_confirm_frames: 3   # scans consecutivos para confirmar persona
-    detection_loss_frames: 4      # scans sin detección para perder seguimiento
+    detection_loss_frames: 8      # aumentado de 4 — evita IDLE↔TRACKING rápido
 
 user_interface_node:
   ros__parameters:

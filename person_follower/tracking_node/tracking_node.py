@@ -166,6 +166,7 @@ class TrackingNode(Node):
         self.declare_parameter('vel_ramp_exp',              1.5)
         self.declare_parameter('kalman_q',                  0.02)
         self.declare_parameter('kalman_r',                  0.04)
+        self.declare_parameter('obstacle_threshold',         0.55)
 
         self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
@@ -183,6 +184,7 @@ class TrackingNode(Node):
         self.vel_ramp_exp   = self.get_parameter('vel_ramp_exp').value
         kq                  = self.get_parameter('kalman_q').value
         kr                  = self.get_parameter('kalman_r').value
+        self.obs_threshold  = self.get_parameter('obstacle_threshold').value
 
         # ── Kalman 6 estados ──────────────────────────────────────────────
         self.kf = KalmanTracker(q=kq, r=kr)
@@ -268,11 +270,22 @@ class TrackingNode(Node):
         vx       = self.prev_vx + delta
         self.prev_vx = vx
 
-        # ── Velocidad angular: PD ─────────────────────────────────────────
-        ang_err  = -angle_to
-        d_ang    = ang_err - self.prev_angle
-        wz       = self.ang_kp * ang_err + self.ang_kd * d_ang
-        wz       = max(-1.8, min(1.8, wz))
+        # ── Velocidad angular: PD con zona muerta ────────────────────────
+        ang_err = -angle_to
+        # Clamp derivada: evita pico cuando la detección salta tras oclusión
+        d_ang   = max(-0.3, min(0.3, ang_err - self.prev_angle))
+
+        # Zona muerta ±8°: no girar para errores pequeños → elimina micro-oscilaciones
+        DEAD = math.radians(8)
+        if abs(ang_err) < DEAD:
+            wz = self.ang_kd * d_ang
+        else:
+            eff_err = ang_err - math.copysign(DEAD, ang_err)
+            wz = self.ang_kp * eff_err + self.ang_kd * d_ang
+
+        # Acoplar wz con velocidad lineal: menos giro cuando se avanza rápido
+        wz *= max(0.4, 1.0 - abs(vx) / max(self.max_speed, 0.01) * 0.5)
+        wz  = max(-1.0, min(1.0, wz))
         self.prev_angle = ang_err
 
         # ── Evasión de obstáculos ─────────────────────────────────────────
@@ -302,9 +315,9 @@ class TrackingNode(Node):
             ang = scan.angle_min + i * scan.angle_increment
             if abs(ang) > math.radians(50):
                 continue
-            if not (scan.range_min < r < 0.65):
+            if not (scan.range_min < r < self.obs_threshold):
                 continue
-            w          = (0.65 - r) * math.cos(ang)
+            w          = (self.obs_threshold - r) * math.cos(ang)
             repulsion += w * (-ang)
             threat    += w
             n         += 1
@@ -341,7 +354,8 @@ class TrackingNode(Node):
     # ─── Utilidades ──────────────────────────────────────────────────────────
 
     def _stop(self):
-        self.prev_vx = 0.0
+        self.prev_vx    = 0.0
+        self.prev_angle = 0.0
         self.vel_pub.publish(Twist())
 
     def _on_enable(self, req, resp):

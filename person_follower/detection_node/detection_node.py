@@ -23,13 +23,13 @@ class DetectionNode(Node):
         self.declare_parameter('max_detection_distance', 6.0)
         self.declare_parameter('min_detection_distance', 0.1)
         self.declare_parameter('dbscan_eps', 0.1)
-        self.declare_parameter('dbscan_min_samples', 15)
-        self.declare_parameter('min_leg_cluster_size', 30)
-        self.declare_parameter('max_leg_cluster_size', 80)
+        self.declare_parameter('dbscan_min_samples', 4)
+        self.declare_parameter('min_leg_cluster_size', 4)
+        self.declare_parameter('max_leg_cluster_size', 200)
         self.declare_parameter('min_leg_radius', 0.01)
-        self.declare_parameter('max_leg_radius', 0.05)
+        self.declare_parameter('max_leg_radius', 0.15)
         self.declare_parameter('min_leg_distance', 0.04)
-        self.declare_parameter('max_leg_distance', 0.3)
+        self.declare_parameter('max_leg_distance', 0.35)
         self.declare_parameter('median_filter_window', 7)
 
         # Carga de parámetros
@@ -166,8 +166,9 @@ class DetectionNode(Node):
         return filtered
 
     def interpolate_lidar_points(self, ranges, angle_min, angle_max, angle_increment, factor=2):
-        original_angles = np.arange(angle_min, angle_max, angle_increment)
-        interpolated_angles = np.linspace(angle_min, angle_max, len(ranges) * factor)
+        n_orig = len(ranges)
+        original_angles = np.linspace(angle_min, angle_min + angle_increment * n_orig, n_orig, endpoint=False)
+        interpolated_angles = np.linspace(angle_min, angle_max, n_orig * factor)
         interpolated_ranges = np.interp(interpolated_angles, original_angles, ranges)
         return interpolated_ranges, interpolated_angles
 
@@ -209,6 +210,8 @@ class DetectionNode(Node):
                 combo = np.vstack((ci, leg_clusters[closest]))
                 candidate_positions.append(np.mean(combo, axis=0))
 
+        candidate_positions = [p for p in candidate_positions
+                               if np.linalg.norm(p) <= self.max_detection_distance]
         if candidate_positions:
             selected = min(candidate_positions, key=lambda p: np.linalg.norm(p))
             pt = Point(x=selected[0], y=selected[1], z=0.0)
@@ -284,7 +287,7 @@ class DetectionNode(Node):
 
         # 5. Circularity: una pierna debería ser razonablemente compacta
         #    (pared/esquina tiene circularity muy baja)
-        if f["circularity"] < 0.3:
+        if f["circularity"] < 0.15:
             return False
 
         # 6. Scatter bajo → puntos concentrados (no ruido disperso)
