@@ -4,7 +4,7 @@
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  
-**Versión actual:** 0.2.0 | Fase 2 en desarrollo
+**Versión actual:** 0.3.0 | Fase 2 completada (interacción por gestos + SLAM) — Fase 3 (Nav2) siguiente
 
 ---
 

@@ -1,320 +1,87 @@
-# Script de sesión — Prueba de seguimiento real + evaluación
+# Prompt — Próxima sesión
 
-> **Objetivo:** primera prueba completa y controlada de seguimiento de persona,
-> grabación de datos y análisis cuantitativo con `evo`.
+> Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Código local en `~/ros2_ws/src/TFM_JUAN` en
+> `labrob01`. Robot: NUC **nuc-224**, `ssh user@10.48.0.1` (password `qwerty`),
+> `ROS_DOMAIN_ID=24`, ROS 2 Jazzy. Para sincronizar código: `bash sync_nuc.sh` (revisar que las
+> rutas siguen siendo correctas — `person_follower` dentro de `ros2_ws/src` en el NUC).
 >
-> **Duración estimada:** 90 min  
-> **Requiere:** robot Kobuki encendido, batería cargada, persona de prueba
+> **Importante:** en el NUC **no hay `tmux`** ni acceso a internet. Para procesos persistentes,
+> usar `nohup ... > /tmp/algo.log 2>&1 & disown` por SSH (patrón usado toda la sesión anterior).
 
----
+## Estado heredado de la sesión 2026-06-17 (no repetir este trabajo, solo verificar)
 
-## BLOQUE 0 — Preparación local (PC, antes de ir al laboratorio)
+- ✅ Cámara funcionando: causa real era encuadre/distancia (no umbral). HOG necesita cuerpo
+  entero en cuadro (~2m+); a la distancia real de seguimiento (~1m) usar MediaPipe.
+- ✅ MediaPipe Pose instalado offline en el NUC (`~/.local/lib/python3.12/site-packages/mediapipe`,
+  incluye `pose_landmark_lite.tflite`). Persiste tras reinicio del NUC.
+- ✅ Bug de `ros2_ws` con copia duplicada de `kobuki_node`/`rplidar_ros` — eliminado. Si
+  `kobuki_node` vuelve a fallar con `failed to create guard condition: context argument is null`,
+  comprobar primero `ls ~/ros2_ws/install/` — no debe contener `kobuki_node` ni `rplidar_ros`,
+  solo `person_follower`.
+- ✅ Módulo de interacción por gestos implementado y validado: mano derecha levantada por encima
+  del hombro → `start_tracking`; mano izquierda → `stop_tracking`. Requiere MediaPipe (no
+  funciona en modo HOG). **Para que el gesto se vea, ponerse a ~2-2.5m de la cámara** (igual que
+  para que HOG detectara cuerpo entero).
+- ⚠️ RPLIDAR puede dar `SL_RESULT_OPERATION_TIMEOUT` si el cable USB hace mal contacto —
+  desconectar y reconectar el cable lo arregló la última vez.
+- 🔄 Pendiente sin tocar (ver detalle y razonamiento en `PROGRESO.md` y
+  `docs/04_diario_desarrollo.md`, sesión 17 de junio):
+  - `tracking_node` satura el giro (±1.0 rad/s) combinado con avance casi a velocidad máxima
+    cuando la persona está muy cerca — da la sensación de que el robot "da vueltas sobre sí
+    mismo". Sospecha: el ángulo de rumbo se vuelve muy sensible a corta distancia.
+  - FSM TRACKING↔IDLE oscila en algunos tramos incluso con detección estable.
+  - `OrbbecSDK_ROS2` está en `ros2_ws/src` sin compilar — explorar si la cámara RGBD Orbbec
+    Astra puede sustituir/complementar al LIDAR 2D para detección (cambio de arquitectura mayor).
 
-```bash
-# Sincronizar código local → robot (por si hubo cambios)
-rsync -avz --exclude='__pycache__' ~/TFM_JUAN/person_follower/ \
-  user@10.48.0.1:~/ros2_ws/src/person_follower/person_follower/
+## Objetivo de hoy — propuesta (ajustar si lo ves necesario)
 
-rsync -avz ~/TFM_JUAN/person_follower/config/ \
-  user@10.48.0.1:~/ros2_ws/src/person_follower/config/
+Quedan **2-3 sesiones antes de cerrar a final de junio**. Con cámara, gestos, SLAM y fusión
+sensorial ya completados (objetivos 1, 2 y 4 del TFM en `docs/01_introduccion.md`), lo que más
+valor aporta ahora es:
 
-# Copiar config al build dir (OBLIGATORIO cada vez)
-ssh user@10.48.0.1 'cp ~/ros2_ws/src/person_follower/config/config.yaml \
-  ~/ros2_ws/build/person_follower/person_follower/config/config.yaml'
+1. **Arreglo acotado del giro a corta distancia en `tracking_node`** (bloquea cualquier grabación
+   de demo limpia o sesión de validación). No es una reescritura — probablemente baste con
+   limitar la velocidad angular o lineal cuando la distancia a la persona cae por debajo de un
+   umbral, o revisar cómo se calcula el ángulo de rumbo cuando la persona está muy cerca.
+2. **Sesión de validación experimental formal** (grabar rosbag + CSV de telemetría + gráficas +
+   métricas con `evo`) — esto genera los resultados que necesita el Capítulo 7 (pendiente) de la
+   memoria. Es la pieza que más falta para poder cerrar el TFM con contenido demostrable, más
+   allá de seguir añadiendo funcionalidades nuevas.
+3. **Decisión sobre Nav2 (objetivo 3):** dado el tiempo restante, valorar si abordarlo como una
+   demo mínima (localización AMCL sobre el mapa ya guardado + un solo punto de navegación) o
+   dejarlo documentado como trabajo futuro en la memoria. Tomar esta decisión pronto para no
+   quedarse sin tiempo a medias.
 
-# Rebuild (solo si hubo cambios de código)
-ssh user@10.48.0.1 '
-  source /opt/ros/jazzy/setup.bash
-  source ~/kobuki_ws/install/setup.bash
-  cd ~/ros2_ws
-  colcon build --symlink-install --packages-select person_follower 2>&1 | tail -3'
-```
-
----
-
-## BLOQUE 1 — Arranque del robot (≈ 5 min)
-
-```bash
-# 1. Verificar conectividad
-ping -c 2 10.48.0.1
-
-# 2. Lanzar todos los sensores en tmux automático
-ssh user@10.48.0.1 '
-  tmux kill-server 2>/dev/null; sleep 1
-  tmux new-session -d -s tfm -n kobuki
-  tmux new-window -t tfm -n lidar
-  tmux new-window -t tfm -n tf
-  tmux new-window -t tfm -n slam
-  tmux new-window -t tfm -n follower
-  tmux new-window -t tfm -n monitor
-
-  LAUNCH="bash ~/TFM_JUAN/scripts/launch_robot.bash"
-  tmux send-keys -t tfm:kobuki  "$LAUNCH kobuki"   Enter; sleep 6
-  tmux send-keys -t tfm:lidar   "$LAUNCH lidar"    Enter; sleep 3
-  tmux send-keys -t tfm:tf      "$LAUNCH tf"       Enter; sleep 3
-  tmux send-keys -t tfm:slam    "$LAUNCH slam"     Enter; sleep 10
-  tmux send-keys -t tfm:follower "$LAUNCH follower" Enter
-'
-```
-
----
-
-## BLOQUE 2 — Verificación del sistema (≈ 3 min)
+## Pasos para empezar
 
 ```bash
-# Esperar ~25 s y verificar que todos los nodos están activos
-sleep 25
-ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=24
-  source /opt/ros/jazzy/setup.bash
-  source ~/ros2_ws/install/setup.bash
+# 1. Sincronizar si hubo cambios locales
+cd ~/ros2_ws/src/TFM_JUAN && git pull
+bash sync_nuc.sh
 
-  echo "=== NODOS ACTIVOS ==="
-  ros2 node list
-
-  echo ""
-  echo "=== FRECUENCIAS ==="
-  timeout 5 ros2 topic hz /scan              2>&1 | grep "average rate" || echo "FALLO: /scan"
-  timeout 5 ros2 topic hz /person_detected   2>&1 | grep "average rate" || echo "FALLO: /person_detected"
-  timeout 5 ros2 topic hz /person_detected_visual 2>&1 | grep "average rate" || echo "SIN cámara"
-
-  echo ""
-  echo "=== PARÁMETROS CLAVE ==="
-  ros2 param get /detection_node  max_leg_radius
-  ros2 param get /detection_node  detection_confirm_frames
-  ros2 param get /tracking_node   angular_d_gain
-  ros2 param get /tracking_node   target_distance
-'
-```
-
-**Valores esperados:**
-| Topic/Param | Esperado |
-|---|---|
-| `/scan` Hz | ~13 Hz |
-| `/person_detected` Hz | ~10 Hz |
-| `/person_detected_visual` Hz | ~2.5 Hz |
-| `max_leg_radius` | 0.15 |
-| `detection_confirm_frames` | 3 |
-| `angular_d_gain` | 0.3 |
-| `target_distance` | 0.4 |
-
----
-
-## BLOQUE 3 — Prueba de seguimiento (≈ 30 min)
-
-### 3.1 Monitorizar en tiempo real
-
-```bash
-# Terminal A — Telemetría (distancia, ángulo, velocidades)
-ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=24
-  source /opt/ros/jazzy/setup.bash
-  source ~/ros2_ws/install/setup.bash
-  ros2 topic echo /follower/telemetry'
-
-# Terminal B — FSM y detección
-ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=24
-  source /opt/ros/jazzy/setup.bash
-  source ~/ros2_ws/install/setup.bash
-  ros2 topic echo /control/mode'
-```
-
-### 3.2 Protocolo de prueba
-
-**Prueba A — Detección frontal (validar ángulo)**
-1. Robot parado, persona a **1.5 m delante** (ángulo ~0°)
-2. Verificar en telemetría: `angle_deg` ∈ [-15°, +15°]
-3. Verificar que `data: true` en `/person_detected`
-4. Verificar que FSM pasa a `TRACKING`
-
-**Prueba B — Seguimiento en línea recta (3 m)**
-1. Persona camina hacia atrás lentamente (0.3 m/s)
-2. Robot debe seguir manteniendo ~0.4 m de distancia
-3. Verificar que `dist` ∈ [0.3, 0.6] m en telemetría
-4. Verificar que `vlin` > 0 cuando `dist` > 0.5 m
-
-**Prueba C — Giro (persona cambia de dirección)**
-1. Persona gira 90° lentamente
-2. Robot debe girar sin oscilaciones excesivas
-3. Verificar que `angle_deg` converge a 0° en < 2 s
-
-**Prueba D — Pérdida de detección (silla entre robot y persona)**
-1. Poner silla brevemente entre robot y persona
-2. Robot NO debe seguir la silla
-3. Verificar que vuelve a seguir en < 2 s al quitar la silla
-
-### 3.3 Señales de alerta durante la prueba
-
-| Síntoma | Causa probable | Acción |
-|---------|---------------|--------|
-| `angle_deg` ≈ ±180° | Persona detrás del robot | Reposicionar al frente |
-| `vlin` siempre 0 | FSM en IDLE | Verificar `/person_detected` |
-| Oscilaciones de giro | Kd bajo | Subir `angular_d_gain` a 0.5 |
-| Distancia no converge | Kp alto | Bajar `angular_gain` a 1.5 |
-| Robot acelera brusco | `acc_limit` alto | Bajar a 0.03 |
-
----
-
-## BLOQUE 4 — Grabación de datos (simultánea a Bloque 3)
-
-```bash
-# En el robot — rosbag completo
-ssh user@10.48.0.1 '
-  tmux new-window -t tfm -n bag
-  tmux send-keys -t tfm:bag "
-    export ROS_DOMAIN_ID=24
-    source /opt/ros/jazzy/setup.bash
-    source ~/ros2_ws/install/setup.bash
-    SESION=sesion_$(date +%Y%m%d_%H%M)
-    mkdir -p ~/bags
-    ros2 bag record -o ~/bags/\$SESION \
-      /scan /person_detected /person_detected_visual \
-      /person_position /follower/telemetry \
-      /cmd_vel /odom /control/mode /control/teleop_status \
-      /clusters/legs /clusters/general
-    echo \"Bag guardado: ~/bags/\$SESION\"
-  " Enter'
-
-# En local — CSV de telemetría (análisis offline rápido)
-SESION=sesion_$(date +%Y%m%d_%H%M)
-cd ~/datos_seguimiento/logs
-source /opt/ros/jazzy/setup.bash
-source ~/ros2_ws/install/setup.bash  # si ROS está en local
+# 2. Lanzar el robot (cada bloque en su propia sesión SSH o con nohup)
+sshpass -p 'qwerty' ssh user@10.48.0.1
+source /opt/ros/jazzy/setup.bash && source ~/kobuki_ws/install/setup.bash && source ~/ros2_ws/install/setup.bash
 export ROS_DOMAIN_ID=24
-python3 record_telemetry.py $SESION &
-echo "Grabando telemetría en telem_${SESION}.csv (Ctrl-C para parar)"
+
+# Kobuki
+nohup ros2 launch kobuki_node kobuki_node-launch.py > /tmp/kobuki.log 2>&1 & disown
+
+# RPLIDAR
+nohup ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/rplidar > /tmp/lidar.log 2>&1 & disown
+
+# Sistema person_follower completo (incluye gestos; camera_enabled=True)
+nohup ros2 launch person_follower start_person_follower.launch.py > /tmp/follower.log 2>&1 & disown
+
+# 3. Verificar
+ros2 node list
+timeout 5 ros2 topic hz /scan
+timeout 5 ros2 topic hz /person_detected_visual
 ```
 
----
+## Checklist de cierre de sesión (igual que hoy)
 
-## BLOQUE 5 — Análisis post-sesión (≈ 20 min)
-
-### 5.1 Análisis rápido con matplotlib
-
-```bash
-cd ~/datos_seguimiento
-# Usar el CSV más reciente
-LAST_CSV=$(ls -t logs/telem_sesion_*.csv | head -1)
-echo "Analizando: $LAST_CSV"
-python3 plots/analyze_session.py "$LAST_CSV"
-# Genera: plots/SESION_overview.png (4 paneles)
-xdg-open plots/*.png 2>/dev/null &
-```
-
-### 5.2 Evaluación de trayectoria con evo
-
-```bash
-# Bajar el bag del robot al local
-LAST_BAG=$(ssh user@10.48.0.1 'ls -td ~/bags/sesion_* | head -1')
-echo "Descargando bag: $LAST_BAG"
-scp -r user@10.48.0.1:$LAST_BAG ~/datos_seguimiento/bags/
-
-BAG_LOCAL=$(ls -td ~/datos_seguimiento/bags/sesion_* | head -1)
-
-# Extraer odometría y calcular métricas APE
-cd ~/datos_seguimiento
-python3 plots/eval_with_evo.py "$BAG_LOCAL"
-```
-
-### 5.3 Métricas objetivo
-
-| Métrica | Objetivo | Inaceptable |
-|---------|----------|-------------|
-| Distancia media robot-persona | 0.3 – 0.6 m | < 0.2 m o > 1.0 m |
-| Tiempo en zona de confort | > 70% | < 50% |
-| RMSE angular | < 15° | > 30° |
-| Eventos de pérdida (> 2 s sin tracking) | < 3 | > 8 |
-
----
-
-## BLOQUE 6 — Ajuste de parámetros (si es necesario)
-
-Modificar directamente en el robot **sin rebuild** (parámetros ROS en caliente):
-
-```bash
-ssh user@10.48.0.1 'export ROS_DOMAIN_ID=24; source /opt/ros/jazzy/setup.bash; source ~/ros2_ws/install/setup.bash
-
-# Ejemplo: robot oscila lateralmente → subir Kd
-ros2 param set /tracking_node angular_d_gain 0.5
-
-# Ejemplo: robot demasiado cerca → aumentar zona muerta
-ros2 param set /tracking_node target_distance 0.5
-
-# Ejemplo: robot tarda en confirmar persona → bajar umbral
-ros2 param set /detection_node detection_confirm_frames 2
-
-# Verificar cambio
-ros2 param get /tracking_node angular_d_gain'
-```
-
-> ⚠️ Los cambios en caliente **no persisten** al reiniciar.
-> Si un valor funciona bien, actualizarlo en `config/config.yaml` y commitear.
-
----
-
-## BLOQUE 7 — Cierre de sesión
-
-```bash
-# 1. Parar grabaciones
-#    - Ctrl-C en la ventana del bag del robot
-#    - Ctrl-C en el grabador local de CSV
-
-# 2. Guardar mapa actualizado (si el robot se movió)
-ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=24
-  source /opt/ros/jazzy/setup.bash
-  source ~/ros2_ws/install/setup.bash
-  ros2 run nav2_map_server map_saver_cli -f ~/maps/mapa_lab_$(date +%Y%m%d)'
-
-# 3. Apagar sistema del robot
-ssh user@10.48.0.1 'tmux kill-server'
-
-# 4. Commitear cambios (parámetros ajustados + datos)
-cd ~/TFM_JUAN
-git add person_follower/config/config.yaml docs/04_diario_desarrollo.md
-git commit -m "tune: parámetros sesión $(date +%Y-%m-%d) — [describir qué mejoró]
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-git push origin main
-
-# 5. Commitear datos de telemetría
-cd ~/datos_seguimiento
-git add .
-git commit -m "data: sesión $(date +%Y-%m-%d) — prueba seguimiento real"
-# git push (si hay remote configurado)
-```
-
----
-
-## Checklist de sesión
-
-```
-PRE-SESIÓN
-[ ] Batería Kobuki cargada
-[ ] Código sincronizado al robot (rsync)
-[ ] config.yaml copiado al build dir
-[ ] Espacio libre en robot para bag (df -h ~)
-
-DURANTE
-[ ] Todos los nodos activos (node list ✅)
-[ ] /scan a 13 Hz ✅
-[ ] /person_detected a 10 Hz ✅
-[ ] /person_detected_visual a 2.5 Hz ✅
-[ ] FSM transiciona a TRACKING con persona delante ✅
-[ ] Rosbag grabando ✅
-[ ] CSV telemetría grabando ✅
-
-PRUEBAS
-[ ] A — Detección frontal: angle_deg ∈ [-15°, +15°] ✅
-[ ] B — Seguimiento lineal: dist ∈ [0.3, 0.6] m ✅
-[ ] C — Giro: converge en < 2 s ✅
-[ ] D — Pérdida/recuperación: NO sigue silla ✅
-
-POST-SESIÓN
-[ ] Gráficas generadas con analyze_session.py ✅
-[ ] Métricas evo calculadas ✅
-[ ] Parámetros ajustados guardados en config.yaml ✅
-[ ] Diario 04_diario_desarrollo.md actualizado ✅
-[ ] Git commit + push ✅
-```
+- [ ] Actualizar `PROGRESO.md` con lo avanzado/encontrado.
+- [ ] Si se completa un objetivo del TFM, marcarlo en `docs/01_introduccion.md`.
+- [ ] Añadir entrada con fecha en `docs/04_diario_desarrollo.md` (estilo prosa, para la memoria).
+- [ ] `git add` + commit + push (remoto ya configurado por SSH, no debería pedir credenciales).

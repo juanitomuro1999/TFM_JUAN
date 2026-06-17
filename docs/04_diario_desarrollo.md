@@ -302,21 +302,33 @@ Archivos generados en `maps/`:
 
 ---
 
-## Junio 2026 (planificado)
+## Junio 2026
 
-### Semana 1–2 — Integración de SLAM Toolbox
+### 4 de junio — Estabilización del seguimiento
 
-**Objetivos:**
-- [ ] Probar `slam_toolbox.launch.py` en el robot con el RPLIDAR activo.
-- [ ] Mapear una zona del laboratorio y guardar el mapa.
-- [ ] Verificar la TF `map → odom → base_footprint → laser`.
+Sesión de ajuste fino tras detectar movimiento errático ("a trompicones") y FSM oscilando IDLE↔TRACKING constantemente. Correcciones en `detection_node.py` (interpolación, filtro de circularidad) y `tracking_node.py` (zona muerta angular, clamp de derivada, acoplamiento wz-vx). Detalle completo en `PROGRESO.md`.
 
-### Semana 3–4 — Módulo de interacción mejorado
+**Estado:** robot sigue de forma estable a ~1m, FSM estable.
 
-**Objetivos:**
-- [ ] Probar detección de gestos con cámara Logitech C270.
-- [ ] Calibrar umbrales de `gesture_threshold` con el robot real.
-- [ ] Evaluar latencia del bucle visual (camera → gesture → tracking enable).
+### 17 de junio — Cámara HOG, MediaPipe y módulo de interacción por gestos
+
+**Contexto:** la cámara no detectaba nunca (`cam: False` en todos los logs). Sesión de trabajo en el NUC real (renombrado `nuc-224`, `ROS_DOMAIN_ID=24` — los documentos antiguos referenciaban `nuc-225`/`25`).
+
+**Diagnóstico de la cámara:** capturando frames reales de `/dev/video0` se confirmó que el problema no era el umbral de confianza HOG, sino el encuadre: el robot estaba sobre una mesa (cámara apuntando al techo) y, ya en el suelo, a la distancia normal de seguimiento (~1m) la persona quedaba recortada sin cabeza ni pies — el HOG de OpenCV necesita ver el cuerpo entero. A ~2.5m con cuerpo completo, detectó correctamente.
+
+**Dos bugs adicionales encontrados y corregidos en la misma sesión:**
+- `ros2_ws` contenía una copia duplicada y obsoleta de `kobuki_node`/`rplidar_ros` que rompía la inicialización de rclcpp al combinarse con `kobuki_ws` — eliminada (solo build artifacts).
+- El RPLIDAR daba timeout de conexión por un problema de contacto USB — resuelto reconectando el cable.
+
+**MediaPipe Pose instalado offline** en el NUC (sin acceso a internet, mediante wheels descargadas en `labrob01` y transferidas por SCP, incluyendo el modelo `pose_landmark_lite.tflite` que el paquete pip no incluye y se descarga en runtime). Mejora sustancial sobre HOG: detecta de forma fiable a la distancia real de seguimiento, donde HOG no podía. Con persona moviéndose con normalidad, la fusión LiDAR+cámara se mantuvo en detección positiva 117/117 lecturas en una ventana de 15s.
+
+**Módulo de interacción por gestos implementado (Objetivo específico 1 del TFM):** `control_node.py` ya tenía toda la lógica de autorización por gesto (`/gesture_command` → `user_authorized`) lista desde el desarrollo original; faltaba la detección real del gesto. Se implementó en `visual_detection_node.py` usando los landmarks de MediaPipe Pose: mano derecha levantada por encima del hombro → `start_tracking`, mano izquierda → `stop_tracking`, con confirmación por frames consecutivos y cooldown anti-falsos-positivos. Validado en el robot real con correlación exacta entre el gesto detectado y la transición de la FSM.
+
+**Estado al cierre:**
+- ✅ Cámara funcionando (HOG a distancia adecuada + MediaPipe como mejora)
+- ✅ Objetivo 1 (interacción por gestos) completado y validado
+- ✅ Objetivo 2 (SLAM) ya completado en sesión de mayo
+- 🔄 Pendiente (anotado, no abordado hoy): `tracking_node` satura el giro a corta distancia; FSM con oscilación residual en algunos tramos; explorar cámara Orbbec Astra (RGBD) sin compilar todavía en `ros2_ws/src`
 
 ---
 
