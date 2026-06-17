@@ -27,6 +27,17 @@
 - FSM TRACKING↔IDLE sigue oscilando en algunos tramos incluso con detección fusionada estable — no se ha aislado la causa exacta todavía (podría ser independiente de la detección, revisar `control_node.py`/`tracking_node.py` timeouts internos).
 - Explorar a futuro: `OrbbecSDK_ROS2` está en `ros2_ws/src` pero sin compilar — la cámara Orbbec Astra (RGBD) podría dar detección de persona más robusta que LIDAR 2D + webcam, pero es un cambio de arquitectura mayor, no abordado hoy.
 
+### Módulo de interacción por gestos implementado (Objetivo específico 1 del TFM)
+- `control_node.py` ya tenía toda la lógica de `/gesture_command` → `user_authorized` lista desde antes; lo que faltaba era la detección real del gesto en `visual_detection_node.py` (el publisher existía pero nunca se usaba).
+- Implementado en `visual_detection_node.py` (`_check_gesture`, llamado desde `_detect_mp`): mano DERECHA levantada por encima del hombro (con margen relativo al torso) → `start_tracking`; mano IZQUIERDA levantada → `stop_tracking`. Requiere `gesture_confirm_frames` (3) consecutivos y un `gesture_cooldown_s` (2.0s) entre comandos para evitar falsos positivos.
+- Requiere MediaPipe (no funciona con HOG, que no da landmarks) — ya está instalado desde hoy.
+- `camera_enabled` en `config.yaml` activado a `True` (antes `False`, modo headless sin gesto).
+- **Validado en el robot real**: ambos gestos se detectaron y aplicaron correctamente, con correlación exacta entre el log `[GESTO]` y la transición de la FSM (`>> TRACKING` / `>> IDLE`).
+- Causa de un susto durante la prueba: tras probar "start" no se probó "stop" inmediatamente después; al volver a detectarse a la persona la FSM volvió sola a TRACKING (comportamiento esperado de la FSM, no del gesto) y el robot avanzó girando fuerte porque la persona estaba muy cerca (ver pendiente de tracking más abajo). Se cortó al instante publicando `stop_tracking` manualmente. **Lección operativa: siempre dar el gesto de stop (o alejarse) al acabar una prueba de gestos.**
+
+### Pendiente de refinar (NO tocar la lógica de tracking todavía — anotado para sesión dedicada)
+- **`tracking_node` gira al máximo (±1.0 rad/s) mientras avanza a velocidad casi máxima cuando la persona está muy cerca**, dando la sensación de que el robot "da vueltas sobre sí mismo". Sospecha: el ángulo de rumbo (bearing) se vuelve muy sensible a pequeños desplazamientos laterales a corta distancia, saturando el control angular. Revisar en sesión dedicada a tracking, no ahora.
+
 ---
 
 ## Sesión 2026-06-04

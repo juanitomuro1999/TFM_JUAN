@@ -3,7 +3,7 @@ control_node:
     enabled: True
     # camera_enabled: True  → FSM espera gesto "start_tracking" de la cámara
     # camera_enabled: False → FSM empieza a seguir automáticamente sin gesto (modo headless)
-    camera_enabled: False
+    camera_enabled: True
     # Tiempo (s) que el robot sigue moviéndose tras perder la detección antes de parar
     tracking_loss_timeout: 1.5
 
@@ -37,6 +37,11 @@ visual_detection_node:
     hog_padding: 8
     hog_min_weight: 0.25       # umbral confianza HOG (mayor = menos falsos positivos)
     hog_center_crop_ratio: 0.7 # analizar solo el 70% central del frame
+    # Gestos (requieren MediaPipe; con HOG no hay landmarks y no se detectan)
+    gesture_confirm_frames: 3   # frames consecutivos para confirmar el gesto
+    gesture_cooldown_s: 2.0     # s mínimos entre comandos de gesto
+    gesture_min_visibility: 0.6 # visibilidad mínima muñeca/hombro/cadera
+    gesture_margin_ratio: 0.15  # margen sobre el hombro, relativo al torso
 
 detection_node:
   ros__parameters:

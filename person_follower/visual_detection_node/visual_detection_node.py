@@ -65,6 +65,11 @@ class VisualDetectionNode(Node):
         self.declare_parameter('pose_min_detection_confidence', 0.5)
         self.declare_parameter('pose_min_tracking_confidence', 0.5)
         self.declare_parameter('pose_min_landmarks', 3)     # mínimo landmarks visibles
+        # Gestos (start_tracking / stop_tracking)
+        self.declare_parameter('gesture_confirm_frames', 3)   # frames consecutivos para confirmar gesto
+        self.declare_parameter('gesture_cooldown_s', 2.0)     # s mínimos entre comandos de gesto
+        self.declare_parameter('gesture_min_visibility', 0.6) # visibilidad mínima de muñeca/hombro/cadera
+        self.declare_parameter('gesture_margin_ratio', 0.15)  # margen sobre el hombro, relativo al torso
 
         # Carga
         self.enabled           = self.get_parameter('enabled').value
@@ -82,6 +87,13 @@ class VisualDetectionNode(Node):
         self.pose_min_det      = self.get_parameter('pose_min_detection_confidence').value
         self.pose_min_track    = self.get_parameter('pose_min_tracking_confidence').value
         self.pose_min_lm       = self.get_parameter('pose_min_landmarks').value
+        self.gesture_confirm_frames = self.get_parameter('gesture_confirm_frames').value
+        self.gesture_cooldown_s     = self.get_parameter('gesture_cooldown_s').value
+        self.gesture_min_visibility = self.get_parameter('gesture_min_visibility').value
+        self.gesture_margin_ratio   = self.get_parameter('gesture_margin_ratio').value
+        self._start_gesture_streak  = 0
+        self._stop_gesture_streak   = 0
+        self._last_gesture_pub_time = None
 
         # ── Publicadores comunes (siempre se crean) ──────────────────────────
         self.status_pub = self.create_publisher(String, '/camera/status', 10)
@@ -104,6 +116,11 @@ class VisualDetectionNode(Node):
         self._use_mp = self.use_mediapipe and _MP_OK
         self._detector_name = "MediaPipe" if self._use_mp else "HOG"
         self.get_logger().info(f"Detector seleccionado: {self._detector_name}")
+        if not self._use_mp:
+            self.get_logger().warn(
+                "Sin MediaPipe: los gestos start_tracking/stop_tracking no estarán "
+                "disponibles (requieren landmarks de pose)."
+            )
 
         if self._use_mp:
             self._init_mediapipe()
@@ -234,6 +251,8 @@ class VisualDetectionNode(Node):
         if not results.pose_landmarks:
             return False
 
+        self._check_gesture(results.pose_landmarks.landmark)
+
         visible = sum(
             1 for lm in results.pose_landmarks.landmark
             if lm.visibility > 0.5
@@ -245,6 +264,56 @@ class VisualDetectionNode(Node):
                 f"[CAM-MP] Persona detectada — landmarks_visibles={visible}"
             )
         return detected
+
+    # ── Detección de gestos (start_tracking / stop_tracking) ────────────────
+
+    def _check_gesture(self, landmarks):
+        """
+        Gesto de inicio: mano DERECHA levantada por encima del hombro.
+        Gesto de parada: mano IZQUIERDA levantada por encima del hombro.
+        Requiere gesture_confirm_frames consecutivos y respeta un cooldown
+        entre comandos para evitar falsos positivos al caminar o gesticular.
+        """
+        def lm(idx):
+            p = landmarks[idx]
+            return p if p.visibility >= self.gesture_min_visibility else None
+
+        # Índices MediaPipe Pose: 11=L_SHOULDER 12=R_SHOULDER 15=L_WRIST 16=R_WRIST 23=L_HIP 24=R_HIP
+        l_shoulder, r_shoulder = lm(11), lm(12)
+        l_wrist,    r_wrist    = lm(15), lm(16)
+        l_hip,      r_hip      = lm(23), lm(24)
+
+        scale = None
+        if l_shoulder and l_hip:
+            scale = abs(l_hip.y - l_shoulder.y)
+        elif r_shoulder and r_hip:
+            scale = abs(r_hip.y - r_shoulder.y)
+        margin = scale * self.gesture_margin_ratio if scale else 0.05
+
+        start_now = bool(r_wrist and r_shoulder and r_wrist.y < r_shoulder.y - margin)
+        stop_now  = bool(l_wrist and l_shoulder and l_wrist.y < l_shoulder.y - margin)
+
+        self._start_gesture_streak = self._start_gesture_streak + 1 if start_now else 0
+        self._stop_gesture_streak  = self._stop_gesture_streak + 1 if stop_now else 0
+
+        now = time.time()
+        cooldown_ok = (
+            self._last_gesture_pub_time is None
+            or (now - self._last_gesture_pub_time) >= self.gesture_cooldown_s
+        )
+        if not cooldown_ok:
+            return
+
+        if self._start_gesture_streak >= self.gesture_confirm_frames:
+            self.gesture_pub.publish(String(data='start_tracking'))
+            self.get_logger().info("[GESTO] start_tracking (mano derecha levantada)")
+            self._last_gesture_pub_time = now
+            self._start_gesture_streak = 0
+        elif self._stop_gesture_streak >= self.gesture_confirm_frames:
+            self.gesture_pub.publish(String(data='stop_tracking'))
+            self.get_logger().info("[GESTO] stop_tracking (mano izquierda levantada)")
+            self._last_gesture_pub_time = now
+            self._stop_gesture_streak = 0
 
     # ── Utilidades ───────────────────────────────────────────────────────────
 

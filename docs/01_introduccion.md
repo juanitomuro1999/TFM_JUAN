@@ -21,9 +21,9 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
 
 ### Objetivos específicos
 
-1. **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands).
+1. ✅ **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands). *(Completado 2026-06-17: gesto de mano levantada con MediaPipe Pose; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`)*
 
-2. **Cartografía SLAM:** integrar SLAM Toolbox con los datos del LiDAR para construir mapas del entorno en tiempo real.
+2. ✅ **Cartografía SLAM:** integrar SLAM Toolbox con los datos del LiDAR para construir mapas del entorno en tiempo real. *(Completado — mapa del laboratorio generado y guardado en `maps/`)*
 
 3. **Navegación autónoma (Nav2):**
    - Localización basada en AMCL sobre mapa guardado.
