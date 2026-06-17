@@ -65,7 +65,7 @@ ssh user@10.48.0.1 '
 # Esperar ~25 s y verificar que todos los nodos están activos
 sleep 25
 ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=25
+  export ROS_DOMAIN_ID=24
   source /opt/ros/jazzy/setup.bash
   source ~/ros2_ws/install/setup.bash
 
@@ -107,14 +107,14 @@ ssh user@10.48.0.1 '
 ```bash
 # Terminal A — Telemetría (distancia, ángulo, velocidades)
 ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=25
+  export ROS_DOMAIN_ID=24
   source /opt/ros/jazzy/setup.bash
   source ~/ros2_ws/install/setup.bash
   ros2 topic echo /follower/telemetry'
 
 # Terminal B — FSM y detección
 ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=25
+  export ROS_DOMAIN_ID=24
   source /opt/ros/jazzy/setup.bash
   source ~/ros2_ws/install/setup.bash
   ros2 topic echo /control/mode'
@@ -163,7 +163,7 @@ ssh user@10.48.0.1 '
 ssh user@10.48.0.1 '
   tmux new-window -t tfm -n bag
   tmux send-keys -t tfm:bag "
-    export ROS_DOMAIN_ID=25
+    export ROS_DOMAIN_ID=24
     source /opt/ros/jazzy/setup.bash
     source ~/ros2_ws/install/setup.bash
     SESION=sesion_$(date +%Y%m%d_%H%M)
@@ -181,7 +181,7 @@ SESION=sesion_$(date +%Y%m%d_%H%M)
 cd ~/datos_seguimiento/logs
 source /opt/ros/jazzy/setup.bash
 source ~/ros2_ws/install/setup.bash  # si ROS está en local
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 python3 record_telemetry.py $SESION &
 echo "Grabando telemetría en telem_${SESION}.csv (Ctrl-C para parar)"
 ```
@@ -233,7 +233,7 @@ python3 plots/eval_with_evo.py "$BAG_LOCAL"
 Modificar directamente en el robot **sin rebuild** (parámetros ROS en caliente):
 
 ```bash
-ssh user@10.48.0.1 'export ROS_DOMAIN_ID=25; source /opt/ros/jazzy/setup.bash; source ~/ros2_ws/install/setup.bash
+ssh user@10.48.0.1 'export ROS_DOMAIN_ID=24; source /opt/ros/jazzy/setup.bash; source ~/ros2_ws/install/setup.bash
 
 # Ejemplo: robot oscila lateralmente → subir Kd
 ros2 param set /tracking_node angular_d_gain 0.5
@@ -262,7 +262,7 @@ ros2 param get /tracking_node angular_d_gain'
 
 # 2. Guardar mapa actualizado (si el robot se movió)
 ssh user@10.48.0.1 '
-  export ROS_DOMAIN_ID=25
+  export ROS_DOMAIN_ID=24
   source /opt/ros/jazzy/setup.bash
   source ~/ros2_ws/install/setup.bash
   ros2 run nav2_map_server map_saver_cli -f ~/maps/mapa_lab_$(date +%Y%m%d)'

@@ -35,7 +35,7 @@ visual_detection_node:
     hog_win_stride: 8
     hog_scale: 1.05
     hog_padding: 8
-    hog_min_weight: 0.40       # umbral confianza HOG (mayor = menos falsos positivos)
+    hog_min_weight: 0.25       # umbral confianza HOG (mayor = menos falsos positivos)
     hog_center_crop_ratio: 0.7 # analizar solo el 70% central del frame
 
 detection_node:

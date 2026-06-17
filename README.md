@@ -151,30 +151,30 @@ ssh user@10.48.0.1   # contraseña: qwerty
 ```bash
 # Terminal 1 — Base Kobuki
 source /opt/ros/jazzy/setup.bash && source ~/kobuki_ws/install/setup.bash
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 ros2 launch kobuki_node kobuki_node-launch.py
 
 # Terminal 2 — RPLIDAR
 source /opt/ros/jazzy/setup.bash && source ~/kobuki_ws/install/setup.bash
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/rplidar
 
 # Terminal 3 — TF estática lidar→base
-source /opt/ros/jazzy/setup.bash && export ROS_DOMAIN_ID=25
+source /opt/ros/jazzy/setup.bash && export ROS_DOMAIN_ID=24
 ros2 run tf2_ros static_transform_publisher 0 0 0 3.141592 0 0 base_footprint laser
 
 # Terminal 4 — Cámara
-source /opt/ros/jazzy/setup.bash && export ROS_DOMAIN_ID=25
+source /opt/ros/jazzy/setup.bash && export ROS_DOMAIN_ID=24
 ros2 run usb_cam usb_cam_node_exe --ros-args -p image_width:=640 -p image_height:=480 -p framerate:=30.0
 
 # Terminal 5 — SLAM Toolbox (Fase 2)
 source /opt/ros/jazzy/setup.bash && source ~/ros2_ws/install/setup.bash
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 ros2 launch person_follower slam_toolbox.launch.py
 
 # Terminal 6 — Sistema de seguimiento
 source /opt/ros/jazzy/setup.bash && source ~/ros2_ws/install/setup.bash
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 ros2 launch person_follower start_person_follower.launch.py
 ```
 

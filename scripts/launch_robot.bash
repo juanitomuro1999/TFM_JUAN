@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script de lanzamiento completo del robot TFM — TurtleBot2/Kobuki
 # Ejecutar en el NUC del robot (ssh user@10.48.0.1)
-# ROS 2 Jazzy | ROS_DOMAIN_ID=25
+# ROS 2 Jazzy | ROS_DOMAIN_ID=24
 
 set -e
 
@@ -12,7 +12,7 @@ ROS2_WS="$HOME/ros2_ws/install/setup.bash"
 source "$SOURCE_ROS"
 source "$KOBUKI_WS"
 source "$ROS2_WS"
-export ROS_DOMAIN_ID=25
+export ROS_DOMAIN_ID=24
 
 STEP=$1
 
