@@ -42,6 +42,8 @@ visual_detection_node:
     gesture_cooldown_s: 2.0     # s mínimos entre comandos de gesto
     gesture_min_visibility: 0.6 # visibilidad mínima muñeca/hombro/cadera
     gesture_margin_ratio: 0.15  # margen sobre el hombro, relativo al torso
+    # Fusión cámara+LIDAR: rumbo horizontal de la persona
+    camera_hfov_deg: 51.0       # FOV horizontal del C270 (~51° en 4:3)
 
 detection_node:
   ros__parameters:
@@ -69,6 +71,14 @@ detection_node:
     max_detection_distance: 2.5    # reducido de 6.0 — elimina pares de piernas lejanos erróneos
     detection_confirm_frames: 3   # scans consecutivos para confirmar persona
     detection_loss_frames: 8      # aumentado de 4 — evita IDLE↔TRACKING rápido
+    # ── Fusión cámara+LIDAR (fallback cuando no hay par de piernas) ────────
+    # Si el LIDAR no distingue dos piernas pero la cámara da rumbo, se toma el
+    # clúster general más alineado con ese rumbo → posición robusta.
+    fusion_enabled: True
+    fusion_angle_tol_deg: 25.0    # tolerancia angular clúster vs rumbo cámara
+    fusion_max_distance: 4.0      # alcance máx. del fallback (m) — supera max_detection_distance
+    bearing_sign: -1.0            # signo cámara→láser (CALIBRAR en vivo desde los logs)
+    bearing_timeout: 1.5          # validez del último rumbo (s); cámara ~2.5 Hz
 
 user_interface_node:
   ros__parameters:

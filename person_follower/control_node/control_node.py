@@ -62,6 +62,7 @@ class ControlNode(Node):
         self.cmd_vel_publisher          = self.create_publisher(Twist, '/cmd_vel',         10)
         self.mode_publisher             = self.create_publisher(String, '/control/mode', 10)               # NUEVO: modo AUTO o MANUAL
         self.teleop_status_publisher    = self.create_publisher(String, '/control/teleop_status', 10)      # NUEVO: estado de control manual
+        self.state_publisher            = self.create_publisher(String, '/control/state', 10)              # NUEVO: estado FSM (INIT/IDLE/TRACKING/MANUAL/SHUTDOWN) — para validación
 
         # ───────────── Cliente del servicio de tracking ─────────────
         self.tracking_client = self.create_client(SetBool, 'enable_tracking')
@@ -207,6 +208,7 @@ class ControlNode(Node):
 
         self.get_logger().info(f"Transición {self.current_state} → {new_state}")
         self.current_state = new_state
+        self.state_publisher.publish(String(data=new_state))   # registrar estado FSM (validación)
 
         # Publicar modo de control actual
         if new_state == 'MANUAL':
@@ -217,6 +219,11 @@ class ControlNode(Node):
 
         # Acciones por estado
         if new_state == 'IDLE':
+            # Frenar de verdad: desactivar el tracking_node (deja de calcular
+            # velocidades) y publicar parada inmediata, sin depender del watchdog
+            # del Kobuki ni del siguiente ciclo de velocity_callback.
+            self.toggle_tracking(False)
+            self.stop_robot()
             self.get_logger().info(">> IDLE")
         elif new_state == 'TRACKING':
             self.start_tracking()

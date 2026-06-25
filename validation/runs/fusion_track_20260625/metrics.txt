@@ -1,0 +1,11 @@
+Resumen de la toma: fusion_track_20260625
+  duracion                : 23.5 s (285 muestras telemetria)
+  distancia objetivo      : 1.50 m
+  error distancia MAE     : 0.627 m
+  error distancia RMS     : 0.733 m
+  distancia min / max     : 1.27 / 3.41 m
+  |error angular| medio   : 172.3 deg
+  v lineal max            : 0.300 m/s
+  |v angular| max         : 1.000 rad/s
+  % tiempo persona detect.: 100.0 %
+  nº perdidas deteccion   : 0

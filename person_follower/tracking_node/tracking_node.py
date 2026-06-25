@@ -285,6 +285,15 @@ class TrackingNode(Node):
 
         # Acoplar wz con velocidad lineal: menos giro cuando se avanza rápido
         wz *= max(0.4, 1.0 - abs(vx) / max(self.max_speed, 0.01) * 0.5)
+
+        # Atenuar el giro a corta distancia. La sensibilidad del rumbo es
+        # ∝ 1/distancia, así que cerca el ángulo se dispara; además, dentro de
+        # target_distance vx≈0 (no se avanza), por lo que el robot giraba sobre
+        # sí mismo. Escalar wz con la distancia (1.0 a target_dist o más, → 0 al
+        # acercarse) elimina ese giro sin impedir reorientarse.
+        near_gain = min(1.0, distance / max(self.target_dist, 0.01))
+        wz *= near_gain
+
         wz  = max(-1.0, min(1.0, wz))
         self.prev_angle = ang_err
 

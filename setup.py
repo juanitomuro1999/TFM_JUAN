@@ -19,6 +19,8 @@ setup(
         (os.path.join('share', package_name, 'config'), glob('person_follower/config/*.yaml')),
         (os.path.join('share', package_name, 'config'), glob('person_follower/config/*.rviz')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
+        # Mapas (para que Nav2/map_server los encuentre en el share tras colcon build)
+        (os.path.join('share', package_name, 'maps'), glob('maps/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

@@ -5,11 +5,54 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Bool, Float32MultiArray, String
+from std_msgs.msg import Bool, Float32, Float32MultiArray, String
 from geometry_msgs.msg import Point
 import numpy as np
-from sklearn.cluster import DBSCAN
+from scipy.spatial import cKDTree
+import math
 import time
+
+
+def dbscan_labels(points, eps, min_samples):
+    """DBSCAN auto-contenido (sin sklearn) sobre puntos 2D.
+
+    Devuelve un array de etiquetas de clúster (-1 = ruido), con la misma
+    semántica que sklearn.cluster.DBSCAN: un punto es 'core' si tiene
+    >= min_samples vecinos dentro de eps (incluyéndose a sí mismo).
+
+    Se usa scipy.spatial.cKDTree para la consulta de vecindad (el NUC no
+    tiene una build válida de scikit-learn para Python 3.12; numpy y scipy
+    sí funcionan). Para los ~cientos de puntos de un scan filtrado el coste
+    es despreciable.
+    """
+    n = len(points)
+    labels = np.full(n, -1, dtype=int)
+    if n == 0:
+        return labels
+    tree = cKDTree(points)
+    neighbors = tree.query_ball_point(points, r=eps)  # incluye el propio punto
+    visited = np.zeros(n, dtype=bool)
+    cluster_id = -1
+    for i in range(n):
+        if visited[i]:
+            continue
+        visited[i] = True
+        if len(neighbors[i]) < min_samples:
+            continue  # de momento ruido (puede pasar a borde más adelante)
+        cluster_id += 1
+        labels[i] = cluster_id
+        seeds = list(neighbors[i])
+        k = 0
+        while k < len(seeds):
+            j = seeds[k]
+            k += 1
+            if not visited[j]:
+                visited[j] = True
+                if len(neighbors[j]) >= min_samples:
+                    seeds.extend(neighbors[j])
+            if labels[j] == -1:
+                labels[j] = cluster_id
+    return labels
 
 class DetectionNode(Node):
     def __init__(self):
@@ -31,6 +74,12 @@ class DetectionNode(Node):
         self.declare_parameter('min_leg_distance', 0.04)
         self.declare_parameter('max_leg_distance', 0.35)
         self.declare_parameter('median_filter_window', 7)
+        # ── Fusión cámara+LIDAR (fallback cuando no hay par de piernas) ──────
+        self.declare_parameter('fusion_enabled', True)
+        self.declare_parameter('fusion_angle_tol_deg', 25.0)   # tolerancia angular cluster vs rumbo cámara
+        self.declare_parameter('fusion_max_distance', 4.0)     # alcance máx. para el fallback (m)
+        self.declare_parameter('bearing_sign', -1.0)           # signo cámara→láser (calibrar en vivo)
+        self.declare_parameter('bearing_timeout', 1.5)         # validez del último rumbo (s)
 
         # Carga de parámetros
         self.enabled = self.get_parameter('enabled').value
@@ -47,6 +96,11 @@ class DetectionNode(Node):
         self.min_leg_distance = self.get_parameter('min_leg_distance').value
         self.max_leg_distance = self.get_parameter('max_leg_distance').value
         self.median_filter_window = self.get_parameter('median_filter_window').value
+        self.fusion_enabled = self.get_parameter('fusion_enabled').value
+        self.fusion_angle_tol = math.radians(self.get_parameter('fusion_angle_tol_deg').value)
+        self.fusion_max_distance = self.get_parameter('fusion_max_distance').value
+        self.bearing_sign = self.get_parameter('bearing_sign').value
+        self.bearing_timeout = self.get_parameter('bearing_timeout').value
 
         if not self.enabled:
             self.get_logger().info("Nodo de Detección desactivado.")
@@ -58,6 +112,7 @@ class DetectionNode(Node):
         self.detection_publisher = self.create_publisher(Bool, '/person_detected', 10)
         self.scan_subscription = self.create_subscription(LaserScan, '/scan', self.lidar_callback, 10)
         self.create_subscription(Bool, '/person_detected_visual', self.visual_detected_callback, 10)
+        self.create_subscription(Float32, '/person_bearing', self.bearing_callback, 10)
         self.cluster_publisher = self.create_publisher(Float32MultiArray, '/detection/clusters', 10)
         self.general_cluster_publisher = self.create_publisher(Float32MultiArray, '/clusters/general', 10)
         self.leg_cluster_publisher = self.create_publisher(Float32MultiArray, '/clusters/legs', 10)
@@ -67,6 +122,10 @@ class DetectionNode(Node):
         self.visual_detected = False
         self.visual_count = 0
         self.last_visual_time = self.get_clock().now()
+
+        # Estado del rumbo de cámara (para fusión)
+        self._bearing = None                       # rad, frame cámara
+        self._bearing_time = self.get_clock().now()
 
         # ── Filtro de persistencia temporal ──────────────────────────────
         # Un objeto debe detectarse N scans consecutivos para ser considerado persona.
@@ -157,6 +216,10 @@ class DetectionNode(Node):
         if msg.data:
             self.last_visual_time = self.get_clock().now()
 
+    def bearing_callback(self, msg):
+        self._bearing = float(msg.data)
+        self._bearing_time = self.get_clock().now()
+
     def apply_median_filter(self, data, window_size):
         filtered = np.copy(data)
         for i in range(len(data)):
@@ -173,18 +236,23 @@ class DetectionNode(Node):
         return interpolated_ranges, interpolated_angles
 
     def detect_person(self, ranges, angle_min, angle_increment):
+        # Alcance efectivo: para el fallback de fusión necesitamos clústeres
+        # más allá de max_detection_distance, así que ampliamos el filtro de
+        # puntos. El emparejamiento de piernas sigue acotado a max_detection_distance.
+        effective_max = max(self.max_detection_distance, self.fusion_max_distance) \
+            if self.fusion_enabled else self.max_detection_distance
         points = [
             (r * np.cos(angle_min + i * angle_increment),
              r * np.sin(angle_min + i * angle_increment))
             for i, r in enumerate(ranges)
-            if self.min_detection_distance < r < self.max_detection_distance
+            if self.min_detection_distance < r < effective_max
         ]
         if not points:
             self.log_info("No se detectaron puntos")
             return False
 
         points = np.array(points)
-        labels = DBSCAN(eps=self.dbscan_eps, min_samples=self.dbscan_min_samples).fit_predict(points)
+        labels = dbscan_labels(points, self.dbscan_eps, self.dbscan_min_samples)
         clusters = [points[labels == lbl] for lbl in set(labels) if lbl != -1]
 
         _, leg_clusters = self.detect_leg_clusters(clusters)
@@ -218,6 +286,44 @@ class DetectionNode(Node):
             self.person_position_publisher.publish(pt)
             self.log_info("Posición de persona publicada", {"x": selected[0], "y": selected[1]})
             return True
+
+        # ── Fallback de fusión cámara+LIDAR ──────────────────────────────────
+        # Si el LIDAR no encontró un par de piernas válido (persona quieta,
+        # piernas juntas, lejos…) pero la cámara da un rumbo reciente, elegimos
+        # el clúster general cuyo ángulo coincide mejor con ese rumbo y
+        # publicamos su centroide como /person_position. Da posición aunque no
+        # se distingan dos piernas.
+        if self.fusion_enabled and self._bearing is not None:
+            age = (self.get_clock().now() - self._bearing_time).nanoseconds * 1e-9
+            if age <= self.bearing_timeout and len(clusters) > 0:
+                # Rumbo cámara → ángulo esperado en el frame del láser.
+                # Persona de frente ≈ π en el láser (TF base→laser con yaw=π).
+                theta_target = math.atan2(
+                    math.sin(math.pi + self.bearing_sign * self._bearing),
+                    math.cos(math.pi + self.bearing_sign * self._bearing),
+                )
+                best, best_dev = None, float('inf')
+                for cl in clusters:
+                    c = np.mean(cl, axis=0)
+                    dist = float(np.linalg.norm(c))
+                    if not (self.min_detection_distance < dist <= self.fusion_max_distance):
+                        continue
+                    theta_c = math.atan2(c[1], c[0])
+                    dev = abs(math.atan2(math.sin(theta_c - theta_target),
+                                         math.cos(theta_c - theta_target)))
+                    if dev < best_dev:
+                        best, best_dev = c, dev
+                if best is not None and best_dev <= self.fusion_angle_tol:
+                    pt = Point(x=float(best[0]), y=float(best[1]), z=0.0)
+                    self.person_position_publisher.publish(pt)
+                    self.log_info(
+                        "Posición de persona publicada (FUSION cam+LIDAR)",
+                        {"x": round(float(best[0]), 3), "y": round(float(best[1]), 3),
+                         "beta_deg": round(math.degrees(self._bearing), 1),
+                         "theta_tgt_deg": round(math.degrees(theta_target), 1),
+                         "dev_deg": round(math.degrees(best_dev), 1),
+                         "dist": round(float(np.linalg.norm(best)), 2)})
+                    return True
 
         self.log_info("No se encontraron pares de piernas válidos")
         return False

@@ -13,9 +13,11 @@
 import threading
 import time
 
+import math
+
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, Float32, String
 
 # ── Dependencias opcionales ──────────────────────────────────────────────────
 try:
@@ -70,6 +72,9 @@ class VisualDetectionNode(Node):
         self.declare_parameter('gesture_cooldown_s', 2.0)     # s mínimos entre comandos de gesto
         self.declare_parameter('gesture_min_visibility', 0.6) # visibilidad mínima de muñeca/hombro/cadera
         self.declare_parameter('gesture_margin_ratio', 0.15)  # margen sobre el hombro, relativo al torso
+        # Fusión cámara+LIDAR: rumbo horizontal de la persona para que detection_node
+        # pueda dar posición aunque el LIDAR no separe las piernas.
+        self.declare_parameter('camera_hfov_deg', 51.0)       # FOV horizontal del C270 (~51° en 4:3)
 
         # Carga
         self.enabled           = self.get_parameter('enabled').value
@@ -91,6 +96,7 @@ class VisualDetectionNode(Node):
         self.gesture_cooldown_s     = self.get_parameter('gesture_cooldown_s').value
         self.gesture_min_visibility = self.get_parameter('gesture_min_visibility').value
         self.gesture_margin_ratio   = self.get_parameter('gesture_margin_ratio').value
+        self.camera_hfov_rad        = math.radians(self.get_parameter('camera_hfov_deg').value)
         self._start_gesture_streak  = 0
         self._stop_gesture_streak   = 0
         self._last_gesture_pub_time = None
@@ -99,6 +105,8 @@ class VisualDetectionNode(Node):
         self.status_pub = self.create_publisher(String, '/camera/status', 10)
         self.visual_pub = self.create_publisher(Bool,   '/person_detected_visual', 10)
         self.gesture_pub = self.create_publisher(String, '/gesture_command', 10)
+        # Rumbo horizontal de la persona (rad, frame cámara: 0=centro, +=derecha de la imagen)
+        self.bearing_pub = self.create_publisher(Float32, '/person_bearing', 10)
         self.shutdown_confirmation_pub = self.create_publisher(Bool, '/shutdown_confirmation', 10)
         self.create_subscription(Bool, '/system_shutdown', self._shutdown_cb, 10)
 
@@ -253,11 +261,25 @@ class VisualDetectionNode(Node):
 
         self._check_gesture(results.pose_landmarks.landmark)
 
-        visible = sum(
-            1 for lm in results.pose_landmarks.landmark
-            if lm.visibility > 0.5
-        )
+        lm = results.pose_landmarks.landmark
+        visible = sum(1 for p in lm if p.visibility > 0.5)
         detected = visible >= self.pose_min_lm
+
+        # ── Rumbo horizontal de la persona (para fusión cámara+LIDAR) ──────────
+        # Se usa el punto medio de los hombros (landmarks 11=izq, 12=der) como
+        # centro fiable del torso. x normalizado [0,1] → desplazamiento angular
+        # respecto al eje óptico: beta = (x_mid - 0.5) * HFOV.
+        #   beta > 0  → persona a la DERECHA de la imagen.
+        # El detection_node convierte este rumbo al frame del láser.
+        l_sh, r_sh = lm[11], lm[12]
+        if l_sh.visibility >= 0.5 and r_sh.visibility >= 0.5:
+            x_mid = (l_sh.x + r_sh.x) * 0.5
+            beta = (x_mid - 0.5) * self.camera_hfov_rad
+            self.bearing_pub.publish(Float32(data=float(beta)))
+            self.get_logger().info(
+                f"[CAM-BEARING] x_mid={x_mid:.3f} beta={math.degrees(beta):+.1f}deg",
+                throttle_duration_sec=1.0,
+            )
 
         if detected:
             self.get_logger().info(
@@ -292,6 +314,20 @@ class VisualDetectionNode(Node):
 
         start_now = bool(r_wrist and r_shoulder and r_wrist.y < r_shoulder.y - margin)
         stop_now  = bool(l_wrist and l_shoulder and l_wrist.y < l_shoulder.y - margin)
+
+        # Diagnóstico (1 Hz): visibilidad/posición CRUDAS de muñecas y hombros, para
+        # ver por qué (no) se detecta el gesto. lm() filtra por gesture_min_visibility,
+        # así que aquí leemos los landmarks directos. En imagen, y crece hacia ABAJO →
+        # "muñeca por encima del hombro" = wrist.y < shoulder.y - margin.
+        rw, rs = landmarks[16], landmarks[12]
+        lw, ls = landmarks[15], landmarks[11]
+        self.get_logger().info(
+            f"[GESTO-DBG] minvis={self.gesture_min_visibility:.2f} margin={margin:.3f} | "
+            f"DER muñeca(v={rw.visibility:.2f} y={rw.y:.2f}) hombro(v={rs.visibility:.2f} y={rs.y:.2f}) start={start_now} | "
+            f"IZQ muñeca(v={lw.visibility:.2f} y={lw.y:.2f}) hombro(v={ls.visibility:.2f} y={ls.y:.2f}) stop={stop_now} | "
+            f"streak(start={self._start_gesture_streak} stop={self._stop_gesture_streak})",
+            throttle_duration_sec=1.0,
+        )
 
         self._start_gesture_streak = self._start_gesture_streak + 1 if start_now else 0
         self._stop_gesture_streak  = self._stop_gesture_streak + 1 if stop_now else 0
