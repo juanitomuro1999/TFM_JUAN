@@ -39,6 +39,11 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 [user_interface_node]◄──todos los /status, /clusters, /visualization──────►[RViz 2]
 ```
 
+> Desde 2026-06-25, `visual_detection_node` también publica `/person_bearing`
+> hacia `detection_node` (no representado arriba por simplicidad del ASCII):
+> es el fallback de fusión descrito en 2.3.1, activo solo cuando el LiDAR no
+> encuentra un par de piernas válido.
+
 ## 2.3 Descripción de cada nodo
 
 ### 2.3.1 `detection_node`
@@ -51,15 +56,36 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 3. Los puntos 2D se clusterizán con DBSCAN (eps=0.1 m, min_samples=15).
 4. Se filtran clusters con características de pierna humana (tamaño, radio, forma).
 5. Se buscan pares de clusters (dos piernas) dentro de una distancia coherente.
-6. La posición estimada de la persona se fusiona con la detección visual (debounce + timeout).
+6. **Fallback de fusión cámara+LiDAR (desde 2026-06-25):** si no se encuentra un
+   par de piernas válido (persona quieta, piernas juntas, o lejana), se usa el
+   rumbo (`/person_bearing`, publicado por `visual_detection_node` a partir de
+   MediaPipe) para elegir el clúster general del LiDAR mejor alineado con ese
+   rumbo (tolerancia angular `fusion_angle_tol_deg`, distancia máxima
+   `fusion_max_distance`), y se publica su centroide como `/person_position`.
+   Esto evita que el sistema pierda a la persona solo porque el LiDAR no
+   distingue dos piernas — antes, sin este fallback, `tracking_node` agotaba
+   su timeout de observación (30 s) y dejaba de seguir aunque la cámara sí
+   viera a la persona. Validado sin movimiento en
+   `validation/runs/fusion_track_20260625/` (100% detección, 0 pérdidas,
+   desviación de rumbo ~6°). Detalle de la decisión en `docs/05_decisiones.md`.
+
+> **Nota de implementación:** el DBSCAN de este nodo está reimplementado a
+> mano sobre `scipy.spatial.cKDTree` (no usa `scikit-learn`). El NUC solo
+> tiene Python 3.12 y la instalación de `scikit-learn` disponible traía la
+> extensión compilada para 3.10, lo que rompía el `import` sin forma de
+> arreglarlo sin internet. Ver `docs/05_decisiones.md`.
 
 **Parámetros configurables (config.yaml):**
 - `max_detection_distance`: 6.0 m
 - `dbscan_eps`: 0.1 m
 - `min/max_leg_cluster_size`: 30–80 puntos
 - `camera_timeout`: 1.0 s
+- `camera_hfov_deg`: 51 (campo de visión horizontal de la Logitech C270)
+- `fusion_enabled`, `fusion_angle_tol_deg` (25°), `fusion_max_distance` (4 m)
+- `bearing_sign`: -1.0 (signo de calibración del rumbo, confirmado en vivo)
+- `bearing_timeout`
 
-**Topics suscritos:** `/scan`, `/person_detected_visual`  
+**Topics suscritos:** `/scan`, `/person_detected_visual`, `/person_bearing`  
 **Topics publicados:** `/person_detected`, `/person_position`, `/clusters/general`, `/clusters/legs`
 
 ---
@@ -70,15 +96,23 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 
 **Algoritmo:**
 1. Se suscribe a `/image_raw` (Logitech C270, 640×480@30fps).
-2. Procesa cada frame con **MediaPipe Pose** para detectar el esqueleto humano.
-3. Procesa simultáneamente con **MediaPipe Hands** para detectar gestos.
-4. Gestos reconocidos:
-   - `start_tracking`: pulgar arriba (índice y meñique bajos).
-   - `stop_tracking`: mano abierta (pulgar + índice + meñique por encima de la muñeca).
+2. Procesa cada frame con **MediaPipe Pose** para detectar el esqueleto humano
+   (sustituyó al HOG de OpenCV original, que solo detectaba con el cuerpo
+   completo en el cuadro — inviable a la distancia real de seguimiento, ~1m;
+   ver `docs/05_decisiones.md`).
+3. Gestos reconocidos a partir de los landmarks de Pose (no de MediaPipe
+   Hands): **mano derecha levantada por encima del hombro** (con margen
+   relativo al torso) → `start_tracking`; **mano izquierda levantada** →
+   `stop_tracking`. Requiere `gesture_confirm_frames` (3) consecutivos y un
+   `gesture_cooldown_s` (2.0s) entre comandos para evitar falsos positivos.
+4. Calcula el **rumbo horizontal** de la persona desde el punto medio de los
+   hombros: `bearing = (x_mid - 0.5) * camera_hfov_deg`, publicado en
+   `/person_bearing` para el fallback de fusión de `detection_node` (desde
+   2026-06-25).
 5. Publica imagen anotada en `/camera/image_processed`.
 
 **Topics suscritos:** `/image_raw`  
-**Topics publicados:** `/person_detected_visual`, `/gesture_command`, `/pose/keypoints`, `/camera/image_processed`
+**Topics publicados:** `/person_detected_visual`, `/gesture_command`, `/person_bearing`, `/pose/keypoints`, `/camera/image_processed`
 
 ---
 
@@ -189,6 +223,6 @@ person_follower
 ├── diagnostic_msgs
 ├── cv_bridge
 ├── tf2_ros
-├── [Python] numpy, scikit-learn, mediapipe, opencv
+├── [Python] numpy, scipy (DBSCAN propio, ver 2.3.1), mediapipe, opencv
 └── [externo] kobuki_ros, rplidar_ros, slam_toolbox, nav2_bringup
 ```

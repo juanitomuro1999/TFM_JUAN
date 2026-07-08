@@ -4,7 +4,7 @@
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  
-**Versión actual:** 0.3.0 | Fase 2 completada (interacción por gestos + SLAM) — Fase 3 (Nav2) siguiente
+**Versión actual:** 0.4.0 | Fase 2 completada (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara) — validación experimental iniciada, Fase 3 (Nav2) pendiente de decidir alcance
 
 ---
 
@@ -107,8 +107,8 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
 
 | Nodo | Función | Topics entrada | Topics salida |
 |---|---|---|---|
-| `detection_node` | Detección por LiDAR (DBSCAN) + fusión cámara | `/scan`, `/person_detected_visual` | `/person_detected`, `/person_position` |
-| `visual_detection_node` | Detección por cámara (MediaPipe) + gestos | `/image_raw` | `/person_detected_visual`, `/gesture_command` |
+| `detection_node` | Detección por LiDAR (DBSCAN propio sobre `scipy.cKDTree`) + fusión por rumbo de cámara cuando no hay par de piernas | `/scan`, `/person_detected_visual`, `/person_bearing` | `/person_detected`, `/person_position` |
+| `visual_detection_node` | Detección por cámara (MediaPipe) + gestos + rumbo de la persona | `/image_raw` | `/person_detected_visual`, `/gesture_command`, `/person_bearing` |
 | `tracking_node` | Seguimiento con filtro Kalman + evasión obstáculos | `/person_position`, `/scan` | `/tracking/velocity_cmd` |
 | `control_node` | FSM central de estados | `/person_detected`, `/gesture_command` | `/commands/velocity` |
 | `user_interface_node` | Diagnóstico, RViz markers, HUD | múltiples status | `/visualization/*`, `/diagnostics` |
@@ -192,9 +192,9 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 | Fase | Período | Estado |
 |---|---|---|
 | Fase 1 – Base y definición | Hasta mayo 2026 | ✅ Completada |
-| Fase 2 – Módulo de interacción + SLAM | Junio 2026 | 🔄 En curso |
-| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 | ⏳ Pendiente |
-| Fase 4 – Validación experimental | Agosto 2026 | ⏳ Pendiente |
+| Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06, ver `validation/runs/fusion_track_20260625/`) |
+| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 | ⏳ Pendiente de decidir alcance (demo mínima AMCL vs. trabajo futuro) |
+| Fase 4 – Validación experimental | Agosto 2026 | 🔄 Iniciada — falta validar la fusión con el robot en movimiento y repetir tomas para el Capítulo 7 |
 | Fase 5 – Cierre y defensa | Septiembre 2026 | ⏳ Pendiente |
 
 ---

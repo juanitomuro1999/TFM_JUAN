@@ -16,10 +16,9 @@ hardware, software y estado de fases: [`README.md`](README.md).
    próxima sesión (acceso al NUC, estado heredado, objetivo propuesto). **Es
    el roadmap vivo — mantenlo como único archivo de "próxima sesión".** No
    crees un `prompt_proxima_sesion_N.md` nuevo cada vez: eso rompe Single
-   Source of Truth. (Existe `docs/prompt_proxima_sesion.md`, de 2026-06-25,
-   como versión anterior de este mismo propósito — está desactualizado
-   respecto a `sesion_siguiente.md`; si tienes ocasión, consolídalo y
-   bórralo en vez de dejar los dos vivos.)
+   Source of Truth (existía `docs/prompt_proxima_sesion.md` con este mismo
+   propósito duplicado — se consolidó en este archivo y se borró el
+   2026-07-08).
 2. [`PROGRESO.md`](PROGRESO.md) — diario de sesiones: qué se hizo, qué se
    encontró, causa raíz de bugs resueltos. Es el registro corto y técnico.
 3. [`docs/02_arquitectura.md`](docs/02_arquitectura.md) — solo si la tarea

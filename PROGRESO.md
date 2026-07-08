@@ -1,5 +1,36 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-06-25
+
+### Causa raíz del fallo de seguimiento
+- La posición de la persona dependía solo de que el LiDAR detectara un **par de piernas** (DBSCAN + emparejamiento). Una persona quieta, con las piernas juntas o lejana no generaba par válido → sin `/person_position` → `tracking_node` agotaba el timeout de observación (30s) → dejaba de seguir, aunque la cámara sí veía a la persona.
+
+### Fusión cámara+LiDAR (solución elegida)
+- `visual_detection_node` publica `/person_bearing` (Float32, rad): rumbo horizontal de la persona desde el punto medio de los hombros de MediaPipe, `beta = (x_mid - 0.5) * camera_hfov_deg` (51° del C270).
+- `detection_node`, cuando NO encuentra par de piernas, ejecuta un fallback de fusión: convierte el rumbo al frame del láser (`theta = wrap(pi + bearing_sign*beta)`) y elige el clúster general mejor alineado (tolerancia 25°, distancia ≤4m), publicando su centroide como `/person_position`. Da posición aunque no se distingan dos piernas.
+- Parámetros nuevos en `config.yaml`: `camera_hfov_deg`, `fusion_enabled`, `fusion_angle_tol_deg`, `fusion_max_distance`, `bearing_sign` (-1.0, calibrado en vivo), `bearing_timeout`.
+
+### Fix crítico de infraestructura: sklearn roto en el NUC
+- El NUC solo tiene Python 3.12, pero la instalación de `scikit-learn` disponible traía la extensión compilada para cpython-3.10 → `ImportError` al importar DBSCAN. Sin internet no se podía arreglar con pip; cualquier relanzamiento o reinicio habría hecho crashear `detection_node`.
+- Eliminada la dependencia de sklearn: DBSCAN reimplementado de forma autocontenida sobre `scipy.spatial.cKDTree` (numpy+scipy sí funcionan en 3.12). Verificado idéntico al DBSCAN de sklearn en 200 pruebas aleatorias.
+
+### Infraestructura de validación (Capítulo 7)
+- `validation/test_nomotion.launch.py`: lanza el stack completo pero redirige `/cmd_vel` a `/cmd_vel_inhibited` → la base NO se mueve (pruebas de percepción/logging sin riesgo).
+- `validation/bag_to_csv.py` + `validation/plot_run.py`: extraen rosbag2 a CSV/TUM y generan gráficas + `metrics.txt` (error de distancia MAE/RMS, error angular medio, % detección, pérdidas). Ver `validation/README.md` para el pipeline completo (grabar en NUC → analizar en portátil).
+
+### Primera toma de validación: `fusion_track_20260625` (sin movimiento)
+- 23.5s, 285 muestras de telemetría, 100% tiempo con persona detectada, 0 pérdidas de detección.
+- `bearing_sign = -1.0` confirmado: el clúster LiDAR elegido coincide con el rumbo de la cámara con ~6° de desviación.
+- `cmd_vel.csv` = 0 filas: confirma que el robot no se movió (seguridad OK).
+- Nota: la velocidad angular sale saturada en esta toma porque la base está inhibida y nunca llega a girar; el comportamiento real de giro debe evaluarse en la prueba CON movimiento (pendiente, ver `docs/sesion_siguiente.md`).
+
+### Pendiente para la próxima sesión
+- **Prueba CON movimiento** (objetivo principal): validar que `near_gain` doma el giro brusco a corta distancia — en la toma sin movimiento no se puede juzgar el giro porque `vang` sale saturada. Plan detallado en `docs/sesion_siguiente.md`.
+- Decidir alcance de Nav2 (objetivo 3): demo mínima (AMCL + mapa ya guardado) vs. documentarlo como trabajo futuro.
+- Repetir tomas de validación (2-3 rosbags) para tener datos suficientes para el Capítulo 7.
+
+---
+
 ## Sesión 2026-06-17
 
 ### Estado al inicio
@@ -82,16 +113,19 @@
 ### Resuelto en sesión 2026-06-17
 1. ~~**Cámara HOG no detecta**~~ — resuelto: causa real era encuadre/distancia, no umbral. MediaPipe instalado offline como mejora adicional (ver sesión 2026-06-17 arriba).
 
-### Prioridad ALTA
-2. **FSM TRACKING↔IDLE sigue oscilando en tramos**, incluso con detección fusionada estable. Revisar `control_node.py` (`tracking_loss_timeout`) y `tracking_node.py` (timeout interno de observación) — la causa podría no ser la detección en sí. Si la intermitencia LIDAR vuelve a ser sospechosa: probar bajar dbscan_eps de 0.12 a 0.10 o subir a 0.15, o bajar dbscan_min_samples de 4 a 3.
+### Resuelto en sesión 2026-06-25
+2. ~~**FSM TRACKING↔IDLE oscilaba / pérdida de detección con persona quieta**~~ — causa raíz encontrada y resuelta: dependía solo del par de piernas del LiDAR. Fallback de fusión por rumbo de cámara (`/person_bearing`) implementado y validado sin movimiento (100% detección, 0 pérdidas). Ver sesión 2026-06-25 arriba y `docs/05_decisiones.md`.
+
+### Prioridad ALTA (siguiente sesión)
+3. **Prueba de fusión CON movimiento** — validar que `near_gain` doma el giro brusco a corta distancia; la toma del 25/06 fue sin movimiento (`vang` saturada, no evaluable). Plan detallado en `docs/sesion_siguiente.md`.
 
 ### Prioridad MEDIA
-3. **Oscilación angular residual**
+4. **Oscilación angular residual** (si reaparece tras la prueba con movimiento)
    - Si sigue molestando: bajar angular_gain de 1.2 a 0.8 en config NUC
    - O aumentar zona muerta de 8° a 12°
 
-4. **Explorar Orbbec Astra (RGBD)** para detección de persona más robusta que LIDAR 2D + webcam — `OrbbecSDK_ROS2` ya está en `ros2_ws/src` pero sin compilar. Cambio de arquitectura mayor, no abordado todavía.
+5. **Explorar Orbbec Astra (RGBD)** para detección de persona más robusta que LIDAR 2D + webcam — `OrbbecSDK_ROS2` ya está en `ros2_ws/src` pero sin compilar. Cambio de arquitectura mayor, no abordado todavía.
 
-5. **Grabación de demostración**
+6. **Grabación de demostración**
    - Grabar vídeo del robot siguiendo para incluir en TFM
    - Usar `ros2 bag record` para grabar datos de los topics

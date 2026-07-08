@@ -330,6 +330,21 @@ Sesión de ajuste fino tras detectar movimiento errático ("a trompicones") y FS
 - ✅ Objetivo 2 (SLAM) ya completado en sesión de mayo
 - 🔄 Pendiente (anotado, no abordado hoy): `tracking_node` satura el giro a corta distancia; FSM con oscilación residual en algunos tramos; explorar cámara Orbbec Astra (RGBD) sin compilar todavía en `ros2_ws/src`
 
+### 25 de junio — Fusión LiDAR-cámara: causa raíz del seguimiento intermitente
+
+**Diagnóstico:** la oscilación FSM y las pérdidas de seguimiento anotadas como pendientes el 17 de junio no eran ruido de la detección en sí, sino una limitación estructural: `detection_node` solo publicaba `/person_position` cuando el LiDAR encontraba un **par** de clústeres compatibles con dos piernas. Una persona quieta, con las piernas juntas, o a cierta distancia, no generaba ese par — sin posición, `tracking_node` agotaba su timeout de observación (30s) y dejaba de seguir, aunque la cámara siguiera viendo a la persona con normalidad.
+
+**Solución — fusión por rumbo:** `visual_detection_node` calcula el rumbo horizontal de la persona a partir del punto medio de los hombros detectados por MediaPipe Pose y lo publica en `/person_bearing`. Cuando `detection_node` no encuentra un par de piernas, usa ese rumbo (convertido al frame del láser, con un signo de calibración `bearing_sign=-1.0` confirmado en vivo) para elegir el clúster general del LiDAR mejor alineado, y publica su centroide como posición de la persona. El sistema deja de depender de distinguir dos piernas para saber dónde está la persona.
+
+**Bug de infraestructura no relacionado, pero crítico:** durante la sesión se descubrió que `scikit-learn` estaba roto en el NUC — Python 3.12 instalado, pero la extensión compilada disponible era para 3.10, así que cualquier `import sklearn` fallaba. Sin acceso a internet en el NUC no se podía resolver instalando una versión compatible. Se optó por eliminar la dependencia: el DBSCAN de `detection_node` se reimplementó de forma autocontenida sobre `scipy.spatial.cKDTree` (verificado idéntico al de sklearn en 200 pruebas aleatorias), dejando el stack robusto a reinicios del NUC.
+
+**Primera validación experimental (Capítulo 7):** se construyó el pipeline de validación (`validation/`: grabar en el NUC → extraer CSV → graficar en el portátil) y se registró la primera toma, `fusion_track_20260625`, con el robot inhibido (sin movimiento, por seguridad al ser la primera prueba del mecanismo nuevo): 100% del tiempo con persona detectada, 0 pérdidas de detección, desviación del rumbo estimado frente al clúster elegido de ~6°. Al estar la base inhibida, la velocidad angular sale saturada en los datos y no permite evaluar el comportamiento de giro — eso queda para la siguiente sesión, con el robot en movimiento real.
+
+**Estado al cierre:**
+- ✅ Objetivo específico 4 del TFM (fusión sensorial) completado y validado sin movimiento
+- ✅ Pipeline de validación experimental operativo, primeros datos para el Capítulo 7
+- 🔄 Pendiente: validar la fusión y el `near_gain` con el robot moviéndose de verdad; decidir alcance de Nav2 (objetivo 3)
+
 ---
 
 ## Julio 2026 (planificado)

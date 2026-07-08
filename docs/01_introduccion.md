@@ -30,7 +30,7 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
    - Planificación de rutas con NavFn o Smac Planner.
    - Navegación a objetivos predefinidos (salas, puntos de interés).
 
-4. **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual).
+4. ✅ **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual). *(Completado 2026-06-25: `visual_detection_node` publica el rumbo de la persona (`/person_bearing`) desde MediaPipe; cuando el LiDAR no encuentra un par de piernas válido, `detection_node` usa ese rumbo para elegir el clúster correcto y seguir publicando posición. Validado sin movimiento: 100% detección, 0 pérdidas, en `validation/runs/fusion_track_20260625/`; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. Pendiente validar el comportamiento con el robot en movimiento.)*
 
 5. **Guiado de usuarios:** implementar comportamientos de acompañamiento hacia destinos predefinidos del edificio.
 
@@ -54,11 +54,11 @@ Limitaciones asumidas:
 
 | Fase | Descripción | Periodo | Estado |
 |------|-------------|---------|--------|
-| 1 | Definición, revisión del sistema, redacción inicial | Mayo 2026 |
-| 2 | Módulo de interacción, integración SLAM | Junio 2026 | 
-| 3 | Navegación autónoma completa | Julio 2026 |
-| 4 | Validación experimental (entorno UJI) | Agosto 2026 | 
-| 5 | Cierre, memoria final, defensa | Septiembre 2026 | 
+| 1 | Definición, revisión del sistema, redacción inicial | Mayo 2026 | ✅ Completada |
+| 2 | Módulo de interacción, integración SLAM, fusión sensorial | Junio 2026 | ✅ Completada |
+| 3 | Navegación autónoma completa | Julio 2026 | ⏳ Pendiente de decidir alcance (demo mínima AMCL vs. trabajo futuro) |
+| 4 | Validación experimental (entorno UJI) | Agosto 2026 | 🔄 Iniciada — primera toma sin movimiento registrada 2026-06-25, falta validar con movimiento |
+| 5 | Cierre, memoria final, defensa | Septiembre 2026 | ⏳ Pendiente |
 
 ## 1.5 Estructura de este documento
 
