@@ -21,7 +21,7 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
 
 ### Objetivos específicos
 
-1. ✅ **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands). *(Completado 2026-06-17: gesto de mano levantada con MediaPipe Pose; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`)*
+1. ✅ **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands). *(Completado 2026-06-17: gesto de mano levantada con MediaPipe Pose; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. ⚠️ 2026-07-08: en el montaje actual de la cámara C270, el gesto de mano derecha no se detectó de forma fiable — el encuadre vertical pierde la muñeca al levantar el brazo. Pendiente re-encuadrar/reposicionar la cámara y revalidar; ver `docs/sesion_siguiente.md`.)*
 
 2. ✅ **Cartografía SLAM:** integrar SLAM Toolbox con los datos del LiDAR para construir mapas del entorno en tiempo real. *(Completado — mapa del laboratorio generado y guardado en `maps/`)*
 
@@ -30,7 +30,7 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
    - Planificación de rutas con NavFn o Smac Planner.
    - Navegación a objetivos predefinidos (salas, puntos de interés).
 
-4. ✅ **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual). *(Completado 2026-06-25: `visual_detection_node` publica el rumbo de la persona (`/person_bearing`) desde MediaPipe; cuando el LiDAR no encuentra un par de piernas válido, `detection_node` usa ese rumbo para elegir el clúster correcto y seguir publicando posición. Validado sin movimiento: 100% detección, 0 pérdidas, en `validation/runs/fusion_track_20260625/`; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. Pendiente validar el comportamiento con el robot en movimiento.)*
+4. ✅ **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual). *(Completado 2026-06-25: `visual_detection_node` publica el rumbo de la persona (`/person_bearing`) desde MediaPipe; cuando el LiDAR no encuentra un par de piernas válido, `detection_node` usa ese rumbo para elegir el clúster correcto y seguir publicando posición. Validado sin movimiento: 100% detección, 0 pérdidas, en `validation/runs/fusion_track_20260625/`; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. 2026-07-08: validado también con movimiento — la primera toma reveló saltos de detección y saturación angular (causa raíz identificada y corregida: filtro de continuidad + gate de Mahalanobis + rate-limit angular, ver `docs/05_decisiones.md`). Pendiente: validar `near_gain` de forma aislada.)*
 
 5. **Guiado de usuarios:** implementar comportamientos de acompañamiento hacia destinos predefinidos del edificio.
 

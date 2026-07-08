@@ -1,1 +1,6 @@
 __pycache__/
+
+# Rosbags crudos (pesados) — solo se versiona runs/<toma>/analysis/*
+runs/**/*.db3
+runs/**/*.mcap
+runs/**/metadata.yaml

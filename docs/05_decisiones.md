@@ -5,6 +5,52 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-08 — Filtro de continuidad, gate de Mahalanobis y rate-limit angular contra saltos de detección en movimiento
+
+- **Decisión:** tres cambios encadenados tras la primera prueba de fusión
+  CON movimiento (objetivo de la sesión):
+  1. `detection_node`: gating por continuidad física (`_gate_by_continuity`,
+     `max_person_speed=2.0 m/s`, `position_jump_margin=0.3 m`) — descarta
+     candidatos (par de piernas o clúster de fusión) que impliquen una
+     velocidad implausible respecto a la última posición publicada, salvo
+     que ningún candidato pase el filtro (entonces se admite sin filtrar,
+     para no bloquear una reaparición real tras pérdida larga).
+  2. `tracking_node.KalmanTracker`: el gate de Mahalanobis (`mah2 > GATE*4`)
+     ya no reancla el filtro con la primera observación lejana — exige
+     `outlier_confirm=3` observaciones lejanas consecutivas antes de aceptar
+     la reanclada; una observación aislada se descarta (se conserva la
+     predicción).
+  3. `tracking_node`: rate-limit a `wz` (`ang_acc_limit=0.3 rad/s/ciclo`),
+     simétrico al `acc_limit` que ya tenía `vx` — impide que la velocidad
+     angular salte de golpe a saturación en un solo ciclo de scan.
+- **Motivo:** la prueba con movimiento (ver `PROGRESO.md`, sesión de hoy)
+  reveló saltos de posición de 2-3.5 m en 80-260 ms (imposibles físicamente)
+  y saturación angular (`|wz|=1.0`) el 94.5% del tiempo incluso con posición
+  localmente estable. Causa raíz identificada en el código: (a)
+  `detect_person` elegía el candidato leg-pair más cercano al robot sin
+  comparar con la posición anterior, así que un cluster espurio (p.ej. patas
+  de silla) más cercano ganaba la selección; (b) el propio gate de
+  Mahalanobis, en vez de rechazar outliers, reiniciaba el filtro aceptándolos
+  como verdad; (c) `wz` no tenía ningún limitador de cambio por ciclo, a
+  diferencia de `vx`.
+- **Resultado medido** (mismo tipo de toma, antes/después de los 3 cambios):
+  saltos de posición >0.8 m: 12.1% → 0.7% de las muestras; saturación
+  angular con posición estable: 94.5% → 12.4%; cambios bruscos de `wz`
+  (>0.5 rad/s entre muestras): 0.2%. Detalle completo con las tres tomas
+  intermedias en `PROGRESO.md`.
+- **Alternativas descartadas:** rediseñar el uso del Kalman para que corrija
+  siempre con menor peso en vez de gate binario (más correcto en teoría, pero
+  cambio mayor de arquitectura fuera de alcance de la sesión); bajar
+  directamente `angular_gain` sin rate-limit (habría suavizado la respuesta a
+  errores angulares *reales* grandes, no solo a los espurios — el rate-limit
+  ataca el síntoma exacto, el salto brusco, sin perder capacidad de girar
+  fuerte si el error persiste varios ciclos).
+- **Pendiente:** el filtro de continuidad tiene un fallback a "sin filtrar"
+  cuando ningún candidato es plausible — siguen colándose saltos puntuales
+  (máx. 1.84 m observado tras el fix). No se ha repetido la toma con
+  mobiliario deliberadamente denso ni un recorrido largo (>2 min); ver
+  `docs/sesion_siguiente.md`.
+
 ## 2026-06-25 — Fusión LiDAR-cámara por rumbo en vez de exigir par de piernas
 
 - **Decisión:** cuando `detection_node` no encuentra un par de clústeres LiDAR

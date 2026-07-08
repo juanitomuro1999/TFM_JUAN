@@ -13,6 +13,7 @@ tracking_node:
     max_speed: 0.3          # m/s máximo (reducido de 0.4 para mayor estabilidad)
     target_distance: 1.0    # m — zona muerta: el robot se para a esta distancia
     acc_limit: 0.05         # m/s por ciclo de scan (≈0.5 m/s² a 10 Hz)
+    ang_acc_limit: 0.3      # rad/s por ciclo de scan — evita que wz salte a saturación en 1 ciclo
     angular_gain: 2.0       # ganancia proporcional del giro (Kp)
     angular_d_gain: 0.3     # ganancia derivativa del giro (Kd) — amortigua oscilaciones
     vel_ramp_exp: 1.5       # exponente rampa velocidad (1=lineal, 2=cuadrática suave)
@@ -79,6 +80,11 @@ detection_node:
     fusion_max_distance: 4.0      # alcance máx. del fallback (m) — supera max_detection_distance
     bearing_sign: -1.0            # signo cámara→láser (CALIBRAR en vivo desde los logs)
     bearing_timeout: 1.5          # validez del último rumbo (s); cámara ~2.5 Hz
+    # ── Filtro de continuidad (anti-salto a clusters espurios) ────────────
+    # Rechaza el candidato/cluster si implica una velocidad > max_person_speed
+    # respecto a la última posición publicada (ver detection_node._gate_by_continuity).
+    max_person_speed: 2.0         # m/s — cota física (marcha rápida/trote ligero)
+    position_jump_margin: 0.3     # m — margen extra sobre max_person_speed*dt (ruido de medida)
 
 user_interface_node:
   ros__parameters:

@@ -2,104 +2,101 @@
 
 > Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Robot: NUC **nuc-224**,
 > `ssh user@10.48.0.1` (password `qwerty`), `ROS_DOMAIN_ID=24`, ROS 2 Jazzy,
-> paquete en `~/ros2_ws/src/person_follower/`. Build:
-> `colcon build --packages-select person_follower --symlink-install`.
+> paquete en `~/ros2_ws/src/person_follower/`. Build con `--symlink-install`,
+> así que sincronizar código a `src/` con `scp` es suficiente — no hace falta
+> `colcon build` para que el stack recoja cambios al relanzar el launch.
 >
 > **Importante:** en el NUC **no hay `tmux`** ni acceso a internet. Para
 > procesos persistentes, usar `nohup ... > /tmp/algo.log 2>&1 & disown` por
 > SSH. Sincronizar código desde el portátil con `sshpass scp` (el
-> `sync_nuc.sh` del repo tiene rutas antiguas, revisar antes de usarlo).
+> `sync_nuc.sh` del repo tiene una ruta de `config.yaml` rota, revisar antes
+> de usarlo — ver `PROGRESO.md` sesión 2026-07-08).
 
-## Estado heredado de la sesión 2026-06-25 (no repetir, solo verificar)
+## Estado heredado de la sesión 2026-07-08 (no repetir, solo verificar)
 
-- ✅ **Fusión cámara+LiDAR**: `visual_detection_node` publica `/person_bearing`
-  (rumbo de la persona desde MediaPipe). Cuando el LiDAR no encuentra par de
-  piernas, `detection_node` elige el clúster alineado con ese rumbo y publica
-  `/person_position`. → Posición continua aunque la persona esté quieta.
-  Detalle en `PROGRESO.md` y `docs/05_decisiones.md`.
-- ✅ **Fix crítico**: sklearn estaba roto en el NUC (Python 3.12 vs `.so` de
-  3.10). Reemplazado por un DBSCAN propio sobre `scipy.cKDTree`. El stack ya
-  sobrevive a un reinicio.
-- ✅ **Validado sin movimiento** (toma `fusion_track_20260625`): telemetría
-  continua (285 muestras), 100% detección, 0 pérdidas. `bearing_sign=-1.0`
-  confirmado (~6° de desviación).
-- ⚠️ RPLIDAR puede dar `SL_RESULT_OPERATION_TIMEOUT` si el cable USB hace mal
-  contacto — desconectar y reconectar el cable lo arregló la última vez.
-- 🔄 Pendiente sin tocar: `OrbbecSDK_ROS2` está en `ros2_ws/src` sin compilar
-  — explorar si la cámara RGBD Orbbec Astra puede sustituir/complementar al
-  LiDAR 2D (cambio de arquitectura mayor, no abordado todavía).
+- ✅ **Filtro de continuidad + gate de Mahalanobis corregido + rate-limit de
+  `wz`**: los saltos de posición implausibles (2-4m en <300ms) y la
+  saturación angular casi permanente (94.5% del tiempo incluso con posición
+  estable) están mayormente resueltos. Progresión medida: saltos >0.8m
+  12.1%→0.7%, saturación con posición estable 94.5%→12.4%. Detalle completo
+  y causa raíz en `docs/05_decisiones.md` (entrada 2026-07-08) y
+  `PROGRESO.md`.
+- ⚠️ **El gesto de mano derecha NO es utilizable todavía** — la cámara C270,
+  en su encuadre/inclinación actual, pierde de vista la muñeca (o su
+  visibilidad MediaPipe cae por debajo de 0.6) justo cuando se levanta el
+  brazo. Se activó TRACKING manualmente por SSH (`ros2 topic pub
+  /gesture_command ...`) como workaround para poder probar. Objetivo
+  específico 1 del TFM (interacción por gestos) depende de que esto funcione
+  de verdad — es la prioridad más alta de la próxima sesión.
+- 🔄 Pendiente sin tocar: `OrbbecSDK_ROS2` en `ros2_ws/src` sin compilar —
+  explorar si la cámara RGBD Orbbec Astra resuelve tanto el encuadre del
+  gesto como la detección de persona (cambio de arquitectura mayor).
 
-## OBJETIVO de esta sesión: prueba de fusión CON movimiento
+## OBJETIVO de esta sesión: re-encuadrar cámara + validar near_gain aislado
 
-Es lo único que falta validar de la fusión: el comportamiento real de giro.
-En la toma anterior la base estaba inhibida, así que `vang` salía saturada y
-no se puede juzgar el giro. Hay que comprobar que el `near_gain` (multiplica
-`wz` por `min(1, dist/target)`) doma el giro brusco a corta distancia.
+### 1. Cámara — arreglar el encuadre para el gesto (prioridad alta)
 
-### Plan paso a paso
+- Revisar físicamente la altura/inclinación de la C270 en el robot. El
+  síntoma exacto: con la persona a distancia normal de interacción,
+  `landmarks_visibles` cae de 25 a 13 y la muñeca/hombro se estiman con `y`
+  fuera de rango [0,1] al levantar el brazo — sugiere que el encuadre
+  vertical no cubre "persona de pie con brazo levantado" a esa distancia.
+- Tras el ajuste físico, repetir el gesto y mirar
+  `visual_detection_node`'s log `[GESTO-DBG]` (visibilidad de muñeca/hombro,
+  ¿supera 0.6 de forma sostenida al levantar el brazo?).
+- Si el reencuadre no basta, considerar bajar `gesture_min_visibility` (0.6 →
+  ~0.45-0.5) en `config.yaml` como mitigación adicional — pero probar primero
+  el ajuste físico, que es la causa real identificada hoy.
 
-0. **Seguridad primero**: espacio despejado, mano en el botón de parada del
-   Kobuki. Empezar con la persona a ~2m de frente.
-1. Lanzar sensores (LiDAR + cámara + base/odom) como siempre.
-2. Lanzar el stack seguidor **REAL** (NO `test_nomotion`): que `/cmd_vel`
-   vaya a `/commands/velocity`. Usar `start_person_follower.launch.py`.
-3. Grabar rosbag con los topics de validación (telemetría, odom, cmd_vel,
-   person_position/bearing/detected, control/state, gesture_command).
-4. Gesto mano DERECHA (mantener ~1-2s, muñeca por encima del hombro) →
-   TRACKING.
-5. Secuencia de prueba: (a) quieto, (b) alejarse en línea recta, (c)
-   acercarse, (d) desplazarse lateral izq/der, (e) giro a corta distancia
-   (~0.5-0.7m) para estresar el `near_gain`.
-6. Gesto mano IZQUIERDA → STOP. Cerrar el bag con **SIGTERM** (no SIGINT).
-7. Pasar a CSV (`bag_to_csv.py`) y graficar (`plot_run.py`) en el portátil.
+### 2. Validar `near_gain` de forma aislada (objetivo original, pospuesto hoy)
 
-### Qué mirar en los datos
+La toma de hoy mezcló movimiento general (alejarse/acercarse/lateral/giro)
+con la depuración del gesto y no aisló el caso que motivó `near_gain`
+(giro brusco a corta distancia). Con el ruido de fondo ya resuelto:
 
-- `vang` ya NO saturada: debe variar suave, sin picos a corta distancia.
-- `dist` converge hacia `target_dist` sin oscilar.
-- Los 2 picos puntuales de la fusión (frames con clúster lejano) de la toma
-  anterior — ver si molestan en movimiento; si sí, endurecer
-  `fusion_angle_tol_deg` o filtrar por salto de distancia entre frames.
-- `cmd_vel` ahora SÍ tendrá filas (el robot se mueve).
+1. Activar TRACKING (gesto si ya funciona, si no manualmente por SSH).
+2. Grabar con `validation/record_run.sh corto_near_gain` mientras la persona
+   se acerca deliberadamente a 0.5-0.7m del robot y cambia de dirección ahí.
+3. Mirar `vang` en `analysis/figs/vel_vs_t.png`: debe variar suave, sin
+   picos, y sin la saturación casi permanente que había antes del fix.
 
-## Riesgos / cosas a vigilar
+### 3. Estresar el fallback del filtro de continuidad
 
-- Giro brusco a corta distancia (lo que `near_gain` debería arreglar) — tener
-  el dedo en el paro.
-- Cable USB del RPLIDAR (histórico de fallos de conexión).
-- Encuadre de la cámara C270 (que se vean los hombros para el rumbo).
+El filtro de `detection_node` cae de vuelta a "sin filtrar" cuando *ningún*
+candidato pasa el gate de plausibilidad — ahí es donde se colaron los saltos
+residuales de hoy (máx. 1.84m tras el fix). Probar con mobiliario
+deliberadamente denso cerca de la trayectoria y un recorrido más largo
+(>2 min) para ver con qué frecuencia se activa ese fallback y si conviene
+endurecerlo (p.ej. exigir confirmación de 2 frames antes de aceptar un salto
+grande, igual que se hizo con el Mahalanobis gate del Kalman).
 
 ## Si sobra tiempo
 
-- Decidir Nav2: demo mínima (AMCL + mapa, ya hay `nav2_params.yaml` y
-  `maps/` se instalan) vs. dejarlo como trabajo futuro.
-- Repetir la toma para tener 2-3 rosbags buenos para el Capítulo 7.
+- Decidir alcance de Nav2 (objetivo 3): demo mínima (AMCL + mapa ya guardado)
+  vs. documentarlo como trabajo futuro. Sigue sin abordarse.
+- Investigar por qué `ros2 topic pub --once /gesture_command` no queda
+  grabado en el rosbag pese a que `control_node` sí lo recibe (visto dos
+  veces hoy) — no bloquea nada, pero hace `gestures.csv` poco fiable.
 
 ## Pasos para empezar
 
 ```bash
 # 1. Sincronizar si hubo cambios locales
 cd ~/ros2_ws/src/TFM_JUAN && git pull
-bash sync_nuc.sh   # revisar rutas antes de usarlo, ver nota de arriba
 
-# 2. Lanzar el robot (cada bloque en su propia sesión SSH o con nohup)
+# 2. Lanzar el robot (cada bloque con nohup+disown, sin tmux)
 sshpass -p 'qwerty' ssh user@10.48.0.1
 source /opt/ros/jazzy/setup.bash && source ~/kobuki_ws/install/setup.bash && source ~/ros2_ws/install/setup.bash
 export ROS_DOMAIN_ID=24
 
-# Kobuki
 nohup ros2 launch kobuki_node kobuki_node-launch.py > /tmp/kobuki.log 2>&1 & disown
-
-# RPLIDAR
 nohup ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/rplidar > /tmp/lidar.log 2>&1 & disown
-
-# Sistema person_follower completo (incluye gestos y fusión; camera_enabled=True)
 nohup ros2 launch person_follower start_person_follower.launch.py > /tmp/follower.log 2>&1 & disown
 
 # 3. Verificar
 ros2 node list
 timeout 5 ros2 topic hz /scan
-timeout 5 ros2 topic hz /person_bearing
+grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levantar el brazo
 ```
 
 ## Checklist de cierre de sesión
@@ -109,4 +106,4 @@ timeout 5 ros2 topic hz /person_bearing
 - [ ] Si hay una decisión de diseño relevante, añadirla a `docs/05_decisiones.md`.
 - [ ] Añadir entrada con fecha en `docs/04_diario_desarrollo.md` (estilo prosa, para la memoria).
 - [ ] Dejar este archivo (`docs/sesion_siguiente.md`) actualizado con el plan de la siguiente sesión.
-- [ ] `git add` + commit + push.
+- [ ] `git add` + commit + push (proyecto principal y, si aplica, Claude-Project-OS).

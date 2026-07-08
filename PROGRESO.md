@@ -1,5 +1,101 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-08
+
+### Objetivo: prueba de fusión CON movimiento (validar `near_gain`)
+
+Robot lanzado en nuc-224 (kobuki + rplidar + stack completo), sin incidencias
+de hardware (RPLIDAR arrancó limpio, sin el timeout USB histórico).
+
+### Gesto de activación: no utilizable esta sesión (encuadre de cámara)
+
+El gesto de mano derecha no se detectó de forma fiable: la visibilidad
+MediaPipe de la muñeca se mantuvo por debajo de `gesture_min_visibility=0.6`
+la mayor parte del tiempo, y en los intentos donde sí superaba el umbral, al
+levantar el brazo la muñeca/hombro se acercaban o salían del borde superior
+del encuadre (`landmarks_visibles` cayó de 25 a 13, hombro estimado con `y`
+negativo = fuera de frame). No es un problema de postura del usuario, es un
+límite físico del encuadre vertical de la C270 en su montaje actual —
+pendiente de re-inclinar/reposicionar la cámara, fuera de alcance de hoy.
+**Workaround usado**: activar TRACKING publicando manualmente
+`ros2 topic pub /gesture_command std_msgs/msg/String "{data: 'start_tracking'}"`
+por SSH. Válido para las pruebas de hoy, pero el gesto real sigue sin
+funcionar de cara al TFM.
+
+### Primera toma con movimiento: reveló saltos de detección + saturación angular
+
+Bag `movimiento_20260708` (ventana real de seguimiento ~130s, tras filtrar el
+tiempo previo de depuración del gesto): FSM oscilando TRACKING↔IDLE 24 veces
+en 130s, sólo 56.9% detección, saltos de posición de 2-3.5m en 80-260ms
+(físicamente imposibles), y `v_ang` saturado a ±1.0 rad/s el 70% del tiempo
+(94.5% incluso con posición localmente estable). Reporte inicial del usuario
+("seguimiento irregular, se pierde, giros bruscos") confirmado con datos, no
+solo de oído.
+
+### Causa raíz y fix — ver detalle completo en `docs/05_decisiones.md`
+
+Tres cambios encadenados, cada uno verificado con una toma nueva:
+1. `detection_node`: filtro de continuidad anti-salto (rechaza candidatos
+   con velocidad implícita implausible respecto a la última posición).
+2. `tracking_node.KalmanTracker`: el gate de Mahalanobis ya no reancla con
+   una sola observación lejana — exige 3 consecutivas.
+3. `tracking_node`: rate-limit a `wz` (antes solo `vx` lo tenía).
+
+**Progresión medida** (saltos >0.8m / saturación con posición estable):
+- Original: 12.1% saltos / 94.5% saturación
+- +fix 1: 2.2% saltos / 72.2% saturación
+- +fix 2 y 3: **0.7% saltos / 12.4% saturación**
+
+Detección subió de 71.7% a 82.6% entre la toma del fix 1 y la de los fixes
+2+3 (efecto colateral positivo: menos saltos → Kalman más estable → FSM
+pierde menos el track).
+
+### Notas técnicas
+
+- Para analizar bags en el portátil hizo falta convertir de mcap a sqlite3
+  en el propio NUC (`ros2 bag convert`) — el portátil solo tenía ROS2 Humble
+  con el plugin mcap, y el metadata.yaml de rosbag2 escrito por Jazzy usa un
+  formato de QoS (strings tipo `history: unknown`) que el parser yaml-cpp de
+  Humble no entiende. Con sqlite3 tampoco bastaba: el mismo problema de
+  metadata.yaml aparecía al leerlo con `rosbag2_py`. Se esquivó leyendo la
+  base sqlite3 directamente (tablas `topics`/`messages`) con un script ad-hoc
+  (`bag_to_csv_direct.py`, en el scratchpad de esta sesión, no en el repo)
+  que reutiliza la lógica de `validation/bag_to_csv.py` sin pasar por el
+  metadata.yaml problemático.
+- `sync_nuc.sh` tiene una ruta de destino de `config.yaml` que no existe
+  (`/home/user/ros2_ws/src/person_follower/config/config.yaml` — la ruta real
+  es `.../person_follower/person_follower/config/config.yaml`, duplicado en
+  el propio script). Falla ese `scp` puntual pero no bloquea el resto; revisar
+  si se usa `sync_nuc.sh` en vez de scp manual.
+- El build en el NUC usa `--symlink-install`: `build/person_follower/...` es
+  un symlink a `src/person_follower/...`, así que sincronizar con `scp` a los
+  paths de `src/` dentro de `~/ros2_ws/src/person_follower/` basta — no hace
+  falta recompilar ni `colcon build` para que el stack recoja cambios de
+  código al relanzar el launch.
+- El mensaje de `/gesture_command` publicado manualmente con
+  `ros2 topic pub --once` no queda grabado en el rosbag pese a que
+  `control_node` sí lo recibe (confirmado dos veces, en dos tomas distintas)
+  — probablemente una condición de carrera de descubrimiento DDS específica
+  de `--once`. Sin investigar más a fondo; no bloquea nada, solo hace que
+  `gestures.csv` no sea fiable para ver activaciones manuales.
+
+### Pendiente para la próxima sesión
+
+- **Re-encuadrar/inclinar la cámara C270** para que el gesto de mano derecha
+  sea utilizable sin el workaround manual — objetivo específico 1 del TFM
+  depende de esto funcionando de verdad en vivo.
+- El filtro de continuidad tiene fallback a "sin filtrar" cuando ningún
+  candidato es plausible — siguen colándose saltos puntuales (máx. 1.84m
+  observado tras el fix). Probar con mobiliario deliberadamente denso cerca
+  y un recorrido más largo (>2 min) para ver si el fallback se activa mucho.
+- Repetir la validación de `near_gain` específicamente (girar a corta
+  distancia, ~0.5-0.7m) ahora que el ruido de fondo (saltos/saturación) está
+  mayormente resuelto — la toma de hoy mezclaba movimiento general, no aisló
+  ese caso.
+- Decidir alcance de Nav2 (objetivo 3): sigue pendiente, no tocado hoy.
+
+---
+
 ## Sesión 2026-06-25
 
 ### Causa raíz del fallo de seguimiento

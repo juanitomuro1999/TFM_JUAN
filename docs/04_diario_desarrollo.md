@@ -347,6 +347,68 @@ Sesión de ajuste fino tras detectar movimiento errático ("a trompicones") y FS
 
 ---
 
+## Julio 2026
+
+### 8 de julio — Validación con movimiento: saltos de detección y saturación angular
+
+**Objetivo de la sesión:** completar la validación pendiente desde el 25 de
+junio — probar la fusión LiDAR-cámara con el robot moviéndose de verdad, y
+comprobar que `near_gain` doma el giro brusco a corta distancia.
+
+**El gesto de activación no funcionó:** al intentar el gesto de mano derecha
+para arrancar el seguimiento, la visibilidad MediaPipe de la muñeca se quedó
+sistemáticamente por debajo del umbral necesario, y en los intentos donde sí
+la superaba, levantar el brazo sacaba la muñeca/hombro del encuadre vertical
+de la cámara C270. Diagnóstico con datos (no solo visual): `landmarks_visibles`
+caía de 25 a 13 al levantar el brazo, y coordenadas `y` de hombro fuera del
+rango [0,1]. Es una limitación física del montaje actual de la cámara, no un
+problema de umbral ni de postura — pendiente de re-encuadrar en la próxima
+sesión. Se activó TRACKING manualmente por SSH como workaround para poder
+seguir con el objetivo real de la sesión.
+
+**Lo que reveló la primera toma con movimiento:** el robot mostró exactamente
+el comportamiento que describió el usuario tras la prueba — seguimiento
+irregular, pérdidas frecuentes, giros bruscos. El análisis de la telemetría
+grabada lo confirmó con números: la posición de la persona saltaba de golpe
+2-3.5 metros en menos de 300 milisegundos (una velocidad imposible para una
+persona caminando), y el robot respondía girando a velocidad angular máxima
+el 70% del tiempo — incluso el 94.5% de las veces en que la posición
+trackeada estaba, en apariencia, estable de un instante a otro.
+
+**Causa raíz, leyendo el código con esos datos en la mano:** tres problemas
+independientes se sumaban. `detection_node` elegía, entre los pares de
+piernas candidatos del LiDAR, el más cercano al robot — sin comparar con
+dónde había estado la persona el instante anterior, así que un objeto
+cualquiera (una pata de silla, por ejemplo) más cercano que la persona real
+podía ganar la selección. El filtro de Kalman de `tracking_node`, que en
+teoría protege contra observaciones erráticas mediante un gate estadístico
+(distancia de Mahalanobis), hacía justo lo contrario de lo esperado: en vez
+de rechazar una observación demasiado alejada, reiniciaba el filtro
+aceptándola como si fuera la nueva verdad. Y la velocidad angular comandada
+al robot no tenía ningún limitador de cambio brusco por ciclo, a diferencia
+de la velocidad lineal, que sí lo tenía desde la sesión del 4 de junio.
+
+**La solución encadenó un arreglo en cada capa:** un filtro de continuidad en
+`detection_node` que descarta candidatos con velocidad implícita físicamente
+implausible; una corrección al gate de Mahalanobis para que exija varias
+observaciones lejanas consecutivas antes de aceptar una reanclada real; y un
+límite de aceleración angular simétrico al que ya tenía la velocidad lineal.
+Cada cambio se verificó con una toma nueva antes de añadir el siguiente. El
+resultado, medido: los saltos de posición pasaron de aparecer en 1 de cada 8
+muestras a 1 de cada 140; la saturación angular con posición estable bajó
+del 94.5% al 12.4%. Detalle completo, con las cifras de las tres tomas
+intermedias, en `PROGRESO.md` y `docs/05_decisiones.md`.
+
+**Estado al cierre:**
+- ✅ Causa raíz de los saltos de detección y la saturación angular
+  identificada y corregida, con mejora medida (no solo observada)
+- ⚠️ Objetivo específico 1 del TFM (interacción por gestos) sigue sin validar
+  en esta sesión — encuadre de cámara pendiente
+- 🔄 Pendiente: repetir la validación de `near_gain` de forma aislada (la
+  toma de hoy mezcló movimiento general); decidir alcance de Nav2
+
+---
+
 ## Julio 2026 (planificado)
 
 ### Fase 3 — Navegación autónoma (Nav2)

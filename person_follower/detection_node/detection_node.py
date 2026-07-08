@@ -80,6 +80,9 @@ class DetectionNode(Node):
         self.declare_parameter('fusion_max_distance', 4.0)     # alcance máx. para el fallback (m)
         self.declare_parameter('bearing_sign', -1.0)           # signo cámara→láser (calibrar en vivo)
         self.declare_parameter('bearing_timeout', 1.5)         # validez del último rumbo (s)
+        # ── Filtro de continuidad (anti-salto) ───────────────────────────────
+        self.declare_parameter('max_person_speed', 2.0)        # m/s — cota física de velocidad humana
+        self.declare_parameter('position_jump_margin', 0.3)    # m — margen extra sobre max_person_speed*dt
 
         # Carga de parámetros
         self.enabled = self.get_parameter('enabled').value
@@ -101,6 +104,8 @@ class DetectionNode(Node):
         self.fusion_max_distance = self.get_parameter('fusion_max_distance').value
         self.bearing_sign = self.get_parameter('bearing_sign').value
         self.bearing_timeout = self.get_parameter('bearing_timeout').value
+        self.max_person_speed = self.get_parameter('max_person_speed').value
+        self.position_jump_margin = self.get_parameter('position_jump_margin').value
 
         if not self.enabled:
             self.get_logger().info("Nodo de Detección desactivado.")
@@ -137,7 +142,8 @@ class DetectionNode(Node):
         self._detect_streak  = 0   # scans consecutivos con detección
         self._loss_streak    = 0   # scans consecutivos sin detección
         self._confirmed      = False   # persona "confirmada" (supera umbral)
-        self._last_confirmed_pos: tuple | None = None  # posición cuando se confirmó
+        self._last_confirmed_pos: tuple | None = None  # última posición publicada (gating de continuidad)
+        self._last_position_time = None
 
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
@@ -185,6 +191,7 @@ class DetectionNode(Node):
             self._detect_streak  = 0
             if self._loss_streak >= self._loss_frames:
                 self._confirmed = False
+                self._last_confirmed_pos = None  # pérdida larga: ya no ancla el gating de continuidad
 
         final_detection = self._confirmed
 
@@ -235,6 +242,34 @@ class DetectionNode(Node):
         interpolated_ranges = np.interp(interpolated_angles, original_angles, ranges)
         return interpolated_ranges, interpolated_angles
 
+    def _gate_by_continuity(self, positions, now):
+        """
+        Filtra `positions` (lista de np.array [x,y]) descartando las que
+        impliquen una velocidad mayor que max_person_speed respecto a la
+        última posición publicada. Sin filtro, un cluster espurio (p.ej.
+        patas de silla) más cercano al robot que la persona real puede ganar
+        la selección por proximidad y producir saltos de varios metros entre
+        frames consecutivos.
+
+        Devuelve `positions` sin filtrar si no hay ancla reciente (arranque o
+        tras una pérdida larga) — así no se bloquea la reasignación cuando la
+        persona reaparece en otro punto.
+        """
+        if self._last_confirmed_pos is None or self._last_position_time is None:
+            return positions
+        elapsed = (now - self._last_position_time).nanoseconds * 1e-9
+        max_jump = self.max_person_speed * max(elapsed, 0.0) + self.position_jump_margin
+        last = np.array(self._last_confirmed_pos)
+        plausible = [p for p in positions if np.linalg.norm(p - last) <= max_jump]
+        return plausible if plausible else positions
+
+    def _publish_person_position(self, xy, now, log_msg, log_data):
+        pt = Point(x=float(xy[0]), y=float(xy[1]), z=0.0)
+        self.person_position_publisher.publish(pt)
+        self.log_info(log_msg, log_data)
+        self._last_confirmed_pos = (float(xy[0]), float(xy[1]))
+        self._last_position_time = now
+
     def detect_person(self, ranges, angle_min, angle_increment):
         # Alcance efectivo: para el fallback de fusión necesitamos clústeres
         # más allá de max_detection_distance, así que ampliamos el filtro de
@@ -281,10 +316,14 @@ class DetectionNode(Node):
         candidate_positions = [p for p in candidate_positions
                                if np.linalg.norm(p) <= self.max_detection_distance]
         if candidate_positions:
-            selected = min(candidate_positions, key=lambda p: np.linalg.norm(p))
-            pt = Point(x=selected[0], y=selected[1], z=0.0)
-            self.person_position_publisher.publish(pt)
-            self.log_info("Posición de persona publicada", {"x": selected[0], "y": selected[1]})
+            now = self.get_clock().now()
+            gated = self._gate_by_continuity(candidate_positions, now)
+            last = np.array(self._last_confirmed_pos) if self._last_confirmed_pos is not None else None
+            key = (lambda p: np.linalg.norm(p - last)) if last is not None else (lambda p: np.linalg.norm(p))
+            selected = min(gated, key=key)
+            self._publish_person_position(
+                selected, now, "Posición de persona publicada",
+                {"x": selected[0], "y": selected[1]})
             return True
 
         # ── Fallback de fusión cámara+LIDAR ──────────────────────────────────
@@ -302,22 +341,24 @@ class DetectionNode(Node):
                     math.sin(math.pi + self.bearing_sign * self._bearing),
                     math.cos(math.pi + self.bearing_sign * self._bearing),
                 )
+                now = self.get_clock().now()
+                centroids = [np.mean(cl, axis=0) for cl in clusters]
+                in_range = [c for c in centroids
+                            if self.min_detection_distance
+                               < float(np.linalg.norm(c))
+                               <= self.fusion_max_distance]
+                gated = self._gate_by_continuity(in_range, now)
+
                 best, best_dev = None, float('inf')
-                for cl in clusters:
-                    c = np.mean(cl, axis=0)
-                    dist = float(np.linalg.norm(c))
-                    if not (self.min_detection_distance < dist <= self.fusion_max_distance):
-                        continue
+                for c in gated:
                     theta_c = math.atan2(c[1], c[0])
                     dev = abs(math.atan2(math.sin(theta_c - theta_target),
                                          math.cos(theta_c - theta_target)))
                     if dev < best_dev:
                         best, best_dev = c, dev
                 if best is not None and best_dev <= self.fusion_angle_tol:
-                    pt = Point(x=float(best[0]), y=float(best[1]), z=0.0)
-                    self.person_position_publisher.publish(pt)
-                    self.log_info(
-                        "Posición de persona publicada (FUSION cam+LIDAR)",
+                    self._publish_person_position(
+                        best, now, "Posición de persona publicada (FUSION cam+LIDAR)",
                         {"x": round(float(best[0]), 3), "y": round(float(best[1]), 3),
                          "beta_deg": round(math.degrees(self._bearing), 1),
                          "theta_tgt_deg": round(math.degrees(theta_target), 1),

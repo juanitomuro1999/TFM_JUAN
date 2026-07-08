@@ -1,0 +1,11 @@
+Resumen de la toma: analysis
+  duracion                : 53.1 s (588 muestras telemetria)
+  distancia objetivo      : 1.00 m
+  error distancia MAE     : 0.491 m
+  error distancia RMS     : 0.609 m
+  distancia min / max     : 0.39 / 3.08 m
+  |error angular| medio   : 124.5 deg
+  v lineal max            : 0.300 m/s
+  |v angular| max         : 1.042 rad/s
+  % tiempo persona detect.: 82.6 %
+  nº perdidas deteccion   : 13

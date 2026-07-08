@@ -42,7 +42,7 @@ class KalmanTracker:
     DIM = 6   # estados: px, py, vx, vy, ax, ay
     OBS = 2   # observaciones: px, py
 
-    def __init__(self, q: float = 0.02, r: float = 0.04):
+    def __init__(self, q: float = 0.02, r: float = 0.04, outlier_confirm: int = 3):
         self.x = np.zeros(self.DIM)
         self.P = np.eye(self.DIM) * 0.5
 
@@ -55,6 +55,8 @@ class KalmanTracker:
         self._q = q
         self._last_t: float | None = None
         self.initialized = False
+        self._outlier_confirm = outlier_confirm  # observaciones lejanas seguidas para reanclar
+        self._outlier_streak = 0
 
     def _build_F_Q(self, dt: float):
         """Matrices F y Q para modelo de aceleración constante."""
@@ -124,9 +126,20 @@ class KalmanTracker:
 
         mah2 = float(inn @ S_inv @ inn)
         if mah2 > MAHAL_GATE * 4:
-            # Observación muy alejada: re-inicializar suavemente
+            self._outlier_streak += 1
+            if self._outlier_streak < self._outlier_confirm:
+                # Observación aislada muy alejada: probablemente un salto
+                # espurio de detección (cluster equivocado), no una
+                # reaparición real. Se ignora — se conserva la predicción
+                # (sin incorporar esta observación) en vez de reanclar el
+                # filtro a ella.
+                self.x, self.P = x_pred, P_pred
+                return float(x_pred[0]), float(x_pred[1])
+            # N observaciones lejanas consecutivas: reaparición real → reanclar.
+            self._outlier_streak = 0
             self.init(px, py)
             return px, py
+        self._outlier_streak = 0
 
         # — Corrección (forma de Joseph para estabilidad numérica) —
         K = P_pred @ self.H.T @ S_inv
@@ -161,6 +174,7 @@ class TrackingNode(Node):
         self.declare_parameter('max_speed',                 0.4)
         self.declare_parameter('target_distance',           0.4)
         self.declare_parameter('acc_limit',                 0.05)
+        self.declare_parameter('ang_acc_limit',              0.3)
         self.declare_parameter('angular_gain',              2.0)
         self.declare_parameter('angular_d_gain',            0.3)
         self.declare_parameter('vel_ramp_exp',              1.5)
@@ -179,6 +193,7 @@ class TrackingNode(Node):
         self.max_speed      = self.get_parameter('max_speed').value
         self.target_dist    = self.get_parameter('target_distance').value
         self.acc_limit      = self.get_parameter('acc_limit').value
+        self.ang_acc_limit  = self.get_parameter('ang_acc_limit').value
         self.ang_kp         = self.get_parameter('angular_gain').value
         self.ang_kd         = self.get_parameter('angular_d_gain').value
         self.vel_ramp_exp   = self.get_parameter('vel_ramp_exp').value
@@ -198,6 +213,7 @@ class TrackingNode(Node):
 
         self.prev_vx    = 0.0
         self.prev_angle = 0.0
+        self.prev_wz    = 0.0
 
         # ── Publishers ───────────────────────────────────────────────────
         self.vel_pub    = self.create_publisher(Twist,  '/tracking/velocity_cmd',    10)
@@ -297,6 +313,13 @@ class TrackingNode(Node):
         wz  = max(-1.0, min(1.0, wz))
         self.prev_angle = ang_err
 
+        # Rate-limit: igual que vx con acc_limit, wz no puede saltar de golpe
+        # a saturación en un solo ciclo — protege tanto de un error angular
+        # grande y real como de un salto puntual de detección que se cuele.
+        wz_delta = max(-self.ang_acc_limit, min(self.ang_acc_limit, wz - self.prev_wz))
+        wz = self.prev_wz + wz_delta
+        self.prev_wz = wz
+
         # ── Evasión de obstáculos ─────────────────────────────────────────
         ang_adj, lin_factor = self._obstacle_avoidance(scan)
         vx  *= lin_factor
@@ -365,6 +388,7 @@ class TrackingNode(Node):
     def _stop(self):
         self.prev_vx    = 0.0
         self.prev_angle = 0.0
+        self.prev_wz    = 0.0
         self.vel_pub.publish(Twist())
 
     def _on_enable(self, req, resp):
