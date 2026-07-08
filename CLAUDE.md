@@ -63,8 +63,25 @@ dilo explícitamente en vez de asumir que el cambio "funciona" sin probarlo.
 8. Dejar `docs/sesion_siguiente.md` actualizado con el plan de la próxima
    sesión — así cualquiera (o Claude, sin memoria de este chat) puede
    continuar sin fricción.
-9. Proponer un commit — **nunca hacer commit/push sin confirmación
-   explícita**, aunque el remoto ya esté configurado.
+9. Proponer un commit y pedir confirmación antes de crearlo — **el commit en
+   sí siempre se confirma con el usuario**. El `git push` posterior, en
+   cambio, está pre-autorizado para este proyecto (ver
+   `.claude/settings.json`, `permissions.allow`): una vez confirmado el
+   commit, empújalo sin volver a preguntar.
+
+## Retomar la sesión sin fricción
+
+- **Atajo:** desde PowerShell, el comando `tfm` (función en el perfil de
+  PowerShell de este usuario) se posiciona en este repo y lanza `claude` con
+  un prompt de continuación automático — no hace falta escribir nada.
+- Como refuerzo, hay un hook de `SessionStart`
+  (`.claude/hooks/session_start_context.sh`) que inyecta un recordatorio de
+  contexto en cada sesión abierta aquí: si el primer mensaje del usuario no
+  trae instrucciones concretas, léase primero `docs/sesion_siguiente.md` y
+  `PROGRESO.md` y resúmase el estado antes de esperar más indicaciones. Un
+  hook no puede generar un turno de usuario por sí solo — sigue haciendo
+  falta que el usuario escriba algo (aunque sea un saludo); el atajo `tfm` es
+  lo que de verdad reduce eso a una sola palabra.
 
 ## Reglas de este proyecto
 
