@@ -12,6 +12,32 @@
 > la ruta duplicada de `config.yaml` que fallaba en la sesión 2026-07-08 —
 > ver `PROGRESO.md` — ya está corregido).
 
+## Presupuesto de julio: 9 sesiones de lab (~2.5-3h cada una)
+
+> **Borrador de reparto (2026-07-09), reordenable.** Es una guía de prioridad,
+> no un contrato — la experiencia de este proyecto es que las sesiones no
+> siempre van como se planean (encuadre de cámara roto, RPLIDAR con
+> timeouts, sklearn roto en el NUC...). Si una sesión se alarga, lo normal es
+> recortar alcance (ver notas de "si el tiempo aprieta" en cada bloque) y
+> desplazar lo que quede, no intentar comprimir dos sesiones en una.
+
+| Sesión | Objetivo principal |
+|---|---|
+| **1 (próxima)** | Cámara — re-encuadrar + validar gesto real (bloquea objetivo 1) |
+| 2 | `near_gain` aislado + empezar a estresar el gate de continuidad |
+| 3 | Terminar el gate de continuidad + resolver reproducibilidad de métricas del Capítulo 7 |
+| 4 | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
+| 5 | Nav2 — fase A: solo localización AMCL |
+| 6 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
+| 7 | Colchón + grabar vídeo de demostración del TFM |
+| 8 | Objetivo 5 (guiado a destino) si hay margen; si no, más repeticiones/pulido del Cap. 7 |
+| 9 | Colchón final de julio — cerrar cabos sueltos antes de que empiece la Fase 4 (agosto) |
+
+**Objetivo 6 (QR, exploratorio) y la redacción de los Capítulos 5-6 de la
+memoria no tienen sesión de lab asignada** — son trabajo de escritorio
+(bibliografía, prosa) o exploratorio de baja prioridad; no compiten por
+tiempo de robot salvo que sobre alguna sesión de las 9.
+
 ## Estado heredado de la sesión 2026-07-08 (no repetir, solo verificar)
 
 - ✅ **Filtro de continuidad + gate de Mahalanobis corregido + rate-limit de
@@ -32,9 +58,10 @@
   explorar si la cámara RGBD Orbbec Astra resuelve tanto el encuadre del
   gesto como la detección de persona (cambio de arquitectura mayor).
 
-## OBJETIVO de esta sesión: re-encuadrar cámara + validar near_gain aislado
+## OBJETIVO de la Sesión 1 (próxima): re-encuadrar la cámara y validar el gesto real
 
-### 1. Cámara — arreglar el encuadre para el gesto (prioridad alta)
+Único objetivo de esta sesión — no meter `near_gain`/continuidad/Nav2 aquí
+aunque sobre tiempo (ver "si sobra tiempo" al final de este bloque).
 
 - Revisar físicamente la altura/inclinación de la C270 en el robot. El
   síntoma exacto: con la persona a distancia normal de interacción,
@@ -46,21 +73,28 @@
   ¿supera 0.6 de forma sostenida al levantar el brazo?).
 - Si el reencuadre no basta, considerar bajar `gesture_min_visibility` (0.6 →
   ~0.45-0.5) en `config.yaml` como mitigación adicional — pero probar primero
-  el ajuste físico, que es la causa real identificada hoy.
+  el ajuste físico, que es la causa real identificada el 08/07.
 
-### 2. Validar `near_gain` de forma aislada (objetivo original, pospuesto hoy)
+**Si sobra tiempo en esta sesión:** grabar una toma corta con
+`validation/record_run.sh` usando el gesto real ya funcionando (no el
+workaround manual por SSH) — es un dato que le falta al Capítulo 7
+(`docs/07_resultados.md` §7.5, "gesto de activación no utilizado").
 
-La toma de hoy mezcló movimiento general (alejarse/acercarse/lateral/giro)
-con la depuración del gesto y no aisló el caso que motivó `near_gain`
-(giro brusco a corta distancia). Con el ruido de fondo ya resuelto:
+## OBJETIVO de la Sesión 2: `near_gain` aislado + empezar el gate de continuidad
 
-1. Activar TRACKING (gesto si ya funciona, si no manualmente por SSH).
+### `near_gain` de forma aislada
+
+La toma del 08/07 mezcló movimiento general (alejarse/acercarse/lateral/giro)
+y no aisló el caso que motivó `near_gain` (giro brusco a corta distancia):
+
+1. Activar TRACKING (gesto si ya funciona tras la Sesión 1, si no
+   manualmente por SSH).
 2. Grabar con `validation/record_run.sh corto_near_gain` mientras la persona
    se acerca deliberadamente a 0.5-0.7m del robot y cambia de dirección ahí.
 3. Mirar `vang` en `analysis/figs/vel_vs_t.png`: debe variar suave, sin
    picos, y sin la saturación casi permanente que había antes del fix.
 
-### 3. Estresar y ajustar el fallback del filtro de continuidad
+### Empezar a estresar el fallback del filtro de continuidad
 
 **Ya implementado (2026-07-09, preparado sin robot — ver `docs/decisiones.md`):**
 `_gate_by_continuity` ahora exige `continuity_confirm_frames` scans
@@ -70,48 +104,70 @@ defecto `continuity_confirm_frames: 1` en `config.yaml` — **sin cambiar el
 comportamiento actual todavía**. Verificado solo con pruebas de lógica
 aisladas (sin ROS ni datos reales).
 
-**Pendiente en el lab:**
-1. Repetir una toma tal cual (con `continuity_confirm_frames: 1`) para
-   confirmar que el comportamiento no cambió respecto al fix del 08/07
-   (mismo % de saltos/saturación).
-2. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
+Si queda tiempo tras `near_gain`: repetir una toma tal cual (con
+`continuity_confirm_frames: 1`) para confirmar que el comportamiento no
+cambió respecto al fix del 08/07 (mismo % de saltos/saturación) — el resto
+(estresar con mobiliario denso, ajustar el parámetro) se deja para la
+Sesión 3 si no da tiempo.
+
+## OBJETIVO de la Sesión 3: terminar el gate de continuidad + reproducibilidad del Capítulo 7
+
+### Gate de continuidad
+
+1. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
    recorrido más largo (>2 min) para ver con qué frecuencia se activa el
    fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
-3. Si se activa con frecuencia y los saltos siguen colándose, subir
+2. Si se activa con frecuencia y los saltos siguen colándose, subir
    `continuity_confirm_frames` a 2 o 3 y repetir la toma — comparar métricas
    antes/después igual que se hizo con los fixes 1/2/3 del 08/07.
 
-### 4. Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09)
+### Reproducibilidad de métricas del Capítulo 7
+
+Las cifras de "% saltos" y "% saturación angular" de `PROGRESO.md` se
+calcularon con un script *ad-hoc* que no está en el repo
+(`bag_to_csv_direct.py`) — ver `docs/07_resultados.md` §7.5. Recuperarlo del
+NUC/portátil donde se ejecutó y committearlo, o incorporar ese cálculo a
+`validation/plot_run.py` para que `metrics.txt` lo genere automáticamente
+en cualquier toma futura.
+
+## OBJETIVO de la Sesión 4: repeticiones de validación para el Capítulo 7
+
+Con el ruido de fondo (saltos/saturación) ya resuelto y ajustado: repetir
+2-3 tomas por escenario de `validation/README.md` (recta, curva, parada,
+corto, oclusión, obstáculo) para tener varianza, no solo un valor por
+condición (`docs/07_resultados.md` §7.5).
+
+## OBJETIVO de las Sesiones 5-6: Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09)
 
 **Ya preparado sin robot (ver `docs/decisiones.md`, entrada 2026-07-09):**
 `person_follower/launch/nav2_localization_demo.launch.py` (nuevo) y
 `scripts/nav2_send_goal.py`. **Nada de esto se ha ejecutado nunca** —
 tratar como si fuera código nuevo sin probar, no como algo ya validado.
 
-Si hay tiempo tras los puntos 1-3 (que tienen prioridad, ya tenían trabajo
-invertido antes de esta decisión):
-
+**Sesión 5 — fase A, solo localización:**
 1. Verificar los strings de plugin de `nav2_params.yaml` contra la versión
    de Nav2 instalada en el NUC (`ros2 pkg prefix nav2_bringup`) — su propia
    cabecera avisa de que pueden cambiar entre distros.
-2. Lanzar **solo el bloque de localización** primero (comentar el bloque de
+2. Lanzar **solo el bloque de localización** (comentar el bloque de
    navegación en el launch file). En RViz: cargar el mapa, dar una pose
    inicial aproximada con "2D Pose Estimate", mover el robot un poco y
    confirmar que AMCL converge y la pose se mantiene estable.
-3. Si eso funciona, activar el bloque de navegación completo y usar
+3. Si el tiempo aprieta, quedarse aquí (localización validada) y dejar la
+   fase B para la Sesión 6 — el launch file ya está pensado para poder
+   cortar el alcance así sin tirar el trabajo.
+
+**Sesión 6 — fase B, navegación (solo si la fase A salió bien):**
+1. Activar el bloque de navegación completo y usar
    `scripts/nav2_send_goal.py <x> <y>` con un punto leído en RViz sobre el
    mapa real (las coordenadas no se pueden adivinar sin el robot).
-4. **No lanzar este launch a la vez que `start_person_follower.launch.py`**
+2. **No lanzar este launch a la vez que `start_person_follower.launch.py`**
    — ambos publican en `/commands/velocity`.
-5. Si el tiempo aprieta, está bien quedarse solo en el paso 2 (localización
-   validada) y dejar la navegación para otra sesión — el launch file ya
-   está pensado para poder cortar el alcance así sin tirar el trabajo.
 
-## Si sobra tiempo
+## Si sobra tiempo (cualquier sesión)
 
 - Investigar por qué `ros2 topic pub --once /gesture_command` no queda
   grabado en el rosbag pese a que `control_node` sí lo recibe (visto dos
-  veces hoy) — no bloquea nada, pero hace `gestures.csv` poco fiable.
+  veces el 08/07) — no bloquea nada, pero hace `gestures.csv` poco fiable.
 
 ## Pasos para empezar
 
@@ -140,5 +196,11 @@ grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levanta
 - [ ] Si se completa un objetivo del TFM, marcarlo en `docs/01_introduccion.md`.
 - [ ] Si hay una decisión de diseño relevante, añadirla a `docs/decisiones.md`.
 - [ ] Añadir entrada con fecha en `docs/04_diario_desarrollo.md` (estilo prosa, para la memoria).
-- [ ] Dejar este archivo (`docs/sesion_siguiente.md`) actualizado con el plan de la siguiente sesión.
+- [ ] Actualizar la tabla "Presupuesto de julio" de arriba: tachar la sesión
+  que se acaba de completar, y si algo se quedó a medias o se alargó,
+  reajustar qué toca en la sesión siguiente (no dar por hecho que el reparto
+  original sigue siendo realista).
+- [ ] Dejar el bloque "OBJETIVO de la Sesión N" correspondiente a la
+  **próxima** sesión como el primero del documento (mover/reescribir según
+  hiciera falta), igual que este archivo ya traía preparado para la Sesión 1.
 - [ ] `git add` + commit + push (proyecto principal y, si aplica, Claude-Project-OS).
