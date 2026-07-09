@@ -5,6 +5,39 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-09 — Confirmación por consistencia en el gate de continuidad (preparado sin robot, pendiente de validar en el lab)
+
+- **Decisión:** `_gate_by_continuity` (`detection_node.py`) ahora exige
+  `continuity_confirm_frames` scans consecutivos con un candidato
+  *consistente* (repitiéndose en aprox. el mismo punto, tolerancia
+  `position_jump_margin`) antes de aceptar un salto implausible como
+  reanclaje real, en vez de aceptarlo en el primer scan. Nuevo parámetro en
+  `config.yaml`, **por defecto `continuity_confirm_frames: 1`** (sin espera,
+  idéntico al comportamiento anterior) — no cambia nada hasta que se suba a
+  mano tras medir en el lab con qué frecuencia se activa este caso (punto 3
+  de `docs/sesion_siguiente.md`).
+- **Motivo:** era el punto pendiente explícito de la sesión 2026-07-08: el
+  filtro de continuidad, cuando ningún candidato pasaba el gate de
+  plausibilidad, se rendía y devolvía la lista sin filtrar — ahí se colaban
+  los saltos residuales (máx. 1.84m observado). No se pudo probar en el
+  robot en esta preparación (hecha fuera del laboratorio), así que se dejó
+  parametrizado y verificado con pruebas de lógica aisladas (sin ROS), no
+  con datos reales — **pendiente de validar con un rosbag antes de confiar
+  en el comportamiento con `continuity_confirm_frames > 1`.**
+- **Alternativas descartadas:**
+  - *Contar solo "N scans seguidos con algo implausible", sin comprobar que
+    fuera el mismo punto:* fue el primer diseño probado y falló su propio
+    test de lógica — un cluster espurio distinto en cada scan (ruido, no una
+    reaparición real) se habría aceptado igual al llegar a N, que es
+    exactamente el caso que se quería filtrar. Se descartó en favor de exigir
+    consistencia entre el candidato de un scan y el anterior.
+  - *Aplicar el mismo gate de Mahalanobis del Kalman también en
+    `detection_node`:* el Kalman ya actúa después de `detection_node` en la
+    tubería (`tracking_node`), así que un segundo gate probabilístico
+    equivalente aquí sería redundante; un filtro de distancia física simple
+    es suficiente en esta capa y más fácil de razonar con los datos de
+    validación ya existentes.
+
 ## 2026-07-08 — Filtro de continuidad, gate de Mahalanobis y rate-limit angular contra saltos de detección en movimiento
 
 - **Decisión:** tres cambios encadenados tras la primera prueba de fusión

@@ -85,6 +85,12 @@ detection_node:
     # respecto a la última posición publicada (ver detection_node._gate_by_continuity).
     max_person_speed: 2.0         # m/s — cota física (marcha rápida/trote ligero)
     position_jump_margin: 0.3     # m — margen extra sobre max_person_speed*dt (ruido de medida)
+    # Scans consecutivos con un candidato CONSISTENTE (mismo punto, tolerancia
+    # position_jump_margin) fuera de max_jump antes de aceptarlo como
+    # reanclaje real. 1 = comportamiento anterior, sin espera. Subir a 2-3
+    # tras medir en el lab con qué frecuencia se activa este caso (ver
+    # docs/sesion_siguiente.md, punto 3, sesión 2026-07-08/09).
+    continuity_confirm_frames: 1
 
 user_interface_node:
   ros__parameters:

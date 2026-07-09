@@ -83,6 +83,7 @@ class DetectionNode(Node):
         # ── Filtro de continuidad (anti-salto) ───────────────────────────────
         self.declare_parameter('max_person_speed', 2.0)        # m/s — cota física de velocidad humana
         self.declare_parameter('position_jump_margin', 0.3)    # m — margen extra sobre max_person_speed*dt
+        self.declare_parameter('continuity_confirm_frames', 1)  # scans seguidos de salto implausible antes de aceptarlo (1 = sin espera, comportamiento anterior)
 
         # Carga de parámetros
         self.enabled = self.get_parameter('enabled').value
@@ -106,6 +107,7 @@ class DetectionNode(Node):
         self.bearing_timeout = self.get_parameter('bearing_timeout').value
         self.max_person_speed = self.get_parameter('max_person_speed').value
         self.position_jump_margin = self.get_parameter('position_jump_margin').value
+        self.continuity_confirm_frames = int(self.get_parameter('continuity_confirm_frames').value)
 
         if not self.enabled:
             self.get_logger().info("Nodo de Detección desactivado.")
@@ -144,6 +146,8 @@ class DetectionNode(Node):
         self._confirmed      = False   # persona "confirmada" (supera umbral)
         self._last_confirmed_pos: tuple | None = None  # última posición publicada (gating de continuidad)
         self._last_position_time = None
+        self._continuity_reject_streak = 0  # scans consecutivos de salto implausible sin confirmar
+        self._pending_reanchor: np.ndarray | None = None  # candidato implausible en seguimiento de consistencia
 
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
@@ -192,6 +196,8 @@ class DetectionNode(Node):
             if self._loss_streak >= self._loss_frames:
                 self._confirmed = False
                 self._last_confirmed_pos = None  # pérdida larga: ya no ancla el gating de continuidad
+                self._continuity_reject_streak = 0  # streak obsoleto tras perder el anclaje
+                self._pending_reanchor = None
 
         final_detection = self._confirmed
 
@@ -254,6 +260,19 @@ class DetectionNode(Node):
         Devuelve `positions` sin filtrar si no hay ancla reciente (arranque o
         tras una pérdida larga) — así no se bloquea la reasignación cuando la
         persona reaparece en otro punto.
+
+        Si hay ancla pero ningún candidato es plausible, exige
+        `continuity_confirm_frames` scans consecutivos con un candidato
+        *consistente* (repitiéndose en aprox. el mismo punto, tolerancia
+        `position_jump_margin`) antes de aceptar el reanclaje. No basta con
+        que haya "algo implausible" N veces seguidas: un cluster espurio
+        (ruido, pata de silla) no suele repetirse en el mismo sitio de un
+        scan al siguiente, mientras que una reaparición real de la persona
+        sí. Si el candidato más cercano cambia de sitio entre scans, la
+        cuenta se reinicia. Mientras no se confirma, devuelve `[]` (ningún
+        candidato válido este scan) en vez de reanclar de inmediato. Con
+        `continuity_confirm_frames=1` (valor por defecto) el comportamiento
+        es idéntico al anterior: acepta el salto en el primer scan.
         """
         if self._last_confirmed_pos is None or self._last_position_time is None:
             return positions
@@ -261,7 +280,26 @@ class DetectionNode(Node):
         max_jump = self.max_person_speed * max(elapsed, 0.0) + self.position_jump_margin
         last = np.array(self._last_confirmed_pos)
         plausible = [p for p in positions if np.linalg.norm(p - last) <= max_jump]
-        return plausible if plausible else positions
+        if plausible:
+            self._continuity_reject_streak = 0
+            self._pending_reanchor = None
+            return plausible
+        if not positions:
+            return []
+
+        nearest = min(positions, key=lambda p: np.linalg.norm(p - last))
+        if self._pending_reanchor is not None and \
+                np.linalg.norm(nearest - self._pending_reanchor) <= self.position_jump_margin:
+            self._continuity_reject_streak += 1
+        else:
+            self._continuity_reject_streak = 1
+        self._pending_reanchor = nearest
+
+        if self._continuity_reject_streak >= self.continuity_confirm_frames:
+            self._continuity_reject_streak = 0
+            self._pending_reanchor = None
+            return positions
+        return []
 
     def _publish_person_position(self, xy, now, log_msg, log_data):
         pt = Point(x=float(xy[0]), y=float(xy[1]), z=0.0)
@@ -318,6 +356,13 @@ class DetectionNode(Node):
         if candidate_positions:
             now = self.get_clock().now()
             gated = self._gate_by_continuity(candidate_positions, now)
+            if not gated:
+                # Todos los candidatos de piernas implican un salto implausible
+                # respecto al último anclaje y aún no está confirmado (ver
+                # _gate_by_continuity) — se trata este scan como "sin detección"
+                # en vez de reanclar de inmediato a un cluster posiblemente espurio.
+                self.log_info("Candidatos de piernas descartados por el gate de continuidad (sin confirmar)")
+                return False
             last = np.array(self._last_confirmed_pos) if self._last_confirmed_pos is not None else None
             key = (lambda p: np.linalg.norm(p - last)) if last is not None else (lambda p: np.linalg.norm(p))
             selected = min(gated, key=key)

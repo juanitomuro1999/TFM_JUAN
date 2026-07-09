@@ -60,15 +60,26 @@ con la depuración del gesto y no aisló el caso que motivó `near_gain`
 3. Mirar `vang` en `analysis/figs/vel_vs_t.png`: debe variar suave, sin
    picos, y sin la saturación casi permanente que había antes del fix.
 
-### 3. Estresar el fallback del filtro de continuidad
+### 3. Estresar y ajustar el fallback del filtro de continuidad
 
-El filtro de `detection_node` cae de vuelta a "sin filtrar" cuando *ningún*
-candidato pasa el gate de plausibilidad — ahí es donde se colaron los saltos
-residuales de hoy (máx. 1.84m tras el fix). Probar con mobiliario
-deliberadamente denso cerca de la trayectoria y un recorrido más largo
-(>2 min) para ver con qué frecuencia se activa ese fallback y si conviene
-endurecerlo (p.ej. exigir confirmación de 2 frames antes de aceptar un salto
-grande, igual que se hizo con el Mahalanobis gate del Kalman).
+**Ya implementado (2026-07-09, preparado sin robot — ver `docs/05_decisiones.md`):**
+`_gate_by_continuity` ahora exige `continuity_confirm_frames` scans
+consecutivos con un candidato *consistente* (mismo punto, no cualquier salto)
+antes de aceptar un reanclaje, en vez de rendirse al primer intento. Por
+defecto `continuity_confirm_frames: 1` en `config.yaml` — **sin cambiar el
+comportamiento actual todavía**. Verificado solo con pruebas de lógica
+aisladas (sin ROS ni datos reales).
+
+**Pendiente en el lab:**
+1. Repetir una toma tal cual (con `continuity_confirm_frames: 1`) para
+   confirmar que el comportamiento no cambió respecto al fix del 08/07
+   (mismo % de saltos/saturación).
+2. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
+   recorrido más largo (>2 min) para ver con qué frecuencia se activa el
+   fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
+3. Si se activa con frecuencia y los saltos siguen colándose, subir
+   `continuity_confirm_frames` a 2 o 3 y repetir la toma — comparar métricas
+   antes/después igual que se hizo con los fixes 1/2/3 del 08/07.
 
 ## Si sobra tiempo
 
