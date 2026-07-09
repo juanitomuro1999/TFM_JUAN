@@ -67,4 +67,4 @@ Limitaciones asumidas:
 - **Capítulo 4 – Diario de desarrollo:** registro cronológico del progreso técnico.
 - **Capítulo 5 (pendiente) – Estado del arte:** revisión bibliográfica de sistemas similares.
 - **Capítulo 6 (pendiente) – Implementación:** detalles técnicos de cada módulo desarrollado.
-- **Capítulo 7 (pendiente) – Resultados y evaluación.**
+- **Capítulo 7 (borrador) – Resultados y evaluación:** ver [`docs/07_resultados.md`](07_resultados.md) — andamiaje con los datos ya recogidos, pendiente de completar antes de redactarlo como prosa final.
