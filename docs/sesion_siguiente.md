@@ -8,9 +8,9 @@
 >
 > **Importante:** en el NUC **no hay `tmux`** ni acceso a internet. Para
 > procesos persistentes, usar `nohup ... > /tmp/algo.log 2>&1 & disown` por
-> SSH. Sincronizar código desde el portátil con `sshpass scp` (el
-> `sync_nuc.sh` del repo tiene una ruta de `config.yaml` rota, revisar antes
-> de usarlo — ver `PROGRESO.md` sesión 2026-07-08).
+> SSH. Sincronizar código desde el portátil con `bash sync_nuc.sh` (el bug de
+> la ruta duplicada de `config.yaml` que fallaba en la sesión 2026-07-08 —
+> ver `PROGRESO.md` — ya está corregido).
 
 ## Estado heredado de la sesión 2026-07-08 (no repetir, solo verificar)
 
