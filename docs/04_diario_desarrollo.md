@@ -451,6 +451,76 @@ de julio y comparar los números contra los ya publicados en la memoria.
   haya acceso a una máquina con ROS 2, y actualizar la tabla de resultados
   si las cifras difieren de las ya publicadas
 
+### 9 de julio (continuación, lab por la tarde) — El gesto real funciona: objetivo específico 1 conseguido
+
+**Contexto:** con acceso al laboratorio ya avanzada la tarde, se decidió
+atacar el bloqueante del gesto (pendiente desde el 8 de julio) con las
+herramientas disponibles por SSH, en vez de esperar a la sesión de cámara
+formalmente planificada. El diagnóstico del `[GESTO-DBG]` de la mañana ya
+apuntaba a que la geometría del gesto era correcta pero la visibilidad de
+MediaPipe, sobre todo en la muñeca izquierda, se quedaba justo al filo del
+umbral. Bajar `gesture_min_visibility` de 0.6 a 0.5 fue suficiente para que
+el gesto de parada empezara a dispararse. A mitad de sesión, el propio
+usuario cambió la cámara Logitech C270 por una SPCA2650 que tenía a mano; la
+visibilidad de la muñeca subió de forma notable con la cámara nueva. Con
+ambos cambios, los gestos de inicio y parada se dispararon de forma repetida
+y fiable en varias tomas grabadas — la primera vez que el objetivo
+específico 1 del TFM (interacción por gestos) funciona de verdad, sin el
+workaround manual publicando el comando por SSH.
+
+**Un bug real, encontrado en directo:** con el gesto ya activando el
+seguimiento, apareció un problema nuevo — con la persona completamente
+quieta delante del robot, este se ponía a girar sin control, como dando
+vueltas sobre sí mismo. Los datos del log no dejaban dudas: la posición
+detectada de la persona barría un círculo casi completo alrededor del
+robot en uno o dos segundos, algo físicamente imposible para alguien de
+pie. Leyendo el código de `detection_node` con ese síntoma en la mano, la
+causa quedó clara: el filtro que protege contra saltos de detección solo
+comparaba cada candidato con el del instante inmediatamente anterior. Si
+hay varios objetos parecidos a piernas muy cerca unos de otros —las cuatro
+patas de una silla, por ejemplo— el filtro puede ir "caminando" de una pata
+a la siguiente frame a frame, sin que ningún paso individual parezca
+sospechoso, hasta trazar una vuelta completa a la sala. De hecho, en una de
+las pruebas el propio usuario avisó de que el robot "se había liado con una
+silla" antes incluso de que se revisara el log. La solución fue añadir un
+segundo límite, independiente del anterior: además de no poder saltar mucho
+respecto al frame previo, ningún candidato puede alejarse más de lo
+físicamente plausible respecto a la posición confirmada de hace un segundo.
+Sin acceso a una máquina con ROS en el portátil, la lógica se extrajo a un
+script de prueba aislado y se verificó con varios escenarios construidos a
+mano antes de desplegarla; la siguiente prueba en el robot confirmó que el
+barrido había desaparecido.
+
+**Un "arranque brusco" que resultó no ser un bug:** el usuario también
+reportó que el robot arrancaba de forma muy agresiva al activar el
+seguimiento. Aquí el hallazgo fue distinto: usando por primera vez en
+vivo el pipeline de análisis preparado esa misma mañana (extrayendo el bag
+directamente en el NUC, que sí tiene ROS, y trayendo los CSV al portátil),
+los números mostraron que el ángulo hacia la persona en el instante de
+activar el gesto era de casi 158 grados —prácticamente detrás del robot— y
+que el limitador de aceleración angular ya implementado el 8 de julio
+funcionaba exactamente como se diseñó, alcanzando la velocidad máxima de
+forma gradual en unas tres décimas de segundo, no de golpe. No había ningún
+fallo de control: el giro brusco era la respuesta correcta a un error de
+orientación real y grande. Aun así, se añadió un arranque suave adicional
+—un techo más bajo sobre la velocidad angular durante el primer segundo y
+medio tras cada activación— para que la corrección inicial se sienta menos
+agresiva incluso cuando el punto de partida es tan desfavorable. La
+siguiente prueba salió, en palabras del usuario, "correctamente, sin ningún
+fallo".
+
+**Estado al cierre:**
+- ✅ Objetivo específico 1 del TFM (interacción por gestos) funcionando de
+  verdad con ambas manos, validado en varias tomas reales
+- ✅ Bug de deriva acumulada en el gate de continuidad encontrado, corregido
+  y validado en vivo
+- ✅ Arranque suave añadido tras diagnosticar que el giro brusco era
+  comportamiento correcto, no un fallo
+- 🔄 Pendiente: oscilación de la FSM (ya conocida, reproducida varias veces
+  hoy, sin resolver); recalibrar `camera_hfov_deg`/`bearing_sign` con la
+  cámara nueva; aislar `near_gain`; decidir qué bags de hoy incorporar al
+  Capítulo 7
+
 ---
 
 ## Julio 2026 (planificado)

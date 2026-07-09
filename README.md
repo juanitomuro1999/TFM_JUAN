@@ -31,7 +31,7 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
 | Base móvil | Kobuki (TurtleBot 2) | `/dev/kobuki` → USB |
 | Ordenador a bordo | Intel NUC | — |
 | LiDAR | RPLIDAR A2M8 | `/dev/rplidar` → USB |
-| Cámara RGB | Logitech C270 | USB |
+| Cámara RGB | SPCA2650 AV Camera (hasta 2026-07-09: Logitech C270) | `/dev/video0` → USB |
 | Cámara RGBD | Orbbec Astra | USB (pendiente integración) |
 
 ---
@@ -196,9 +196,9 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 | Fase | Período | Estado |
 |---|---|---|
 | Fase 1 – Base y definición | Hasta mayo 2026 | ✅ Completada |
-| Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06, ver `validation/runs/fusion_track_20260625/`) |
+| Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06; gesto real con ambas manos validado en movimiento el 09/07 tras bajar el umbral de visibilidad y cambiar de cámara, ver `docs/decisiones.md`) |
 | Fase 3 – Navegación autónoma (Nav2) | Julio 2026 (sesiones 5-6 de 9) | 🔄 Demo mínima decidida, launch file y script de objetivo preparados sin robot (`docs/decisiones.md`), sin ejecutar |
-| Fase 4 – Validación experimental | Julio 2026 (sesiones 2-4 de 9) — no agosto | 🔄 Iniciada — falta validar la fusión con el robot en movimiento y repetir tomas para el Capítulo 7, todo dentro de julio |
+| Fase 4 – Validación experimental | Julio 2026 (sesiones 2-4 de 9) — no agosto | 🔄 Iniciada — gesto validado con movimiento el 09/07; encontrado y corregido un bug de deriva en el gate de continuidad y añadido arranque suave; pendiente aislar `near_gain`, resolver oscilación de la FSM y repetir tomas para el Capítulo 7 |
 | Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin datos nuevos de robot, solo análisis/redacción |
 
 ---

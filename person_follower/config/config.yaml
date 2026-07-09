@@ -10,7 +10,7 @@ control_node:
 tracking_node:
   ros__parameters:
     enabled: True
-    max_speed: 0.3          # m/s máximo (reducido de 0.4 para mayor estabilidad)
+    max_speed: 0.18         # m/s máximo (bajado de 0.3 el 2026-07-09 para pruebas de gesto más suaves)
     target_distance: 1.0    # m — zona muerta: el robot se para a esta distancia
     acc_limit: 0.05         # m/s por ciclo de scan (≈0.5 m/s² a 10 Hz)
     ang_acc_limit: 0.3      # rad/s por ciclo de scan — evita que wz salte a saturación en 1 ciclo
@@ -21,6 +21,13 @@ tracking_node:
     kalman_r: 0.15          # aumentado: posición medida con más filtrado → menos oscilación
     obstacle_avoidance_enabled: True
     obstacle_threshold: 0.35  # m — obstáculos más cercanos que esto activan evasión (0.35 excluye cuerpo del robot)
+    # Arranque suave: los primeros startup_ramp_s segundos tras activar el
+    # seguimiento, el techo de |wz| sube linealmente de startup_max_wz a 1.0
+    # en vez de permitir ya el máximo. Añadido 2026-07-09 en vivo: si el
+    # error de rumbo es grande al activar (persona casi detrás del robot),
+    # el giro de corrección se veía muy brusco aunque físicamente correcto.
+    startup_ramp_s: 1.5
+    startup_max_wz: 0.5
 
 visual_detection_node:
   ros__parameters:
@@ -41,7 +48,7 @@ visual_detection_node:
     # Gestos (requieren MediaPipe; con HOG no hay landmarks y no se detectan)
     gesture_confirm_frames: 3   # frames consecutivos para confirmar el gesto
     gesture_cooldown_s: 2.0     # s mínimos entre comandos de gesto
-    gesture_min_visibility: 0.6 # visibilidad mínima muñeca/hombro/cadera
+    gesture_min_visibility: 0.5 # visibilidad mínima muñeca/hombro/cadera (bajado de 0.6 en sesión 2026-07-09: geometría del gesto ya correcta, visibilidad de muñeca izquierda quedaba pegada al umbral)
     gesture_margin_ratio: 0.15  # margen sobre el hombro, relativo al torso
     # Fusión cámara+LIDAR: rumbo horizontal de la persona
     camera_hfov_deg: 51.0       # FOV horizontal del C270 (~51° en 4:3)
@@ -91,6 +98,12 @@ detection_node:
     # tras medir en el lab con qué frecuencia se activa este caso (ver
     # docs/sesion_siguiente.md, punto 3, sesión 2026-07-08/09).
     continuity_confirm_frames: 1
+    # Deriva acumulada máxima respecto a la posición confirmada de hace
+    # continuity_window_s segundos (no solo el salto frame a frame). Añadido
+    # 2026-07-09 en vivo: una cadena de clústeres espurios adyacentes (p.ej.
+    # patas de una silla) puede "caminar" salto a salto, cada uno plausible
+    # por separado, y trazar un barrido de varios metros alrededor del robot.
+    continuity_window_s: 1.0
 
 user_interface_node:
   ros__parameters:

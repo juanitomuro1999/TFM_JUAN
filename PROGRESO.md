@@ -1,5 +1,80 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-09 (lab, tarde) — Gesto real funcionando + fixes en vivo
+
+### Objetivo: cámara/gesto (Sesión 1 del plan), improvisado sobre la marcha
+
+Sesión no planificada inicialmente (la Sesión 1 formal requería reencuadrar
+la C270 físicamente) — el usuario tenía acceso al lab y se decidió atacar el
+bloqueante del gesto con las herramientas disponibles por SSH primero.
+
+**Gesto arreglado:** `gesture_min_visibility` 0.6→0.5 (la geometría ya era
+correcta desde el diagnóstico por `[GESTO-DBG]`; la visibilidad de la
+muñeca, sobre todo la izquierda, se quedaba pegada al umbral). Además, el
+usuario cambió físicamente la cámara C270 por una SPCA2650 a mitad de
+sesión (reinicio del NUC incluido). Con ambos cambios, **los gestos de
+inicio (mano derecha) y parada (mano izquierda) se dispararon de forma
+repetida y fiable** en varias tomas grabadas — primera vez que el objetivo
+específico 1 del TFM funciona sin el workaround manual por SSH. Detalle y
+verificación en `docs/decisiones.md`.
+
+### Bug real encontrado y corregido: barrido/deriva del gate de continuidad
+
+Con el gesto ya activando el seguimiento, apareció un problema nuevo: con la
+persona *quieta*, el robot se ponía a "dar vueltas sobre sí mismo" — la
+posición detectada barría un círculo completo alrededor del robot en 1-2s.
+Diagnosticado en el código (`detection_node._gate_by_continuity`): el gate
+solo miraba el salto respecto al frame anterior, así que una cadena de
+clústeres espurios adyacentes (patas de una silla, confirmado por el
+usuario: "se ha liado con una silla") podía "caminar" de uno a otro sin que
+ningún paso individual pareciera implausible. Fix: límite adicional de
+deriva acumulada respecto a la posición confirmada de hace
+`continuity_window_s` segundos (nuevo parámetro, 1.0s). Verificado con
+lógica aislada (sin ROS, portátil sin entorno ROS disponible) y confirmado
+en vivo: la toma siguiente ya no repitió el barrido. Detalle completo en
+`docs/decisiones.md`.
+
+### Arranque brusco: diagnosticado como comportamiento correcto, suavizado igualmente
+
+El usuario reportó que el robot "se volvía loco" al arrancar. Con datos
+reales extraídos del bag `camara_nueva_velred` (usando `bag_to_csv.py` en el
+propio NUC, que sí tiene ROS — cierra el círculo del trabajo de esta mañana
+sobre el pipeline de métricas): el ángulo a la persona al activar el gesto
+era de -157.9° (casi detrás del robot), y el rate-limit de `wz`
+(`ang_acc_limit`, del fix del 08/07) ya funcionaba como estaba diseñado,
+saturando a ±1.0 rad/s en ~0.3s de forma gradual, no de golpe. No era un bug
+de control, sino un giro de corrección grande pero correcto. Se añadió
+igualmente un arranque suave (`startup_ramp_s=1.5s`, `startup_max_wz=0.5`)
+que limita `wz` a un techo más bajo justo tras activar, para que la
+corrección inicial se sienta menos brusca aunque el punto de partida
+angular sea malo. Confirmado por el usuario: prueba siguiente sin fallos.
+
+### Otros cambios de sesión
+
+- `max_speed` 0.3→0.18 m/s (petición explícita, pruebas más suaves).
+- Establecido un protocolo operativo: enviar `stop_tracking` explícito por
+  SSH tras cada prueba, para que el seguimiento no se reactive solo al
+  detectar de nuevo a la persona (comportamiento ya conocido de la FSM desde
+  el 17/06).
+- NUC reiniciado una vez (para que el sistema reconociera la cámara nueva) —
+  recuperado sin incidencias, stack completo relanzado.
+
+### Pendiente / observado sin resolver
+
+- **Oscilación de la FSM** (TRACKING↔IDLE cada pocos segundos con detección
+  intermitente) sigue viva — reproducida varias veces hoy, no es nueva ni
+  causada por los cambios de hoy. Sigue pendiente de sesión dedicada.
+- `camera_hfov_deg`/`bearing_sign` (calibrados con la C270) no reverificados
+  con la cámara nueva — revisar si `dev_deg` en los logs de fusión se ve
+  sistemáticamente desviado.
+- Bags de esta sesión (`gesto_real_20260709`, `_v2`, `_v3`, `gesto_izq_test`,
+  `gesto_real_v4_fix`, `camara_nueva_velred`) quedaron en
+  `~/tfm_bags/` del NUC, no copiados al repo (pesan, ver `.gitignore` de
+  `validation/`) — pendiente decidir cuáles vale la pena traer para el
+  Capítulo 7.
+
+---
+
 ## Sesión 2026-07-09 (trabajo de escritorio, sin robot)
 
 ### Objetivo: reproducibilidad de las métricas de saltos/saturación (Sesión 3 de `docs/sesion_siguiente.md`)

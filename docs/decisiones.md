@@ -5,6 +5,113 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-09 (sesión de lab) — Gesto real funcionando: umbral de visibilidad + cámara nueva
+
+- **Decisión:** bajar `gesture_min_visibility` de 0.6 a 0.5 en `config.yaml`, y
+  sustituir físicamente la cámara Logitech C270 por una SPCA2650 AV Camera
+  tras comprobar en vivo que la geometría del gesto (`wrist.y < shoulder.y -
+  margin`) ya se cumplía correctamente para ambas manos, pero la visibilidad
+  de MediaPipe quedaba pegada al umbral (especialmente la muñeca izquierda,
+  `v≈0.57-0.66`) y parpadeaba justo por debajo, rompiendo la racha de
+  `gesture_confirm_frames=3` necesaria para disparar el comando.
+- **Motivo:** objetivo específico 1 del TFM llevaba desde el 08/07 bloqueado
+  por esto. Diagnosticado con el log `[GESTO-DBG]` en vivo: la mano derecha sí
+  llegaba a `y` negativo (claramente fuera de encuadre por arriba) pero la
+  izquierda rara vez bajaba de `y≈0.7-0.9`, con visibilidad marginal.
+- **Resultado medido:** con el umbral en 0.5, `[GESTO] stop_tracking` y
+  `[GESTO] start_tracking` se dispararon repetidamente y de forma fiable en
+  varias tomas grabadas (`validation` — bags `gesto_real_v3`,
+  `gesto_real_v4_fix`, `camara_nueva_velred` en `~/tfm_bags` del NUC, no
+  copiados al repo por tamaño). Tras cambiar la cámara, la visibilidad de la
+  muñeca derecha subió de forma sostenida (0.82-0.95 vs. 0.5-0.85 con la
+  C270).
+- **Alternativas descartadas:** re-encuadrar/inclinar la C270 físicamente sin
+  cambiarla (era el plan original de la sesión) — se hizo primero el ajuste
+  de software (umbral), y cuando el usuario decidió probar con una cámara
+  distinta que tenía a mano, se comprobó que también ayudaba y se mantuvo.
+- **Pendiente:** `camera_hfov_deg=51.0` y `bearing_sign=-1.0` (fusión
+  cámara-LiDAR) se calibraron con la C270 — no reverificados con la SPCA2650.
+  Si el FOV real difiere, el rumbo `/person_bearing` usado en el fallback de
+  fusión podría desviarse; revisar en la próxima sesión si se observan
+  desalineaciones en `dev_deg` de los logs de fusión.
+
+## 2026-07-09 (sesión de lab) — Límite de deriva acumulada en el gate de continuidad (bug real encontrado y corregido en vivo)
+
+- **Decisión:** añadir a `detection_node._gate_by_continuity` un segundo
+  chequeo, además del salto respecto al frame anterior: ningún candidato se
+  acepta si se aleja más de `max_person_speed·Δt_ventana + position_jump_margin`
+  de la posición confirmada más antigua dentro de `continuity_window_s`
+  (nuevo parámetro, 1.0s por defecto). Se aplica como filtro previo y duro,
+  independiente del mecanismo de `continuity_confirm_frames` (ese mecanismo
+  no sirve para este caso: una cadena de clústeres espurios consecutivos es,
+  por definición, "consistente" frame a frame).
+- **Motivo:** con el gesto ya funcionando, apareció en vivo un bug real —
+  con la persona *quieta* delante del robot, la posición detectada barría un
+  círculo completo alrededor del robot en 1-2 segundos (`x` de -2.1 a +2.1 m
+  y viceversa), y el robot giraba sin control seguiéndola ("dando vueltas
+  sobre sí mismo", en dos tomas distintas, una de ellas coincidiendo con una
+  silla cercana). Causa raíz identificada leyendo `_gate_by_continuity`: el
+  gate solo comprobaba el salto respecto al frame *inmediatamente anterior*;
+  una cadena de clústeres espurios (patas de silla) separados poco más que
+  `position_jump_margin` puede "caminar" de uno a otro, cada salto individual
+  plausible, sumando una deriva de varios metros en 1-2s sin que ningún paso
+  aislado la delate.
+- **Verificación:** sin acceso a un entorno con ROS en el portátil, se
+  extrajo la lógica de `_gate_by_continuity` a un script standalone y se
+  probó con: (1) una cadena sintética de saltos de 0.3m replicando el
+  barrido real observado — con el fix, empieza a rechazar candidatos en
+  cuanto la deriva acumulada supera el presupuesto de la ventana; (2) una
+  persona real caminando a 1.2 m/s y a 2.0 m/s (límite físico) en línea
+  recta — 20/20 muestras aceptadas en ambos casos, el fix no restringe
+  movimiento real; (3) una reaparición lejana tras pérdida larga (ancla
+  limpiada) — aceptada sin filtrar, como antes. Validado también en vivo
+  tras desplegar: la toma siguiente (`gesto_real_v4_fix`) no repitió el
+  barrido (salto máximo entre muestras 1.49m, sin patrón circular repetido).
+- **Alternativas descartadas:** usar una media móvil exponencial como ancla
+  en vez de una ventana con historial explícito (más simple de mantener,
+  pero más difícil de razonar/verificar con pruebas sintéticas exactas dado
+  el tiempo disponible en sesión); subir directamente `continuity_confirm_frames`
+  a 2-3 (ya estaba preparado desde el 07-08, pero no ataca la causa —una
+  cadena de saltos "consistentes" entre sí seguiría confirmándose igual).
+
+## 2026-07-09 (sesión de lab) — Arranque suave de `wz` tras activar el seguimiento
+
+- **Decisión:** nuevos parámetros `startup_ramp_s` (1.5s) y `startup_max_wz`
+  (0.5 rad/s) en `tracking_node`: durante los primeros `startup_ramp_s`
+  segundos tras cada activación de `tracking_enabled` (gesto o
+  reactivación), el techo de `|wz|` sube linealmente de `startup_max_wz` a
+  1.0 en vez de permitir ya el máximo. Se aplica tras el clamp normal a
+  [-1,1] y antes del rate-limit por ciclo (`ang_acc_limit`) ya existente.
+- **Motivo:** el usuario reportó que el robot "se volvía loco dando
+  vueltas" justo al arrancar el seguimiento. Con datos reales del bag
+  (`camara_nueva_velred`, extraído con `bag_to_csv.py` en el NUC): el
+  ángulo a la persona al activar era de -157.9° (casi detrás del robot), y
+  `wz` saturaba a ±1.0 rad/s en ~0.3s (el rate-limit `ang_acc_limit=0.3`
+  YA estaba funcionando como se diseñó — no había ningún salto instantáneo).
+  Es decir: **no era un bug de control**, sino la respuesta físicamente
+  correcta a un error de rumbo grande — pero se sentía brusca. El arranque
+  suave añade un techo adicional, más conservador, solo en los primeros
+  instantes tras activar, para que la corrección inicial sea más gradual
+  incluso cuando el error de partida es grande.
+- **Verificado:** con lógica aislada (réplica standalone del ramp), comparando
+  antes/después con el error real observado (-157.9°): antes, `wz` llega a
+  -1.0 en 0.3s; después, sube gradualmente hasta -1.0 a los 1.5s. Validado en
+  vivo tras desplegar: el usuario confirmó una prueba completa sin fallos.
+- **Alternativas descartadas:** bajar `ang_acc_limit` de forma permanente
+  (ralentizaría también la corrección de errores angulares reales ya en
+  curso, no solo el arranque); bajar el clamp global de `wz` de ±1.0 a un
+  valor menor de forma permanente (mismo problema, afecta a todo el
+  seguimiento, no solo al instante de activación).
+
+## 2026-07-09 (sesión de lab) — Velocidad máxima reducida para pruebas
+
+- **Decisión:** `max_speed` de 0.3 a 0.18 m/s en `config.yaml`.
+- **Motivo:** petición explícita del usuario para pruebas de gesto más
+  suaves y fáciles de observar con seguridad mientras se depuraban varios
+  problemas a la vez (gesto, deriva de detección, arranque brusco). Es un
+  valor de sesión de pruebas, no necesariamente el definitivo — revisar si
+  se quiere subir de nuevo una vez el resto esté estable.
+
 ## 2026-07-09 — Métricas de saltos/saturación incorporadas al pipeline de validación (preparado sin robot, pendiente de re-ejecutar sobre bags reales)
 
 - **Decisión:** `validation/bag_to_csv.py` ahora extrae `/person_position` y

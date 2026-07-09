@@ -84,6 +84,7 @@ class DetectionNode(Node):
         self.declare_parameter('max_person_speed', 2.0)        # m/s — cota física de velocidad humana
         self.declare_parameter('position_jump_margin', 0.3)    # m — margen extra sobre max_person_speed*dt
         self.declare_parameter('continuity_confirm_frames', 1)  # scans seguidos de salto implausible antes de aceptarlo (1 = sin espera, comportamiento anterior)
+        self.declare_parameter('continuity_window_s', 1.0)      # ventana (s) para limitar la deriva acumulada, no solo el salto frame a frame
 
         # Carga de parámetros
         self.enabled = self.get_parameter('enabled').value
@@ -108,6 +109,7 @@ class DetectionNode(Node):
         self.max_person_speed = self.get_parameter('max_person_speed').value
         self.position_jump_margin = self.get_parameter('position_jump_margin').value
         self.continuity_confirm_frames = int(self.get_parameter('continuity_confirm_frames').value)
+        self.continuity_window_s = float(self.get_parameter('continuity_window_s').value)
 
         if not self.enabled:
             self.get_logger().info("Nodo de Detección desactivado.")
@@ -148,6 +150,7 @@ class DetectionNode(Node):
         self._last_position_time = None
         self._continuity_reject_streak = 0  # scans consecutivos de salto implausible sin confirmar
         self._pending_reanchor: np.ndarray | None = None  # candidato implausible en seguimiento de consistencia
+        self._position_history: list = []  # [(t_seg, np.array[x,y])] confirmadas, últimos continuity_window_s
 
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
@@ -198,6 +201,7 @@ class DetectionNode(Node):
                 self._last_confirmed_pos = None  # pérdida larga: ya no ancla el gating de continuidad
                 self._continuity_reject_streak = 0  # streak obsoleto tras perder el anclaje
                 self._pending_reanchor = None
+                self._position_history = []  # ventana de deriva obsoleta tras perder el anclaje
 
         final_detection = self._confirmed
 
@@ -273,9 +277,39 @@ class DetectionNode(Node):
         candidato válido este scan) en vez de reanclar de inmediato. Con
         `continuity_confirm_frames=1` (valor por defecto) el comportamiento
         es idéntico al anterior: acepta el salto en el primer scan.
+
+        Además del salto respecto al frame inmediatamente anterior, se limita
+        la deriva acumulada respecto a la posición confirmada más antigua
+        dentro de `continuity_window_s` segundos. Sin esto, una cadena de
+        clústeres espurios (p.ej. las patas de una silla cercana) separados
+        poco más que `position_jump_margin` entre sí puede "caminar" de uno a
+        otro frame a frame — cada salto individual parece plausible, pero la
+        suma en 1-2s traza un barrido de varios metros alrededor del robot
+        (visto en vivo el 2026-07-09, sesión de gesto real: PROGRESO.md).
         """
         if self._last_confirmed_pos is None or self._last_position_time is None:
             return positions
+
+        # Deriva acumulada: filtro previo, duro, independiente del mecanismo
+        # de confirmación por consistencia de abajo (ese mecanismo no sirve
+        # aquí — una cadena de clústeres espurios consecutivos es, por
+        # definición, "consistente" frame a frame, así que confirmarla no la
+        # distingue de una reaparición real). Si ningún candidato respeta la
+        # deriva máxima desde la posición confirmada más antigua dentro de
+        # `continuity_window_s`, se descartan todos sin más antes de mirar el
+        # salto frame a frame.
+        now_s = now.nanoseconds * 1e-9
+        self._position_history = [(t, p) for t, p in self._position_history
+                                   if now_s - t <= self.continuity_window_s]
+        if self._position_history:
+            window_t, window_ref = self._position_history[0]
+            window_elapsed = now_s - window_t
+            max_window_jump = self.max_person_speed * max(window_elapsed, 0.0) + self.position_jump_margin
+            positions = [p for p in positions
+                         if np.linalg.norm(p - window_ref) <= max_window_jump]
+            if not positions:
+                return []
+
         elapsed = (now - self._last_position_time).nanoseconds * 1e-9
         max_jump = self.max_person_speed * max(elapsed, 0.0) + self.position_jump_margin
         last = np.array(self._last_confirmed_pos)
@@ -307,6 +341,7 @@ class DetectionNode(Node):
         self.log_info(log_msg, log_data)
         self._last_confirmed_pos = (float(xy[0]), float(xy[1]))
         self._last_position_time = now
+        self._position_history.append((now.nanoseconds * 1e-9, np.array(xy, dtype=float)))
 
     def detect_person(self, ranges, angle_min, angle_increment):
         # Alcance efectivo: para el fallback de fusión necesitamos clústeres

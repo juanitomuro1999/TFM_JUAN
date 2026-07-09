@@ -33,9 +33,9 @@
 
 | Sesión | Objetivo principal |
 |---|---|
-| **1 (próxima)** | Cámara — re-encuadrar + validar gesto real (bloquea objetivo 1) |
-| 2 | `near_gain` aislado + empezar a estresar el gate de continuidad |
-| 3 | Terminar el gate de continuidad + resolver reproducibilidad de métricas del Capítulo 7 |
+| ~~1~~ | ~~Cámara — re-encuadrar + validar gesto real~~ **✅ hecho 2026-07-09** (no como se planeó — resuelto por software + cambio de cámara improvisado, no reencuadre físico de la C270 — ver abajo) |
+| **2 (próxima)** | FSM oscilando (nuevo, prioridad alta) + `near_gain` aislado + recalibrar cámara nueva |
+| 3 | Estresar el gate de continuidad con mobiliario denso + resolver reproducibilidad de métricas del Capítulo 7 |
 | 4 | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
 | 5 | Nav2 — fase A: solo localización AMCL |
 | 6 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
@@ -54,88 +54,102 @@ memoria no tienen sesión de lab asignada** — son trabajo de escritorio
 (bibliografía, prosa) o exploratorio de baja prioridad; no compiten por
 tiempo de robot salvo que sobre alguna sesión de las 9.
 
-## Estado heredado de la sesión 2026-07-08 (no repetir, solo verificar)
+## Estado heredado de la sesión 2026-07-09, tarde (no repetir, solo verificar)
 
-- ✅ **Filtro de continuidad + gate de Mahalanobis corregido + rate-limit de
-  `wz`**: los saltos de posición implausibles (2-4m en <300ms) y la
-  saturación angular casi permanente (94.5% del tiempo incluso con posición
-  estable) están mayormente resueltos. Progresión medida: saltos >0.8m
-  12.1%→0.7%, saturación con posición estable 94.5%→12.4%. Detalle completo
-  y causa raíz en `docs/decisiones.md` (entrada 2026-07-08) y
-  `PROGRESO.md`.
-- ⚠️ **El gesto de mano derecha NO es utilizable todavía** — la cámara C270,
-  en su encuadre/inclinación actual, pierde de vista la muñeca (o su
-  visibilidad MediaPipe cae por debajo de 0.6) justo cuando se levanta el
-  brazo. Se activó TRACKING manualmente por SSH (`ros2 topic pub
-  /gesture_command ...`) como workaround para poder probar. Objetivo
-  específico 1 del TFM (interacción por gestos) depende de que esto funcione
-  de verdad — es la prioridad más alta de la próxima sesión.
-- 🔄 Pendiente sin tocar: `OrbbecSDK_ROS2` en `ros2_ws/src` sin compilar —
-  explorar si la cámara RGBD Orbbec Astra resuelve tanto el encuadre del
-  gesto como la detección de persona (cambio de arquitectura mayor).
+- ✅ **Objetivo específico 1 (gesto) conseguido, pero no como se planeó.**
+  En vez de reencuadrar físicamente la C270, se bajó `gesture_min_visibility`
+  0.6→0.5 y, a mitad de sesión, el usuario cambió la cámara por una SPCA2650
+  AV Camera (reinicio del NUC incluido). Ambos gestos (derecha=inicio,
+  izquierda=parada) se dispararon de forma repetida y fiable en varias
+  tomas reales. Detalle en `docs/decisiones.md` y `PROGRESO.md`
+  (2026-07-09, sesión de lab).
+- ✅ **Bug real encontrado y corregido: barrido/deriva del gate de
+  continuidad.** Con la persona quieta, la posición detectada podía barrer
+  un círculo entero alrededor del robot en 1-2s (cadena de clústeres
+  espurios — patas de silla — "caminando" entre sí, cada salto individual
+  plausible). Fix: límite de deriva acumulada respecto a la posición
+  confirmada de hace `continuity_window_s` (1.0s), en `detection_node.py`.
+  Verificado con lógica aislada y confirmado en vivo (sin repetir el
+  barrido en la toma siguiente). **No sustituye** el trabajo de estresar el
+  fallback con mobiliario denso que ya estaba planeado — sigue pendiente,
+  ver Sesión 3.
+- ✅ **Arranque suave añadido a `tracking_node`** (`startup_ramp_s=1.5`,
+  `startup_max_wz=0.5`): tras diagnosticar con datos reales que el giro
+  brusco al activar el seguimiento era la respuesta correcta a un error de
+  rumbo grande (~158°, persona casi detrás del robot) y no un bug, se
+  limitó igualmente el techo de `wz` los primeros 1.5s tras cada activación
+  para que se sienta menos agresivo. Confirmado por el usuario sin fallos.
+- 🔄 **`max_speed` bajado a 0.18 m/s** (antes 0.3) para pruebas más suaves —
+  valor de sesión, no necesariamente definitivo. Revisar si subirlo de
+  nuevo una vez el resto esté estable.
+- ⚠️ **Oscilación de la FSM (TRACKING↔IDLE cada pocos segundos)** sigue sin
+  resolver — reproducida varias veces hoy con detección intermitente
+  (`cam: False` a ratos). No es nueva (documentada desde el 17/06) y no la
+  causó nada de lo cambiado hoy. **Nueva prioridad alta** de la próxima
+  sesión — no se ha investigado la causa exacta todavía (podría ser
+  `tracking_loss_timeout` de `control_node`, o el ritmo de MediaPipe vs. el
+  LIDAR).
+- 🔄 Pendiente: `camera_hfov_deg=51.0` y `bearing_sign=-1.0` (fusión
+  cámara-LiDAR) se calibraron con la C270 — no reverificados con la
+  SPCA2650. Revisar si `dev_deg` en los logs de fusión se ve desviado.
+- 🔄 Pendiente sin tocar: `OrbbecSDK_ROS2` en `ros2_ws/src` sin compilar.
+- 🔄 Bags de hoy en `~/tfm_bags/` del NUC (no copiados al repo):
+  `gesto_real_20260709`, `_v2`, `_v3`, `gesto_izq_test`, `gesto_real_v4_fix`,
+  `camara_nueva_velred`. Revisar cuáles aportan al Capítulo 7 antes de que
+  se acumulen sin criterio.
 
-## OBJETIVO de la Sesión 1 (próxima): re-encuadrar la cámara y validar el gesto real
+## OBJETIVO de la Sesión 2 (próxima): FSM oscilando + `near_gain` aislado + recalibrar cámara
 
-Único objetivo de esta sesión — no meter `near_gain`/continuidad/Nav2 aquí
-aunque sobre tiempo (ver "si sobra tiempo" al final de este bloque).
+### FSM oscilando (nueva prioridad alta)
 
-- Revisar físicamente la altura/inclinación de la C270 en el robot. El
-  síntoma exacto: con la persona a distancia normal de interacción,
-  `landmarks_visibles` cae de 25 a 13 y la muñeca/hombro se estiman con `y`
-  fuera de rango [0,1] al levantar el brazo — sugiere que el encuadre
-  vertical no cubre "persona de pie con brazo levantado" a esa distancia.
-- Tras el ajuste físico, repetir el gesto y mirar
-  `visual_detection_node`'s log `[GESTO-DBG]` (visibilidad de muñeca/hombro,
-  ¿supera 0.6 de forma sostenida al levantar el brazo?).
-- Si el reencuadre no basta, considerar bajar `gesture_min_visibility` (0.6 →
-  ~0.45-0.5) en `config.yaml` como mitigación adicional — pero probar primero
-  el ajuste físico, que es la causa real identificada el 08/07.
-
-**Si sobra tiempo en esta sesión:** grabar una toma corta con
-`validation/record_run.sh` usando el gesto real ya funcionando (no el
-workaround manual por SSH) — es un dato que le falta al Capítulo 7
-(`docs/07_resultados.md` §7.5, "gesto de activación no utilizado").
-
-## OBJETIVO de la Sesión 2: `near_gain` aislado + empezar el gate de continuidad
+1. Lanzar el stack, activar TRACKING con el gesto (ya funciona), y con la
+   persona quieta y bien detectada, observar cuántas veces por minuto
+   oscila `>> TRACKING`/`>> IDLE` sin que medie un gesto.
+2. Mirar `control_node.py` (`tracking_loss_timeout`) y la frecuencia real de
+   `/person_detected_visual` vs. `/scan` — hipótesis de hoy: MediaPipe corre
+   mucho más lento que el LIDAR (10Hz) en la CPU del NUC, así que
+   `camera_timeout`/`camera_debounce_count` podrían estar peleando con un
+   ritmo de cámara más bajo de lo asumido. Medir antes de tocar parámetros.
+3. Si se confirma, ajustar `camera_timeout`/`tracking_loss_timeout` con
+   datos, no a ciegas.
 
 ### `near_gain` de forma aislada
 
-La toma del 08/07 mezcló movimiento general (alejarse/acercarse/lateral/giro)
-y no aisló el caso que motivó `near_gain` (giro brusco a corta distancia):
+Sigue sin aislarse específicamente (todas las tomas de movimiento hasta
+ahora mezclan acercarse/alejarse/lateral/giro):
 
-1. Activar TRACKING (gesto si ya funciona tras la Sesión 1, si no
-   manualmente por SSH).
-2. Grabar con `validation/record_run.sh corto_near_gain` mientras la persona
-   se acerca deliberadamente a 0.5-0.7m del robot y cambia de dirección ahí.
-3. Mirar `vang` en `analysis/figs/vel_vs_t.png`: debe variar suave, sin
-   picos, y sin la saturación casi permanente que había antes del fix.
+1. Activar TRACKING con el gesto.
+2. Grabar con `validation/record_run.sh corto_near_gain` (o el comando
+   `ros2 bag record` equivalente si `record_run.sh` no está sincronizado al
+   NUC — ver nota más abajo) mientras la persona se acerca deliberadamente a
+   0.5-0.7m del robot y cambia de dirección ahí.
+3. Mirar `vang`: debe variar suave, sin picos, y sin saturación permanente.
 
-### Empezar a estresar el fallback del filtro de continuidad
+### Recalibrar cámara nueva
 
-**Ya implementado (2026-07-09, preparado sin robot — ver `docs/decisiones.md`):**
-`_gate_by_continuity` ahora exige `continuity_confirm_frames` scans
-consecutivos con un candidato *consistente* (mismo punto, no cualquier salto)
-antes de aceptar un reanclaje, en vez de rendirse al primer intento. Por
-defecto `continuity_confirm_frames: 1` en `config.yaml` — **sin cambiar el
-comportamiento actual todavía**. Verificado solo con pruebas de lógica
-aisladas (sin ROS ni datos reales).
+Repetir la comprobación de `bearing_sign`/`camera_hfov_deg` (como se hizo el
+25/06 con la C270: mirar `dev_deg` en los logs de fusión y confirmar que el
+rumbo de cámara coincide con el clúster LiDAR elegido) ahora con la
+SPCA2650 — el FOV real puede ser distinto al de la C270.
 
-Si queda tiempo tras `near_gain`: repetir una toma tal cual (con
-`continuity_confirm_frames: 1`) para confirmar que el comportamiento no
-cambió respecto al fix del 08/07 (mismo % de saltos/saturación) — el resto
-(estresar con mobiliario denso, ajustar el parámetro) se deja para la
-Sesión 3 si no da tiempo.
+**Nota operativa:** `validation/record_run.sh` no estaba sincronizado al NUC
+hoy (solo el paquete ROS, no el repo completo) — se lanzó `ros2 bag record`
+a mano con la misma lista de topics. Sincronizar el repo completo o al menos
+`validation/` al NUC si se quiere usar el script tal cual.
 
-## OBJETIVO de la Sesión 3: terminar el gate de continuidad + reproducibilidad del Capítulo 7
+## OBJETIVO de la Sesión 3: estresar el gate de continuidad + reproducibilidad del Capítulo 7
 
 ### Gate de continuidad
+
+El fix de deriva acumulada del 09/07 (ver arriba) corrigió el caso concreto
+observado en vivo, pero no se ha probado deliberadamente con mobiliario
+denso ni un recorrido largo:
 
 1. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
    recorrido más largo (>2 min) para ver con qué frecuencia se activa el
    fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
-2. Si se activa con frecuencia y los saltos siguen colándose, subir
-   `continuity_confirm_frames` a 2 o 3 y repetir la toma — comparar métricas
-   antes/después igual que se hizo con los fixes 1/2/3 del 08/07.
+2. Si siguen colándose saltos, subir `continuity_confirm_frames` a 2 o 3
+   y/o ajustar `continuity_window_s` — comparar métricas antes/después.
 
 ### Reproducibilidad de métricas del Capítulo 7
 

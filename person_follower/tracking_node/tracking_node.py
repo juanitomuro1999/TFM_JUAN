@@ -181,6 +181,8 @@ class TrackingNode(Node):
         self.declare_parameter('kalman_q',                  0.02)
         self.declare_parameter('kalman_r',                  0.04)
         self.declare_parameter('obstacle_threshold',         0.55)
+        self.declare_parameter('startup_ramp_s',             1.5)
+        self.declare_parameter('startup_max_wz',             0.5)
 
         self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
@@ -200,6 +202,8 @@ class TrackingNode(Node):
         kq                  = self.get_parameter('kalman_q').value
         kr                  = self.get_parameter('kalman_r').value
         self.obs_threshold  = self.get_parameter('obstacle_threshold').value
+        self.startup_ramp_s   = self.get_parameter('startup_ramp_s').value
+        self.startup_max_wz   = self.get_parameter('startup_max_wz').value
 
         # ── Kalman 6 estados ──────────────────────────────────────────────
         self.kf = KalmanTracker(q=kq, r=kr)
@@ -214,6 +218,7 @@ class TrackingNode(Node):
         self.prev_vx    = 0.0
         self.prev_angle = 0.0
         self.prev_wz    = 0.0
+        self._tracking_start_t: float | None = None  # monotonic; para el arranque suave
 
         # ── Publishers ───────────────────────────────────────────────────
         self.vel_pub    = self.create_publisher(Twist,  '/tracking/velocity_cmd',    10)
@@ -313,6 +318,20 @@ class TrackingNode(Node):
         wz  = max(-1.0, min(1.0, wz))
         self.prev_angle = ang_err
 
+        # ── Arranque suave ────────────────────────────────────────────────
+        # Los primeros startup_ramp_s segundos tras activar el seguimiento
+        # (gesto o reactivación), el techo de wz sube linealmente de
+        # startup_max_wz a 1.0 en vez de permitir ya el máximo — así, si la
+        # persona queda con un error de rumbo grande justo al activar (p.ej.
+        # casi detrás del robot), el giro de corrección inicial es más lento
+        # y previsible, aunque siga habiendo que girar bastante en total.
+        if self._tracking_start_t is not None:
+            since_start = time.monotonic() - self._tracking_start_t
+            if since_start < self.startup_ramp_s:
+                frac = max(0.0, since_start) / self.startup_ramp_s
+                cap = self.startup_max_wz + (1.0 - self.startup_max_wz) * frac
+                wz = max(-cap, min(cap, wz))
+
         # Rate-limit: igual que vx con acc_limit, wz no puede saltar de golpe
         # a saturación en un solo ciclo — protege tanto de un error angular
         # grande y real como de un salto puntual de detección que se cuele.
@@ -393,6 +412,8 @@ class TrackingNode(Node):
 
     def _on_enable(self, req, resp):
         self.tracking_enabled = req.data
+        if req.data:
+            self._tracking_start_t = time.monotonic()  # arranca la rampa de arranque suave
         if req.data and not self.kf.initialized:
             # Reset Kalman al empezar a seguir
             self.kf = KalmanTracker(

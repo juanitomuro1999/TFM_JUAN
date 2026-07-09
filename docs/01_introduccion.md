@@ -21,7 +21,7 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
 
 ### Objetivos específicos
 
-1. ✅ **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands). *(Completado 2026-06-17: gesto de mano levantada con MediaPipe Pose; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. ⚠️ 2026-07-08: en el montaje actual de la cámara C270, el gesto de mano derecha no se detectó de forma fiable — el encuadre vertical pierde la muñeca al levantar el brazo. Pendiente re-encuadrar/reposicionar la cámara y revalidar; ver `docs/sesion_siguiente.md`.)*
+1. ✅ **Módulo de interacción:** desarrollar un sistema de inicio/parada del seguimiento basado en gestos detectados por cámara (MediaPipe Pose y Hands). *(Completado 2026-06-17: gesto de mano levantada con MediaPipe Pose; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. ⚠️ 2026-07-08: en el montaje de la cámara C270, el gesto de mano derecha no se detectó de forma fiable. **Resuelto en vivo 2026-07-09:** se bajó `gesture_min_visibility` (0.6→0.5) y, tras cambiar físicamente la cámara por una SPCA2650, ambos gestos (inicio con mano derecha, parada con mano izquierda) se dispararon de forma repetida y fiable en varias pruebas reales, sin el workaround manual por SSH — ver `docs/decisiones.md` y `PROGRESO.md`, sesión 2026-07-09. Caveat: `camera_hfov_deg=51.0` y la calibración de `bearing_sign` se hicieron con la C270 — pendiente reverificar con la cámara nueva.)*
 
 2. ✅ **Cartografía SLAM:** integrar SLAM Toolbox con los datos del LiDAR para construir mapas del entorno en tiempo real. *(Completado — mapa del laboratorio generado y guardado en `maps/`)*
 
@@ -47,7 +47,7 @@ El desarrollo se realiza sobre el hardware disponible en el laboratorio de robó
 
 - **Robot:** TurtleBot 2 / base Kobuki
 - **NUC:** Intel NUC con Ubuntu 24.04 y ROS 2 Jazzy
-- **Sensores:** RPLIDAR A2M8 (LiDAR 2D, 12 m, 10 Hz) + Logitech C270 (cámara RGB) + Orbbec Astra (cámara RGBD, integración pendiente)
+- **Sensores:** RPLIDAR A2M8 (LiDAR 2D, 12 m, 10 Hz) + cámara RGB en `/dev/video0` (Logitech C270 hasta 2026-07-09; sustituida esa fecha por una SPCA2650 tras problemas de encuadre del gesto, ver objetivo 1 y `docs/decisiones.md`) + Orbbec Astra (cámara RGBD, integración pendiente)
 - **Entorno de prueba:** instalaciones interiores de la UJI
 
 Limitaciones asumidas:
