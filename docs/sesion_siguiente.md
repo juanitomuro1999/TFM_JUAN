@@ -12,14 +12,24 @@
 > la ruta duplicada de `config.yaml` que fallaba en la sesión 2026-07-08 —
 > ver `PROGRESO.md` — ya está corregido).
 
-## Presupuesto de julio: 9 sesiones de lab (~2.5-3h cada una)
+## Presupuesto de lab: 9 sesiones, TODO el tiempo de robot que queda (no solo julio)
 
-> **Borrador de reparto (2026-07-09), reordenable.** Es una guía de prioridad,
-> no un contrato — la experiencia de este proyecto es que las sesiones no
-> siempre van como se planean (encuadre de cámara roto, RPLIDAR con
-> timeouts, sklearn roto en el NUC...). Si una sesión se alarga, lo normal es
-> recortar alcance (ver notas de "si el tiempo aprieta" en cada bloque) y
-> desplazar lo que quede, no intentar comprimir dos sesiones en una.
+> **Sin acceso al laboratorio en agosto** (confirmado 2026-07-09). Estas 9
+> sesiones **no son "julio, con margen en agosto detrás"** — son todo el
+> tiempo de robot disponible antes del cierre. Lo que no quede recogido al
+> terminar la sesión 9 se documenta como limitación/trabajo futuro en la
+> memoria, no se pospone. Agosto queda para analizar lo ya grabado y
+> escribir, sin datos nuevos.
+>
+> **Borrador de reparto (2026-07-09), reordenable.** Es una guía de
+> prioridad, no un contrato — la experiencia de este proyecto es que las
+> sesiones no siempre van como se planean (encuadre de cámara roto, RPLIDAR
+> con timeouts, sklearn roto en el NUC...). Si una sesión se alarga, lo
+> normal es recortar alcance (ver notas de "si el tiempo aprieta" en cada
+> bloque) y desplazar lo que quede, no intentar comprimir dos sesiones en
+> una — pero con el límite duro de la sesión 9, desplazar demasiado tiene
+> coste real: significa que algo se queda fuera de la memoria como
+> resultado, no solo "para más adelante".
 
 | Sesión | Objetivo principal |
 |---|---|
@@ -31,7 +41,13 @@
 | 6 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
 | 7 | Colchón + grabar vídeo de demostración del TFM |
 | 8 | Objetivo 5 (guiado a destino) si hay margen; si no, más repeticiones/pulido del Cap. 7 |
-| 9 | Colchón final de julio — cerrar cabos sueltos antes de que empiece la Fase 4 (agosto) |
+| 9 | **Última sesión de lab del TFM.** Cerrar cabos sueltos y decidir, con lo que haya, qué se documenta como completado y qué como trabajo futuro — no queda una sesión 10 a la que aplazar. |
+
+**Si sesiones 5-6 (Nav2) se retrasan o no salen bien:** es el bloque más
+prescindible de la lista — empieza de cero (`docs/decisiones.md`,
+2026-07-09) y objetivos 1/2/4 ya tienen inversión y datos reales detrás.
+Mejor recortar Nav2 a "solo localización" o a "trabajo futuro documentado"
+que sacrificar tiempo de las sesiones 2-4 por él.
 
 **Objetivo 6 (QR, exploratorio) y la redacción de los Capítulos 5-6 de la
 memoria no tienen sesión de lab asignada** — son trabajo de escritorio
