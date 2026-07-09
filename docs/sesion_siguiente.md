@@ -81,10 +81,34 @@ aisladas (sin ROS ni datos reales).
    `continuity_confirm_frames` a 2 o 3 y repetir la toma — comparar métricas
    antes/después igual que se hizo con los fixes 1/2/3 del 08/07.
 
+### 4. Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09)
+
+**Ya preparado sin robot (ver `docs/decisiones.md`, entrada 2026-07-09):**
+`person_follower/launch/nav2_localization_demo.launch.py` (nuevo) y
+`scripts/nav2_send_goal.py`. **Nada de esto se ha ejecutado nunca** —
+tratar como si fuera código nuevo sin probar, no como algo ya validado.
+
+Si hay tiempo tras los puntos 1-3 (que tienen prioridad, ya tenían trabajo
+invertido antes de esta decisión):
+
+1. Verificar los strings de plugin de `nav2_params.yaml` contra la versión
+   de Nav2 instalada en el NUC (`ros2 pkg prefix nav2_bringup`) — su propia
+   cabecera avisa de que pueden cambiar entre distros.
+2. Lanzar **solo el bloque de localización** primero (comentar el bloque de
+   navegación en el launch file). En RViz: cargar el mapa, dar una pose
+   inicial aproximada con "2D Pose Estimate", mover el robot un poco y
+   confirmar que AMCL converge y la pose se mantiene estable.
+3. Si eso funciona, activar el bloque de navegación completo y usar
+   `scripts/nav2_send_goal.py <x> <y>` con un punto leído en RViz sobre el
+   mapa real (las coordenadas no se pueden adivinar sin el robot).
+4. **No lanzar este launch a la vez que `start_person_follower.launch.py`**
+   — ambos publican en `/commands/velocity`.
+5. Si el tiempo aprieta, está bien quedarse solo en el paso 2 (localización
+   validada) y dejar la navegación para otra sesión — el launch file ya
+   está pensado para poder cortar el alcance así sin tirar el trabajo.
+
 ## Si sobra tiempo
 
-- Decidir alcance de Nav2 (objetivo 3): demo mínima (AMCL + mapa ya guardado)
-  vs. documentarlo como trabajo futuro. Sigue sin abordarse.
 - Investigar por qué `ros2 topic pub --once /gesture_command` no queda
   grabado en el rosbag pese a que `control_node` sí lo recibe (visto dos
   veces hoy) — no bloquea nada, pero hace `gestures.csv` poco fiable.

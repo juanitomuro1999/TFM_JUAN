@@ -4,7 +4,7 @@
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  
-**Versión actual:** 0.4.0 | Fase 2 completada (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara) — validación experimental iniciada, Fase 3 (Nav2) pendiente de decidir alcance
+**Versión actual:** 0.4.0 | Fase 2 completada (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara) — validación experimental iniciada, Fase 3 (Nav2, demo mínima) preparada sin robot, pendiente de ejecutar
 
 ---
 
@@ -193,7 +193,7 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 |---|---|---|
 | Fase 1 – Base y definición | Hasta mayo 2026 | ✅ Completada |
 | Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06, ver `validation/runs/fusion_track_20260625/`) |
-| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 | ⏳ Pendiente de decidir alcance (demo mínima AMCL vs. trabajo futuro) |
+| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 | 🔄 Demo mínima decidida, launch file y script de objetivo preparados sin robot (`docs/decisiones.md`), sin ejecutar |
 | Fase 4 – Validación experimental | Agosto 2026 | 🔄 Iniciada — falta validar la fusión con el robot en movimiento y repetir tomas para el Capítulo 7 |
 | Fase 5 – Cierre y defensa | Septiembre 2026 | ⏳ Pendiente |
 

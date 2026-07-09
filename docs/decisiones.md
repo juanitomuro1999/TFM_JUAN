@@ -5,6 +5,57 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-09 — Alcance de Nav2 (objetivo 3): demo mínima completa (AMCL + navegación a un punto)
+
+- **Decisión:** implementar Nav2 como demo mínima completa — AMCL
+  localizando sobre `maps/mapa_laboratorio.yaml` + navegación a un único
+  punto predefinido — en vez de documentarlo como trabajo futuro o limitarlo
+  a solo localización. Preparado sin robot:
+  [`person_follower/launch/nav2_localization_demo.launch.py`](../person_follower/launch/nav2_localization_demo.launch.py)
+  (nuevo — antes no existía ningún launch file de Nav2) y
+  [`scripts/nav2_send_goal.py`](../scripts/nav2_send_goal.py) (envía el
+  objetivo con `nav2_simple_commander`).
+- **Motivo:** cumplir el objetivo específico 3 tal como está planteado en
+  `docs/01_introduccion.md`, no una versión recortada.
+- **Estado real de partida (importante para valorar el riesgo):** antes de
+  esta sesión, `person_follower/config/nav2_params.yaml` existía pero era un
+  borrador explícitamente sin verificar (su propia cabecera: *"escrito sin
+  acceso al robot"*, *"verificar en julio contra los defaults instalados en
+  el NUC"*), **no existía ningún launch file de Nav2**, y **AMCL/Nav2 nunca
+  se había ejecutado ni una sola vez** en el robot real. Es decir: se parte
+  de cero, no de una integración a medio terminar.
+- **Riesgo aceptado explícitamente:** a 2026-07-09 quedan sin cerrar del
+  todo el objetivo 1 (gesto real por cámara, bloqueado por el encuadre de
+  la C270), la validación aislada de `near_gain`, la prueba en robot del
+  gate de continuidad (entrada de abajo), y el Capítulo 7 necesita
+  repeticiones y arreglar su reproducibilidad (`docs/07_resultados.md`
+  §7.5). Julio era el mes asignado a Nav2 en el plan original
+  (`docs/01_introduccion.md` §1.4), así que este trabajo compite por tiempo
+  de laboratorio con objetivos que ya tienen inversión real y datos. Se
+  decidió asumir ese riesgo conscientemente en vez de recortar el alcance.
+- **Mitigación de riesgo en la implementación:** el launch file separa
+  explícitamente localización y navegación en dos grupos de lifecycle
+  managers (patrón estándar de `nav2_bringup`, igual que ya usa
+  `slam_toolbox.launch.py` con un único grupo) y su propia cabecera
+  recomienda probar primero *solo* AMCL en RViz antes de añadir la pila de
+  navegación completa — para poder cortar el alcance a "solo localización"
+  sobre la marcha en el lab si el tiempo aprieta, sin haber tirado el
+  trabajo de preparación.
+- **Alternativas descartadas:** *Nav2 como trabajo futuro* (recomendado
+  inicialmente por el análisis de riesgo — más seguro para el calendario,
+  pero deja el objetivo 3 sin cumplir). *Alcance intermedio, solo AMCL sin
+  navegación* (punto medio razonable, pero se descartó a favor de intentar
+  el objetivo completo).
+- **Simplificaciones deliberadas del demo** (documentadas en los propios
+  archivos, no ocultas): no usa `velocity_smoother` (está en
+  `nav2_params.yaml` pero se deja fuera para reducir piezas sin probar);
+  corre independiente de `person_follower` — remapea `cmd_vel` directamente
+  a `/commands/velocity`, sin integrar con `control_node`/`tracking_node`
+  (esa integración "seguir → navegar a destino" es el objetivo específico 5,
+  fuera de alcance aquí); **no lanzar a la vez que
+  `start_person_follower.launch.py`**, ambos publicarían en
+  `/commands/velocity`.
+
 ## 2026-07-09 — Confirmación por consistencia en el gate de continuidad (preparado sin robot, pendiente de validar en el lab)
 
 - **Decisión:** `_gate_by_continuity` (`detection_node.py`) ahora exige
