@@ -14,6 +14,8 @@
 #     odom.tum        trayectoria en formato TUM (para evo)
 #     cmd_vel.csv     /commands/velocity (comando real a la base)
 #     detection.csv   /person_detected y /control/mode (perdidas / FSM)
+#     position.csv    /person_position (posicion cruda observada, frame robot)
+#     expected_position.csv  /expected_person_position (salida del Kalman)
 #
 # Uso:
 #   python3 bag_to_csv.py <ruta_al_bag> [--out DIR] [--storage mcap|sqlite3]
@@ -82,6 +84,7 @@ def main():
     # ── Acumuladores por topic ───────────────────────────────────────────────
     telem_rows, odom_rows, tum_rows, cmd_rows, det_rows = [], [], [], [], []
     gesture_rows, fsm_rows = [], []
+    pos_rows, exp_pos_rows = [], []
     # Claves de telemetria en orden (ver tracking_node._publish_telemetry)
     TELEM_KEYS = ['t', 'dist', 'angle_deg', 'vlin', 'vang', 'lin_factor',
                   'obs_age', 'kf_vx', 'kf_vy', 'kf_ax', 'kf_ay']
@@ -121,6 +124,14 @@ def main():
             m = deserialize_message(data, get_message('std_msgs/msg/String'))
             det_rows.append([round(t_bag, 6), 'mode', m.data])
 
+        elif topic == '/person_position':
+            m = deserialize_message(data, get_message('geometry_msgs/msg/Point'))
+            pos_rows.append([round(t_bag, 6), m.x, m.y])
+
+        elif topic == '/expected_person_position':
+            m = deserialize_message(data, get_message('geometry_msgs/msg/Point'))
+            exp_pos_rows.append([round(t_bag, 6), m.x, m.y])
+
         elif topic == '/gesture_command':
             m = deserialize_message(data, get_message('std_msgs/msg/String'))
             gesture_rows.append([round(t_bag, 6), m.data])
@@ -146,6 +157,8 @@ def main():
     written.append(write_csv('detection.csv', ['t_bag', 'kind', 'value'], det_rows))
     written.append(write_csv('gestures.csv', ['t_bag', 'gesture'], gesture_rows))
     written.append(write_csv('fsm_states.csv', ['t_bag', 'state'], fsm_rows))
+    written.append(write_csv('position.csv', ['t_bag', 'x', 'y'], pos_rows))
+    written.append(write_csv('expected_position.csv', ['t_bag', 'x', 'y'], exp_pos_rows))
 
     # TUM como texto separado por espacios (formato que espera evo)
     tum_path = os.path.join(out_dir, 'odom.tum')

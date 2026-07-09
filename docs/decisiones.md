@@ -5,6 +5,49 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-09 — Métricas de saltos/saturación incorporadas al pipeline de validación (preparado sin robot, pendiente de re-ejecutar sobre bags reales)
+
+- **Decisión:** `validation/bag_to_csv.py` ahora extrae `/person_position` y
+  `/expected_person_position` a `position.csv`/`expected_position.csv` (ya se
+  grababan en todos los bags vía `record_run.sh`, solo faltaba extraerlos).
+  `validation/plot_run.py` añade a `metrics.txt`, cuando existe
+  `position.csv`: `%` de saltos de posición cruda por encima de un umbral
+  configurable (`--jump-threshold`, def. 0.8 m, entre muestras consecutivas)
+  y `%` de saturación angular (`|vang| >= --sat-threshold`, def. 0.95) tanto
+  global como restringido a instantes con posición cruda "estable" (sin
+  variación mayor que `--stable-radius`, def. 0.15 m, en la ventana
+  `--stable-window`, def. 1.0 s hacia atrás). Si `position.csv` no existe
+  (bags generados con una versión anterior de `bag_to_csv.py`), el script
+  degrada a un aviso en vez de fallar.
+- **Motivo:** cerrar la limitación de reproducibilidad de `docs/07_resultados.md`
+  §7.5 — las cifras de la tabla 7.4 (saltos 12.1%→0.7%, saturación
+  94.5%→12.4%) se calcularon con un script *ad-hoc* de la sesión 2026-07-08
+  (`bag_to_csv_direct.py`) que nunca se commiteó y ya no está disponible.
+  Objetivo de la Sesión 3 de `docs/sesion_siguiente.md`.
+- **Metodología nueva, no una reconstrucción del script perdido:** no hay
+  forma de confirmar que el script ad-hoc definía "salto" o "posición
+  estable" exactamente así — se documentan los umbrales elegidos y el motivo
+  (0.8 m coincide con el que ya aparece citado en `PROGRESO.md`; el resto son
+  elección propia razonable). **No asumir que las cifras nuevas coincidirán
+  con las de la tabla 7.4** hasta re-ejecutar el pipeline sobre los tres bags
+  de la sesión 08/07 (`validation/runs/20260708_movimiento_*`) y comparar.
+- **Sin validar todavía:** esta sesión no tiene acceso a un entorno con ROS 2
+  (`rclpy`/`rosbag2_py` no están instalados en este portátil), así que no se
+  ha podido ejecutar `bag_to_csv.py` sobre los bags reales. La lógica de
+  `plot_run.py` (saltos + saturación con estabilidad) se verificó con CSVs
+  sintéticos construidos a mano (persona quieta con un salto espúreo
+  intercalado + persona caminando de forma continua) — pendiente de
+  confirmar con datos reales en una sesión con acceso al NUC o a una máquina
+  con ROS 2 Jazzy instalado.
+- **Alternativas descartadas:** recuperar el `bag_to_csv_direct.py` original
+  (mencionado en `PROGRESO.md` como guardado en el scratchpad de otra sesión,
+  no accesible desde aquí — y aunque se recuperase, seguiría sin estar
+  commiteado ni integrado en el pipeline estándar, que era el problema de
+  fondo). Definir "estable" sobre la salida ya filtrada por Kalman
+  (`telemetry.csv: dist/angle_deg`) en vez de la posición cruda: se descartó
+  porque el Kalman es precisamente lo que suaviza los saltos que se quiere
+  medir, así que mediría la salida ya corregida, no el problema de entrada.
+
 ## 2026-07-09 — Alcance de Nav2 (objetivo 3): demo mínima completa (AMCL + navegación a un punto)
 
 - **Decisión:** implementar Nav2 como demo mínima completa — AMCL

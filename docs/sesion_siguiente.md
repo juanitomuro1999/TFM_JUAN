@@ -139,12 +139,18 @@ Sesión 3 si no da tiempo.
 
 ### Reproducibilidad de métricas del Capítulo 7
 
-Las cifras de "% saltos" y "% saturación angular" de `PROGRESO.md` se
-calcularon con un script *ad-hoc* que no está en el repo
-(`bag_to_csv_direct.py`) — ver `docs/07_resultados.md` §7.5. Recuperarlo del
-NUC/portátil donde se ejecutó y committearlo, o incorporar ese cálculo a
-`validation/plot_run.py` para que `metrics.txt` lo genere automáticamente
-en cualquier toma futura.
+**Ya incorporado al pipeline (2026-07-09, preparado sin robot — ver
+`docs/decisiones.md`):** `bag_to_csv.py` extrae `/person_position` a
+`position.csv` y `plot_run.py` añade a `metrics.txt` el % de saltos de
+posición (`--jump-threshold`, def. 0.8m) y el % de saturación angular con
+posición estable (`--stable-radius`/`--stable-window`/`--sat-threshold`).
+Verificado solo con CSVs sintéticos (sin ROS ni datos reales) — **pendiente
+de esta sesión:** re-ejecutar `bag_to_csv.py` + `plot_run.py` sobre los tres
+bags de `validation/runs/20260708_movimiento_*` (requiere una máquina con
+ROS 2, no el portátil de escritorio) y comparar las cifras nuevas contra la
+tabla 7.4 de `docs/07_resultados.md` — actualizarla si difieren. Si
+coinciden razonablemente, dar por cerrada esta limitación de 7.5; si no,
+documentar la discrepancia y decidir si ajustar los umbrales por defecto.
 
 ## OBJETIVO de la Sesión 4: repeticiones de validación para el Capítulo 7
 

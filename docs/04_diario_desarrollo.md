@@ -407,6 +407,50 @@ intermedias, en `PROGRESO.md` y `docs/decisiones.md`.
 - 🔄 Pendiente: repetir la validación de `near_gain` de forma aislada (la
   toma de hoy mezcló movimiento general); decidir alcance de Nav2
 
+### 9 de julio — Reproducibilidad de las métricas de saltos/saturación (trabajo de escritorio)
+
+**Sin acceso al laboratorio.** Primero se resolvió una duda de planificación
+que llevaba tiempo latente: el usuario confirmó que no habrá acceso al
+laboratorio en agosto, así que las 9 sesiones previstas para julio son todo
+el tiempo de robot disponible antes del cierre del TFM, no "julio con margen
+detrás" como asumía el reparto anterior. Se corrigió esa suposición en los
+tres sitios donde aparecía (introducción, README, plan de la próxima
+sesión) y se dejó una guía explícita de qué recortar primero si el tiempo
+aprieta: Nav2, por ser el bloque que empieza de cero.
+
+Con eso aclarado, se adelantó trabajo de escritorio de la Sesión 3 del plan:
+las cifras de saltos de posición y saturación angular citadas en la tabla
+de resultados del 8 de julio se habían calculado con un script improvisado
+que nunca llegó a formar parte del repositorio, y que ya no está disponible
+— una limitación de reproducibilidad pendiente desde entonces. Revisando qué
+datos se graban realmente en cada toma de validación, resultó que la
+posición cruda de la persona (`/person_position`) siempre se había estado
+grabando; simplemente el script que convierte los bags a CSV nunca la
+extraía. Con ese hueco cerrado, se añadió al pipeline de análisis (que corre
+en el portátil, sin ROS) el cálculo automático de ambas métricas: el
+porcentaje de saltos de posición por encima de un umbral, y el porcentaje de
+saturación angular cuando la posición observada se mantiene estable en una
+ventana reciente — con los umbrales elegidos documentados explícitamente,
+porque no hay forma de confirmar que reproducen la definición exacta del
+script perdido.
+
+Esta sesión no tuvo acceso a una máquina con ROS 2 instalado, así que el
+cambio se verificó de la única forma posible sin robot: construyendo a mano
+un pequeño conjunto de datos sintético (una persona quieta con un salto de
+detección espurio intercalado, y un tramo caminando de forma continua) y
+comprobando que las métricas nuevas distinguían correctamente ambos casos.
+Queda pendiente, para cuando haya acceso a una máquina con ROS, volver a
+pasar el pipeline actualizado sobre los tres bags reales de la sesión del 8
+de julio y comparar los números contra los ya publicados en la memoria.
+
+**Estado al cierre:**
+- ✅ Pipeline de análisis (`bag_to_csv.py` + `plot_run.py`) extiende
+  `metrics.txt` con saltos de posición y saturación con posición estable,
+  verificado con datos sintéticos
+- 🔄 Pendiente: re-ejecutar sobre los bags reales del 8 de julio en cuanto
+  haya acceso a una máquina con ROS 2, y actualizar la tabla de resultados
+  si las cifras difieren de las ya publicadas
+
 ---
 
 ## Julio 2026 (planificado)

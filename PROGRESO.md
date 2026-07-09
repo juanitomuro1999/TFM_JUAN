@@ -1,5 +1,57 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-09 (trabajo de escritorio, sin robot)
+
+### Objetivo: reproducibilidad de las métricas de saltos/saturación (Sesión 3 de `docs/sesion_siguiente.md`)
+
+Sin acceso al laboratorio hoy. Se confirmó primero que no hay acceso al lab
+en agosto (ver commit anterior de hoy, `docs/sesion_siguiente.md`): las 9
+sesiones planificadas son todo el tiempo de robot restante, no "julio con
+margen detrás".
+
+Con eso claro, se adelantó trabajo de escritorio de la Sesión 3: las cifras
+de "% saltos >0.8m" y "% saturación angular" de la tabla 7.4
+(`docs/07_resultados.md`) se calcularon el 08/07 con un script *ad-hoc*
+(`bag_to_csv_direct.py`) que no se commiteó y ya no está disponible. Se
+descubrió que el dato crudo que hacía falta (`/person_position`) **ya se
+graba en todos los bags** vía `record_run.sh` — solo faltaba que
+`bag_to_csv.py` lo extrajera. Cambios:
+
+- `validation/bag_to_csv.py`: extrae `/person_position` y
+  `/expected_person_position` a `position.csv`/`expected_position.csv`.
+- `validation/plot_run.py`: si existe `position.csv`, añade a `metrics.txt`
+  el % de saltos de posición cruda (umbral configurable, `--jump-threshold`,
+  def. 0.8m) y el % de saturación angular (`--sat-threshold`, def. 0.95)
+  tanto global como restringido a instantes con posición "estable" (sin
+  variación mayor que `--stable-radius` en la ventana `--stable-window`).
+  Degrada con un aviso (no falla) si `position.csv` no existe, para no
+  romper el análisis de bags antiguos generados con la versión anterior del
+  script.
+
+Detalle completo, metodología y alternativas descartadas en
+`docs/decisiones.md` (entrada 2026-07-09).
+
+### Verificación: solo pruebas de lógica aisladas, sin ROS ni datos reales
+
+Este portátil no tiene `rclpy`/`rosbag2_py` instalados, así que no se pudo
+ejecutar `bag_to_csv.py` contra los bags reales de `validation/runs/`. Se
+verificó la lógica nueva de `plot_run.py` con CSVs sintéticos construidos a
+mano (una persona quieta con un salto espúreo intercalado + un tramo
+caminando de forma continua): el % de saltos y el % de saturación con
+posición estable salieron con los valores esperados a mano. **Pendiente de
+validar con datos reales** — no asumir que las cifras nuevas reproducirán
+exactamente la tabla 7.4 hasta re-ejecutar el pipeline actualizado sobre los
+tres bags del 08/07 en una máquina con ROS 2 (ver `docs/sesion_siguiente.md`,
+Sesión 3).
+
+### Pendiente para la próxima sesión de lab (Sesión 1: cámara)
+
+No cambia respecto a lo ya planificado — este trabajo de escritorio no
+consumió tiempo de robot ni tocó la prioridad de la Sesión 1 (re-encuadrar
+la C270 y validar el gesto real). Ver `docs/sesion_siguiente.md`.
+
+---
+
 ## Sesión 2026-07-08
 
 ### Objetivo: prueba de fusión CON movimiento (validar `near_gain`)

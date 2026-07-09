@@ -14,12 +14,18 @@
 #   Y un resumen de metricas por consola y en metrics.txt:
 #     error medio/RMS de distancia respecto al objetivo, % tiempo detectado,
 #     nº de perdidas de deteccion, velocidades max, etc.
+#     Si position.csv existe (requiere bag_to_csv.py actualizado 2026-07,
+#     que extrae /person_position): % de saltos de posicion > umbral y % de
+#     saturacion angular con posicion estable (ver docs/07_resultados.md
+#     §7.5 y docs/decisiones.md, entrada 2026-07-09, sobre la metodologia
+#     y sus limites frente a las cifras del script ad-hoc original).
 #
 # Uso:
 #   python3 plot_run.py <dir_analysis>           # carpeta con telemetry.csv, etc.
 #   python3 plot_run.py <dir_analysis> --target 1.0
 
 import argparse
+import bisect
 import csv
 import math
 import os
@@ -58,12 +64,86 @@ def rel_time(ts):
     return [t - t0 for t in ts]
 
 
+def load_xy(rows):
+    """(t_bag, x, y) ordenados por tiempo, descartando filas invalidas."""
+    pts = []
+    for r in rows:
+        try:
+            pts.append((float(r['t_bag']), float(r['x']), float(r['y'])))
+        except (ValueError, KeyError, TypeError):
+            continue
+    pts.sort(key=lambda p: p[0])
+    return pts
+
+
+def position_jumps(pos_pts, threshold):
+    """% de saltos entre muestras consecutivas de posicion cruda > threshold (m)."""
+    if len(pos_pts) < 2:
+        return float('nan'), float('nan'), 0
+    jumps = [math.hypot(x1 - x0, y1 - y0)
+              for (_, x0, y0), (_, x1, y1) in zip(pos_pts, pos_pts[1:])]
+    frac = sum(1 for d in jumps if d > threshold) / len(jumps)
+    return frac, max(jumps), len(jumps)
+
+
+def stable_mask(pos_pts, query_ts, window_s, radius):
+    """Para cada instante en query_ts: ¿la posicion cruda estuvo 'estable'
+    (todas las muestras en [t-window_s, t] caben en un circulo de radio
+    `radius`)? Requiere >=2 muestras de posicion en la ventana; si no hay
+    datos suficientes se considera "no estable" (no se afirma sin evidencia).
+    """
+    times = [p[0] for p in pos_pts]
+    mask = []
+    for qt in query_ts:
+        lo = bisect.bisect_left(times, qt - window_s)
+        hi = bisect.bisect_right(times, qt)
+        window = pos_pts[lo:hi]
+        if len(window) < 2:
+            mask.append(False)
+            continue
+        xs = [p[1] for p in window]
+        ys = [p[2] for p in window]
+        cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
+        max_dev = max(math.hypot(x - cx, y - cy) for x, y in zip(xs, ys))
+        mask.append(max_dev <= radius)
+    return mask
+
+
+def saturation_with_stability(vang, t_abs, pos_pts, sat_threshold, window_s, radius):
+    """% de muestras de vang saturadas (overall) y restringido a instantes
+    con posicion cruda localmente estable (ver stable_mask)."""
+    idx = [i for i, v in enumerate(vang) if not math.isnan(v)]
+    if not idx:
+        return float('nan'), float('nan'), 0
+    sat = [abs(vang[i]) >= sat_threshold for i in idx]
+    overall_frac = sum(sat) / len(sat)
+    if not pos_pts:
+        return overall_frac, float('nan'), 0
+    query_ts = [t_abs[i] for i in idx]
+    stable = stable_mask(pos_pts, query_ts, window_s, radius)
+    stable_sat = [s for s, is_stable in zip(sat, stable) if is_stable]
+    stable_frac = (sum(stable_sat) / len(stable_sat)) if stable_sat else float('nan')
+    return overall_frac, stable_frac, len(stable_sat)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Graficas de validacion TFM")
     ap.add_argument('dir', help="carpeta con telemetry.csv / odom.csv / ...")
     ap.add_argument('--target', type=float, default=None,
                     help="distancia objetivo (m) para la linea de referencia "
                          "(def: tomar de config, 1.0)")
+    ap.add_argument('--jump-threshold', type=float, default=0.8,
+                    help="umbral (m) para contar un salto de posicion cruda entre "
+                         "muestras consecutivas (def: 0.8, igual que PROGRESO.md)")
+    ap.add_argument('--stable-radius', type=float, default=0.15,
+                    help="radio (m) por debajo del cual la posicion cruda en la "
+                         "ventana se considera 'estable' (def: 0.15)")
+    ap.add_argument('--stable-window', type=float, default=1.0,
+                    help="ventana temporal (s) hacia atras para evaluar estabilidad "
+                         "de la posicion cruda (def: 1.0)")
+    ap.add_argument('--sat-threshold', type=float, default=0.95,
+                    help="|vang| a partir del cual se considera 'saturado' "
+                         "(def: 0.95; el clamp de tracking_node es a ±1.0 rad/s)")
     args = ap.parse_args()
 
     d = os.path.abspath(args.dir)
@@ -76,6 +156,7 @@ def main():
     det = load_csv(os.path.join(d, 'detection.csv'))
     gestures = load_csv(os.path.join(d, 'gestures.csv'))
     fsm = load_csv(os.path.join(d, 'fsm_states.csv'))
+    position = load_csv(os.path.join(d, 'position.csv'))
 
     if not telem:
         sys.exit(f"[error] No hay telemetry.csv en {d} (¿ejecutaste bag_to_csv.py?)")
@@ -190,6 +271,30 @@ def main():
 
     dur = (t[-1] - t[0]) if len(t) > 1 else 0.0
 
+    # Saltos de posicion cruda (/person_position) y saturacion angular con
+    # posicion estable — requieren position.csv (bag_to_csv.py actualizado
+    # 2026-07). Si no existe (bag generado con una version anterior del
+    # script), se omiten estas lineas en vez de fallar.
+    pos_pts = load_xy(position)
+    jump_lines = []
+    if pos_pts:
+        jump_frac, jump_max, n_pairs = position_jumps(pos_pts, args.jump_threshold)
+        sat_overall, sat_stable, n_stable = saturation_with_stability(
+            vang, t_abs, pos_pts, args.sat_threshold,
+            args.stable_window, args.stable_radius)
+        jump_lines = [
+            f"  % saltos posicion >{args.jump_threshold:.2f}m: {jump_frac*100:.1f} % "
+            f"({n_pairs} pares consecutivos, salto max {jump_max:.2f} m)",
+            f"  % saturacion |vang|>={args.sat_threshold:.2f} (global): {sat_overall*100:.1f} %",
+            (f"  % saturacion con posicion estable*: {sat_stable*100:.1f} % "
+             f"({n_stable} muestras estables de {len(pos_pts)} pos.)")
+            if not math.isnan(sat_stable) else
+            "  % saturacion con posicion estable*: sin muestras estables suficientes",
+        ]
+    else:
+        jump_lines = ["  saltos posicion / saturacion estable: sin position.csv "
+                      "(re-generar con bag_to_csv.py actualizado)"]
+
     lines = [
         f"Resumen de la toma: {os.path.basename(d)}",
         f"  duracion                : {dur:.1f} s ({len(telem)} muestras telemetria)",
@@ -202,7 +307,14 @@ def main():
         f"  |v angular| max         : {max((abs(v) for v in clean(vang)), default=float('nan')):.3f} rad/s",
         f"  % tiempo persona detect.: {detected_frac*100:.1f} %" if not math.isnan(detected_frac) else "  deteccion: sin datos",
         f"  nº perdidas deteccion   : {losses}",
-    ]
+    ] + jump_lines
+    if pos_pts:
+        lines.append(
+            "  * 'estable' = posicion cruda con desviacion <="
+            f"{args.stable_radius:.2f}m dentro de los ultimos {args.stable_window:.1f}s "
+            "(ver docs/decisiones.md, 2026-07-09, y docs/07_resultados.md §7.5: "
+            "metodologia propia, no garantiza reproducir de forma identica las "
+            "cifras de PROGRESO.md calculadas con el script ad-hoc perdido).")
     report = '\n'.join(lines)
     print(report)
     with open(os.path.join(d, 'metrics.txt'), 'w') as f:

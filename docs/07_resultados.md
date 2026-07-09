@@ -107,13 +107,19 @@ comparación visual completa cuando se redacte la versión final.)*
 
 ## 7.5 Limitaciones de los resultados actuales
 
-- **Reproducibilidad parcial:** las cifras de "saltos >0.8m" y "% saturación
-  `wz`" de la tabla 7.4 se calcularon con un script que no está en el repo
-  (`bag_to_csv_direct.py`, mencionado en `PROGRESO.md` como "en el
-  scratchpad de esta sesión, no en el repo"). Antes de cerrar este capítulo
-  habría que, o bien recuperar y committear ese script, o bien incorporar
-  ese cálculo a `plot_run.py`/`metrics.txt` para que sea parte del pipeline
-  estándar y cualquier toma futura las genere automáticamente.
+- **Reproducibilidad parcial (en progreso):** las cifras de "saltos >0.8m" y
+  "% saturación `wz`" de la tabla 7.4 se calcularon con un script que no está
+  en el repo (`bag_to_csv_direct.py`, mencionado en `PROGRESO.md` como "en el
+  scratchpad de esta sesión, no en el repo"). **2026-07-09 (preparado sin
+  robot):** ese cálculo ya forma parte del pipeline estándar —
+  `bag_to_csv.py` extrae `/person_position` a `position.csv` y `plot_run.py`
+  añade a `metrics.txt` el % de saltos y el % de saturación con posición
+  estable (ver `docs/decisiones.md`, entrada 2026-07-09). **Pendiente:**
+  re-ejecutar sobre los tres bags de la sesión 08/07
+  (`validation/runs/20260708_movimiento_*`) en una máquina con ROS 2 y
+  comparar contra la tabla 7.4 — la metodología (umbrales de salto/ventana de
+  estabilidad) es una reconstrucción razonada, no una recuperación literal
+  del script perdido, así que las cifras podrían no coincidir exactamente.
 - **N=1 por condición:** cada fila de la tabla 7.4 es una única toma, no una
   media de repeticiones — no hay todavía medida de varianza entre pruebas
   equivalentes. `validation/README.md` recomienda 2-3 repeticiones por
@@ -140,8 +146,10 @@ comparación visual completa cuando se redacte la versión final.)*
 - [ ] Validar `near_gain` de forma aislada (giro a corta distancia).
 - [ ] Repetir tomas con `continuity_confirm_frames` ajustado y comparar
   contra la tabla 7.4 (mismo formato).
-- [ ] Resolver la reproducibilidad de las métricas de saltos/saturación
-  (recuperar el script *ad-hoc* o integrarlo en `plot_run.py`).
+- [ ] Re-ejecutar `bag_to_csv.py`/`plot_run.py` (ya actualizados, 2026-07-09)
+  sobre los tres bags de la tabla 7.4 en una máquina con ROS 2, y comparar
+  las cifras nuevas de saltos/saturación contra las de la tabla — actualizar
+  la tabla si difieren.
 - [ ] Repeticiones (2-3 tomas por escenario) para poder hablar de varianza,
   no solo de un único valor por condición.
 - [ ] Grabar al menos una toma con el gesto real funcionando (tras
