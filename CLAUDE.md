@@ -70,9 +70,16 @@ dilo explícitamente en vez de asumir que el cambio "funciona" sin probarlo.
 
 ## Retomar la sesión sin fricción
 
-- **Atajo:** desde PowerShell, el comando `tfm` (función en el perfil de
-  PowerShell de este usuario) se posiciona en este repo y lanza `claude` con
-  un prompt de continuación automático — no hace falta escribir nada.
+- **En el PC de este usuario (Windows):** el comando `tfm` en PowerShell
+  (función en el perfil local) se posiciona en este repo y lanza `claude` con
+  un prompt de continuación automático.
+- **En cualquier otra máquina (p. ej. el portátil del laboratorio, que puede
+  no conservar estado entre sesiones):** el atajo `tfm` no existe ahí porque
+  vive en la configuración local de este PC, no en el repo. Para eso está
+  [`scripts/continue_session.sh`](scripts/continue_session.sh) — vive
+  **dentro del repo**, así que se descarga con cualquier `git clone`/`git
+  pull`, sin depender de que la máquina recuerde nada. Uso:
+  `bash scripts/continue_session.sh` desde la raíz del repo.
 - Como refuerzo, hay un hook de `SessionStart`
   (`.claude/hooks/session_start_context.sh`) que inyecta un recordatorio de
   contexto en cada sesión abierta aquí: si el primer mensaje del usuario no
