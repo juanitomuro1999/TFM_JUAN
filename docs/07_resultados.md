@@ -35,7 +35,7 @@ con esa salvedad.
 
 ## 7.3 Resultado 1 — Fusión sensorial sin movimiento (2026-06-25)
 
-Primera validación del fallback de fusión LiDAR-cámara (`docs/05_decisiones.md`,
+Primera validación del fallback de fusión LiDAR-cámara (`docs/decisiones.md`,
 entrada 2026-06-25), con la base inhibida (`/cmd_vel` redirigido, el robot no
 se mueve) para poder probar el mecanismo de detección con seguridad antes de
 validarlo en movimiento.
@@ -66,7 +66,7 @@ toma por ese motivo.
 
 Primera prueba de seguimiento con el robot moviéndose de verdad. La toma
 inicial reveló saltos de detección y saturación angular casi permanente
-(motivación de los tres fixes de `docs/05_decisiones.md`, entrada
+(motivación de los tres fixes de `docs/decisiones.md`, entrada
 2026-07-08); las dos tomas siguientes verifican cada fix por separado.
 
 | Toma | Duración | % detección | Pérdidas detec. | MAE dist. | RMS dist. | Saltos >0.8m* | Saturación `wz`* |
@@ -126,7 +126,7 @@ comparación visual completa cuando se redacte la versión final.)*
   caso que motivó ese parámetro (giro a corta distancia, 0.5-0.7m) — las
   tomas de movimiento mezclan alejarse/acercarse/lateral/giro.
 - **Gate de continuidad reforzado (2026-07-09) sin validar:** el cambio de
-  `docs/05_decisiones.md` (confirmación por consistencia,
+  `docs/decisiones.md` (confirmación por consistencia,
   `continuity_confirm_frames`) se preparó sin robot y solo se verificó con
   pruebas de lógica aisladas — la tabla 7.4 es anterior a ese cambio y no lo
   refleja.

@@ -397,7 +397,7 @@ Cada cambio se verificó con una toma nueva antes de añadir el siguiente. El
 resultado, medido: los saltos de posición pasaron de aparecer en 1 de cada 8
 muestras a 1 de cada 140; la saturación angular con posición estable bajó
 del 94.5% al 12.4%. Detalle completo, con las cifras de las tres tomas
-intermedias, en `PROGRESO.md` y `docs/05_decisiones.md`.
+intermedias, en `PROGRESO.md` y `docs/decisiones.md`.
 
 **Estado al cierre:**
 - ✅ Causa raíz de los saltos de detección y la saturación angular

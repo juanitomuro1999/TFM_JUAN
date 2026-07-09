@@ -32,7 +32,7 @@ en 130s, sólo 56.9% detección, saltos de posición de 2-3.5m en 80-260ms
 ("seguimiento irregular, se pierde, giros bruscos") confirmado con datos, no
 solo de oído.
 
-### Causa raíz y fix — ver detalle completo en `docs/05_decisiones.md`
+### Causa raíz y fix — ver detalle completo en `docs/decisiones.md`
 
 Tres cambios encadenados, cada uno verificado con una toma nueva:
 1. `detection_node`: filtro de continuidad anti-salto (rechaza candidatos
@@ -210,7 +210,7 @@ pierde menos el track).
 1. ~~**Cámara HOG no detecta**~~ — resuelto: causa real era encuadre/distancia, no umbral. MediaPipe instalado offline como mejora adicional (ver sesión 2026-06-17 arriba).
 
 ### Resuelto en sesión 2026-06-25
-2. ~~**FSM TRACKING↔IDLE oscilaba / pérdida de detección con persona quieta**~~ — causa raíz encontrada y resuelta: dependía solo del par de piernas del LiDAR. Fallback de fusión por rumbo de cámara (`/person_bearing`) implementado y validado sin movimiento (100% detección, 0 pérdidas). Ver sesión 2026-06-25 arriba y `docs/05_decisiones.md`.
+2. ~~**FSM TRACKING↔IDLE oscilaba / pérdida de detección con persona quieta**~~ — causa raíz encontrada y resuelta: dependía solo del par de piernas del LiDAR. Fallback de fusión por rumbo de cámara (`/person_bearing`) implementado y validado sin movimiento (100% detección, 0 pérdidas). Ver sesión 2026-06-25 arriba y `docs/decisiones.md`.
 
 ### Prioridad ALTA (siguiente sesión)
 3. **Prueba de fusión CON movimiento** — validar que `near_gain` doma el giro brusco a corta distancia; la toma del 25/06 fue sin movimiento (`vang` saturada, no evaluable). Plan detallado en `docs/sesion_siguiente.md`.

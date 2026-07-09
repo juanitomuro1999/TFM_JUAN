@@ -53,7 +53,7 @@ dilo explícitamente en vez de asumir que el cambio "funciona" sin probarlo.
    capítulo de `docs/0X` correspondiente si cambia contenido de memoria.
 5. Si se tomó una decisión de diseño relevante (parámetros de Kalman/DBSCAN,
    elección de sensor, cambio de arquitectura), añadirla a
-   [`docs/05_decisiones.md`](docs/05_decisiones.md) con el motivo.
+   [`docs/decisiones.md`](docs/decisiones.md) con el motivo.
 6. Añadir una entrada fechada en `PROGRESO.md` (estilo diario técnico corto).
    Si aporta contenido para la memoria del TFM, añadir también prosa en
    [`docs/04_diario_desarrollo.md`](docs/04_diario_desarrollo.md).

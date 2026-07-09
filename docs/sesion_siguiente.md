@@ -19,7 +19,7 @@
   saturación angular casi permanente (94.5% del tiempo incluso con posición
   estable) están mayormente resueltos. Progresión medida: saltos >0.8m
   12.1%→0.7%, saturación con posición estable 94.5%→12.4%. Detalle completo
-  y causa raíz en `docs/05_decisiones.md` (entrada 2026-07-08) y
+  y causa raíz en `docs/decisiones.md` (entrada 2026-07-08) y
   `PROGRESO.md`.
 - ⚠️ **El gesto de mano derecha NO es utilizable todavía** — la cámara C270,
   en su encuadre/inclinación actual, pierde de vista la muñeca (o su
@@ -62,7 +62,7 @@ con la depuración del gesto y no aisló el caso que motivó `near_gain`
 
 ### 3. Estresar y ajustar el fallback del filtro de continuidad
 
-**Ya implementado (2026-07-09, preparado sin robot — ver `docs/05_decisiones.md`):**
+**Ya implementado (2026-07-09, preparado sin robot — ver `docs/decisiones.md`):**
 `_gate_by_continuity` ahora exige `continuity_confirm_frames` scans
 consecutivos con un candidato *consistente* (mismo punto, no cualquier salto)
 antes de aceptar un reanclaje, en vez de rendirse al primer intento. Por
@@ -114,7 +114,7 @@ grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levanta
 
 - [ ] Actualizar `PROGRESO.md` con lo avanzado/encontrado.
 - [ ] Si se completa un objetivo del TFM, marcarlo en `docs/01_introduccion.md`.
-- [ ] Si hay una decisión de diseño relevante, añadirla a `docs/05_decisiones.md`.
+- [ ] Si hay una decisión de diseño relevante, añadirla a `docs/decisiones.md`.
 - [ ] Añadir entrada con fecha en `docs/04_diario_desarrollo.md` (estilo prosa, para la memoria).
 - [ ] Dejar este archivo (`docs/sesion_siguiente.md`) actualizado con el plan de la siguiente sesión.
 - [ ] `git add` + commit + push (proyecto principal y, si aplica, Claude-Project-OS).

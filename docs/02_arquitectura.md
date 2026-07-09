@@ -67,13 +67,13 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
    su timeout de observación (30 s) y dejaba de seguir aunque la cámara sí
    viera a la persona. Validado sin movimiento en
    `validation/runs/fusion_track_20260625/` (100% detección, 0 pérdidas,
-   desviación de rumbo ~6°). Detalle de la decisión en `docs/05_decisiones.md`.
+   desviación de rumbo ~6°). Detalle de la decisión en `docs/decisiones.md`.
 
 > **Nota de implementación:** el DBSCAN de este nodo está reimplementado a
 > mano sobre `scipy.spatial.cKDTree` (no usa `scikit-learn`). El NUC solo
 > tiene Python 3.12 y la instalación de `scikit-learn` disponible traía la
 > extensión compilada para 3.10, lo que rompía el `import` sin forma de
-> arreglarlo sin internet. Ver `docs/05_decisiones.md`.
+> arreglarlo sin internet. Ver `docs/decisiones.md`.
 
 **Parámetros configurables (config.yaml):**
 - `max_detection_distance`: 6.0 m
@@ -99,7 +99,7 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 2. Procesa cada frame con **MediaPipe Pose** para detectar el esqueleto humano
    (sustituyó al HOG de OpenCV original, que solo detectaba con el cuerpo
    completo en el cuadro — inviable a la distancia real de seguimiento, ~1m;
-   ver `docs/05_decisiones.md`).
+   ver `docs/decisiones.md`).
 3. Gestos reconocidos a partir de los landmarks de Pose (no de MediaPipe
    Hands): **mano derecha levantada por encima del hombro** (con margen
    relativo al torso) → `start_tracking`; **mano izquierda levantada** →
