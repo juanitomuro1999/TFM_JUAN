@@ -191,7 +191,9 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 
 > **Sin acceso al laboratorio en agosto** (confirmado 2026-07-09): las 9
 > sesiones de julio (ver `docs/sesion_siguiente.md`) son todo el tiempo de
-> robot que queda, no solo el reparto de julio con margen en agosto detrás.
+> robot para experimentación/validación que queda. **Hay acceso en
+> septiembre, pero reservado para el cierre** (demo final, comprobación del
+> sistema) — no es margen para rematar validación o Nav2 sin terminar.
 
 | Fase | Período | Estado |
 |---|---|---|
@@ -199,7 +201,7 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 | Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06; gesto real con ambas manos validado en movimiento el 09/07 tras bajar el umbral de visibilidad y cambiar de cámara, ver `docs/decisiones.md`) |
 | Fase 3 – Navegación autónoma (Nav2) | Julio 2026 (sesiones 5-6 de 9) | 🔄 Demo mínima decidida, launch file y script de objetivo preparados sin robot (`docs/decisiones.md`), sin ejecutar |
 | Fase 4 – Validación experimental | Julio 2026 (sesiones 2-4 de 9) — no agosto | 🔄 Iniciada — gesto validado con movimiento el 09/07; encontrado y corregido un bug de deriva en el gate de continuidad y añadido arranque suave; pendiente aislar `near_gain`, resolver oscilación de la FSM y repetir tomas para el Capítulo 7 |
-| Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin datos nuevos de robot, solo análisis/redacción |
+| Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab; septiembre con lab reservado a cierre, no a validación nueva |
 
 ---
 

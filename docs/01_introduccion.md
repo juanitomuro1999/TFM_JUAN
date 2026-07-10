@@ -58,11 +58,14 @@ Limitaciones asumidas:
 ## 1.4 Planificación
 
 > **Sin acceso al laboratorio en agosto** (confirmado 2026-07-09): las 9
-> sesiones de julio (`docs/sesion_siguiente.md`, "Presupuesto de julio") son
-> **todo el tiempo de robot restante**, no solo el reparto de julio con
-> agosto de margen. Todo lo que no quede recogido en esas 9 sesiones pasa a
-> trabajo futuro documentado — agosto queda como análisis/redacción de lo ya
-> grabado, sin datos nuevos.
+> sesiones de julio (`docs/sesion_siguiente.md`, "Presupuesto de lab") son
+> **todo el tiempo de robot para experimentación/validación que queda**.
+> **Sí hay acceso en septiembre, pero reservado para tareas de cierre**
+> (demo final para la defensa, comprobación de que el sistema sigue
+> funcionando) — no es margen para recuperar validación o Nav2 sin terminar.
+> Todo lo que no quede recogido al final de la sesión 9 de julio pasa a
+> trabajo futuro documentado; agosto es análisis/redacción de lo ya grabado,
+> sin datos nuevos.
 
 | Fase | Descripción | Periodo | Estado |
 |------|-------------|---------|--------|
@@ -70,7 +73,7 @@ Limitaciones asumidas:
 | 2 | Módulo de interacción, integración SLAM, fusión sensorial | Junio 2026 | ✅ Completada |
 | 3 | Navegación autónoma completa | Julio 2026 (sesiones 5-6 de 9) | 🔄 Alcance decidido (demo mínima), código preparado sin robot, sin ejecutar todavía |
 | 4 | Validación experimental (entorno UJI) | Julio 2026 (sesiones 2-4 de 9) — **no agosto**, sin lab ese mes | 🔄 Iniciada — primera toma sin movimiento registrada 2026-06-25, con movimiento 2026-07-08. Repeticiones y reproducibilidad de métricas pendientes de las sesiones de julio que quedan |
-| 5 | Cierre, memoria final, defensa | Agosto-septiembre 2026 | ⏳ Pendiente — en agosto sin nuevos datos de robot, solo análisis y redacción |
+| 5 | Cierre, memoria final, defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab (análisis/redacción de lo grabado en julio); septiembre con lab reservado a cierre (demo final, comprobación del sistema), no a validación nueva |
 
 ## 1.5 Estructura de este documento
 
