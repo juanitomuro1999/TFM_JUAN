@@ -68,9 +68,47 @@
   deberían relacionarse (o si conviene unificarlos en uno solo) queda para
   otra sesión.
 
-## 2026-07-13 — Hallazgo: tracking_node no aplica el convenio "persona de frente ≈ π en el láser"
+## 2026-07-13 — Fix: normalizar el convenio de /person_position en el origen (corregido y verificado, misma sesión)
 
-- **Hallazgo (no una decisión de fix — no se ha tocado el código):**
+- **Decisión:** en vez de parchear `tracking_node` con un offset de π (opción
+  mínima) o mantener el hallazgo sin resolver, se normalizó en el origen:
+  `detection_node._publish_person_position` invierte el signo de `x,y`
+  **solo en la frontera de publicación** (`Point(x=-xy[0], y=-xy[1])`); todo
+  el estado interno (gating, `_position_history`, matching del fallback de
+  fusión) sigue operando en el frame bruto del láser, sin tocar.
+- **Por qué esta opción y no el offset en tracking_node:** confirmado que no
+  existe una TF real `base_link→laser` (`/tf_static` vacío, `tf2_echo`
+  reporta que el frame "laser" no existe) — el "yaw=π" era solo una
+  convención de facto documentada en un comentario, no una transformación
+  consultable. Y el único consumidor funcional de `/person_position` es
+  `tracking_node` (`DWA.py`, con un `atan2` equivalente, es una
+  implementación alternativa no usada en el launch — ver
+  `person_follower/launch/start_person_follower.launch.py`). Con un solo
+  consumidor real, es más limpio corregir el contrato de salida una vez en
+  el origen que exigir que cada consumidor futuro recuerde aplicar el
+  offset manualmente. `tracking_node` no necesitó ningún cambio — su
+  `angle_to = atan2(py, px)` ya asumía el convenio estándar correctamente,
+  solo estaba recibiendo datos con el signo equivocado.
+- **Verificado en vivo** (persona delante confirmada, ~1.3m, TRACKING
+  activado por SSH): `/person_position` pasa de publicar `x=-1.18` a
+  `x=+0.86` (positivo) con la persona delante. `angle_deg` en telemetría
+  pasa de oscilar pegado a ±180° a mantenerse estable en 5.5-6.8° (dentro de
+  la zona muerta ±8°). `vang` pasa de saturar el 71-76% del tiempo a
+  prácticamente 0 (0.001-0.002 rad/s).
+- **Efecto colateral esperado (no verificado hoy):** los marcadores de RViz
+  de `user_interface_node`/`UI_man.py` (que consumen `/expected_person_position`
+  para visualización) deberían empezar a mostrar a la persona en el lado
+  intuitivo/correcto en vez del opuesto — no crítico, no se ha comprobado
+  visualmente.
+- **Pendiente:** las dos tomas de `near_gain` grabadas hoy antes del fix
+  quedaron contaminadas por este bug — repetir la validación con el sistema
+  ya corregido en la próxima sesión.
+
+## 2026-07-13 — Hallazgo original (contexto, ya corregido arriba): tracking_node no aplicaba el convenio "persona de frente ≈ π en el láser"
+
+- **Hallazgo tal y como se registró en el momento (no una decisión de fix —
+  el código seguía sin tocar cuando se escribió esto; ver la entrada de
+  arriba para el fix aplicado después, misma sesión):**
   `detection_node.py:431` documenta explícitamente que, en el frame del
   láser de este robot, una persona delante del robot da un ángulo ≈π (no
   ≈0) — *"Persona de frente ≈ π en el láser (TF base→laser con yaw=π)"* — y
@@ -103,13 +141,9 @@
   usuario) — dato registrado pero sin una referencia externa fija no permite
   confirmar por sí solo el convenio de signo de `wz`; el hallazgo decisivo
   fue el contraste de código entre los dos nodos.
-- **Pendiente de máxima prioridad, próxima sesión:** decidir cómo corregir
-  `tracking_node.py` (offset de π directo en `angle_to`, o revisar si existe
-  una transformación TF real `base_link→laser` en el URDF que debería
-  aplicarse de forma consistente en todos los nodos en vez de un ajuste
-  manual solo en `detection_node`). Cambio delicado del lazo de control
-  angular — no tocado hoy a propósito, para revisarlo con calma. Bloquea
-  poder aislar `near_gain` limpiamente.
+- **Actualización (misma sesión, con tiempo extra):** corregido y verificado
+  en vivo — ver la entrada de arriba ("Fix: normalizar el convenio de
+  /person_position en el origen").
 
 ## 2026-07-09 (sesión de lab) — Gesto real funcionando: umbral de visibilidad + cámara nueva
 

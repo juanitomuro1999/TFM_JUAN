@@ -348,7 +348,18 @@ class DetectionNode(Node):
         return []
 
     def _publish_person_position(self, xy, now, log_msg, log_data):
-        pt = Point(x=float(xy[0]), y=float(xy[1]), z=0.0)
+        # Convenio de salida de /person_position: "delante del robot" = +x
+        # (convenio estandar que asume tracking_node). Internamente (gating,
+        # _position_history, fallback de fusion) se sigue trabajando en el
+        # frame bruto del laser de este robot, donde delante es approx pi
+        # (ver comentario en el fallback de fusion, mas abajo) -- confirmado
+        # en vivo 2026-07-13: persona delante a 1m publicaba x=-1.18. Antes
+        # de este fix tracking_node.angle_to=atan2(py,px) trataba x positivo
+        # como "delante" sin aplicar ese desfase, dejando el error angular
+        # pegado a +-180 grados sin converger nunca (ver docs/decisiones.md).
+        # Se invierte el signo solo aqui, en la frontera de publicacion --
+        # el resto de este fichero sigue usando xy tal cual (frame bruto).
+        pt = Point(x=float(-xy[0]), y=float(-xy[1]), z=0.0)
         self.person_position_publisher.publish(pt)
         self.log_info(log_msg, log_data)
         self._last_confirmed_pos = (float(xy[0]), float(xy[1]))
@@ -415,7 +426,7 @@ class DetectionNode(Node):
             selected = min(gated, key=key)
             self._publish_person_position(
                 selected, now, "Posición de persona publicada",
-                {"x": selected[0], "y": selected[1]})
+                {"x_laser": selected[0], "y_laser": selected[1]})
             return True
 
         # ── Fallback de fusión cámara+LIDAR ──────────────────────────────────
@@ -451,7 +462,7 @@ class DetectionNode(Node):
                 if best is not None and best_dev <= self.fusion_angle_tol:
                     self._publish_person_position(
                         best, now, "Posición de persona publicada (FUSION cam+LIDAR)",
-                        {"x": round(float(best[0]), 3), "y": round(float(best[1]), 3),
+                        {"x_laser": round(float(best[0]), 3), "y_laser": round(float(best[1]), 3),
                          "beta_deg": round(math.degrees(self._bearing), 1),
                          "theta_tgt_deg": round(math.degrees(theta_target), 1),
                          "dev_deg": round(math.degrees(best_dev), 1),

@@ -1,0 +1,15 @@
+Resumen de la toma: 20260713_pifix_movimiento_analysis
+  duracion                : 19.1 s (240 muestras telemetria)
+  distancia objetivo      : 1.00 m
+  error distancia MAE     : 0.639 m
+  error distancia RMS     : 0.668 m
+  distancia min / max     : 0.24 / 2.65 m
+  |error angular| medio   : 21.4 deg
+  v lineal max            : 0.180 m/s
+  |v angular| max         : 0.867 rad/s
+  % tiempo persona detect.: 75.4 %
+  nº perdidas deteccion   : 5
+  % saltos posicion >0.80m: 0.3 % (626 pares consecutivos, salto max 1.02 m)
+  % saturacion |vang|>=0.95 (global): 0.0 %
+  % saturacion con posicion estable*: 0.0 % (148 muestras estables de 627 pos.)
+  * 'estable' = posicion cruda con desviacion <=0.15m dentro de los ultimos 1.0s (ver docs/decisiones.md, 2026-07-09, y docs/07_resultados.md §7.5: metodologia propia, no garantiza reproducir de forma identica las cifras de PROGRESO.md calculadas con el script ad-hoc perdido).

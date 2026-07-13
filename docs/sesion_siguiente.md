@@ -1,5 +1,28 @@
 # Prompt — Próxima sesión
 
+## Tareas de escritorio para mañana (sin robot, sin acceso al lab)
+
+Pendientes de la sesión de lab del 2026-07-13 que no requieren el robot —
+se pueden hacer en cualquier máquina con este repo, incluida la de casa:
+
+1. **Redactar capítulo 5 (estado del arte) o 6 (implementación) de la
+   memoria** — ambos siguen en 0%, son el mayor bloque de trabajo pendiente
+   que no compite por tiempo de robot. Ver estructura en
+   `docs/01_introduccion.md` §1.5.
+2. **Revisar el hallazgo del "posible bug izquierda/derecha" de hoy** (ver
+   `PROGRESO.md`, sesión 2026-07-13) — se investigó a fondo y se descartó
+   como bug (simulación numérica confirma que `ang_err = -angle_to` es
+   correcto para este robot, que gira en sentido contrario al estándar
+   ROS). Si quieres releerlo con calma para confirmar que el razonamiento
+   te convence antes de la próxima sesión de lab, está todo documentado.
+3. **Diseñar el fix del fallback de fusión** (confirmación obligatoria para
+   candidatos que no vienen de un par de piernas) — es puramente código +
+   verificación sintética, no necesita el robot. Ver sección "Arreglar
+   confirmación en el fallback de fusión" más abajo (Sesión 4) — se puede
+   dejar implementado y verificado con datos sintéticos de antemano, para
+   que la próxima sesión de lab solo haga falta sincronizar y probar en
+   vivo, ahorrando tiempo de robot.
+
 > Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Robot: NUC **nuc-224**,
 > `ssh user@10.48.0.1` (password `qwerty`), `ROS_DOMAIN_ID=24`, ROS 2 Jazzy,
 > paquete en `~/ros2_ws/src/person_follower/`. Build con `--symlink-install`,
@@ -67,23 +90,27 @@ tiempo de robot salvo que sobre alguna sesión de las 9.
   hardcodeado `timeout_s=2.0`) — mismo valor, solo lo hace configurable.
   Sigue sin coordinarse con los otros dos timeouts
   (`detection_loss_frames=8`, `tracking_loss_timeout=1.5s`).
-- 🔴 **HALLAZGO PRIORITARIO, no resuelto — bloquea near_gain y probablemente
-  explica la lentitud del seguimiento:** `tracking_node.py:283`
-  (`angle_to = math.atan2(py, px)`) no aplica el mismo convenio que
-  `detection_node.py:431` documenta ("persona de frente ≈ π en el láser").
-  Confirmado con la persona delante a 1m: `/person_position` publica `x`
-  negativo. Ver detalle completo, evidencia y verificación en
-  `docs/decisiones.md` (2026-07-13) y `PROGRESO.md`. **No tocado hoy a
-  propósito** — cambio delicado del lazo de control angular. El usuario
-  confirma que en uso normal el sistema sigue "estable pero lento", no roto
-  — no es una emergencia de seguridad, pero sí la prioridad técnica más
-  alta ahora mismo.
-- 🔄 **`near_gain` sin aislar limpiamente** — dos bags grabados hoy
-  (`near_gain_20260713` con gesto, contaminado por el bug de fusión;
-  `near_gain_v2_sin_gesto` sin gesto, mucho más limpio pero reveló el bug de
-  arriba en vez de medir `near_gain`). CSVs/figuras en
-  `validation/runs/20260713_near_gain_analysis/` y `..._v2_analysis/`.
-  Repetir tras corregir el desfase de π.
+- ✅ **HALLAZGO CORREGIDO Y VERIFICADO en la misma sesión (con tiempo
+  extra):** `detection_node._publish_person_position` publicaba
+  `/person_position` en el convenio bruto del láser (delante ≈ π, `x`
+  negativo con la persona delante), mientras `tracking_node.angle_to =
+  atan2(py, px)` asumía el convenio estándar (delante = 0°, `x` positivo).
+  Corregido invirtiendo el signo solo en la frontera de publicación de
+  `detection_node` (el estado interno de gating sigue en el frame bruto,
+  sin tocar) — no hizo falta cambiar `tracking_node`. **Verificado en vivo:**
+  persona delante confirmada (~1.3m), `angle_deg` estable en 5.5-6.8° (antes
+  pegado a ±180°), `vang` prácticamente 0 (antes saturado 71-76% del
+  tiempo). Ver detalle completo en `docs/decisiones.md` (2026-07-13) y
+  `PROGRESO.md`. **Ya no es la prioridad de esta sesión** — verificar que
+  se sostiene en una prueba más larga y con movimiento real (ver objetivo
+  1 de abajo, ahora es un retest de confirmación, no un diagnóstico).
+- 🔄 **`near_gain` sin aislar limpiamente todavía** — las dos tomas grabadas
+  el 13/07 (`near_gain_20260713`, `near_gain_v2_sin_gesto`) quedaron
+  contaminadas por el bug de arriba (ya corregido) — sus métricas
+  (saturación 71-76%, MAE de distancia) no son representativas del sistema
+  ya corregido. CSVs/figuras en `validation/runs/20260713_near_gain_analysis/`
+  y `..._v2_analysis/`, útiles solo como referencia de "antes del fix".
+  Repetir con el sistema ya corregido — ver objetivo 2 de abajo.
 - 🔄 **Cámara nueva sin recalibrar** — aplazado, no tocado hoy. `dev_deg` en
   los logs de fusión sigue en ~9-10° (vs ~0-6° con la C270 el 25/06).
 - 🔄 **Pipeline de validación en el NUC estaba desincronizado** —
@@ -137,35 +164,28 @@ tiempo de robot salvo que sobre alguna sesión de las 9.
   `camara_nueva_velred`. Revisar cuáles aportan al Capítulo 7 antes de que
   se acumulen sin criterio.
 
-## OBJETIVO de la Sesión 3 (próxima): corregir desfase de π + retest near_gain/oscilación + recalibrar cámara
+## OBJETIVO de la Sesión 3 (próxima): confirmar el fix de π con movimiento + retest near_gain/oscilación + recalibrar cámara
 
-### 1. Corregir el desfase de convenio angular en tracking_node (PRIORIDAD MÁXIMA)
+### 1. Confirmar el fix de π con una prueba más larga y con movimiento real
 
-Ver hallazgo completo en `docs/decisiones.md` (2026-07-13) y `PROGRESO.md`.
-Resumen: `detection_node.py:431` documenta que "persona de frente ≈ π en el
-láser" y lo compensa en su fallback de fusión; `tracking_node.py:283`
-(`angle_to = math.atan2(py, px)`) no aplica ese mismo desfase, tratando
-`angle_to≈0` como "delante" cuando en realidad es `≈π`.
+El desfase de convenio angular (`detection_node` publicaba en el convenio
+bruto del láser — delante ≈ π — mientras `tracking_node.angle_to` asumía
+delante = 0°) **ya se corrigió y verificó en vivo el 2026-07-13** (ver
+`docs/decisiones.md` y `PROGRESO.md`): con la persona delante y quieta,
+`angle_deg` pasó de oscilar pegado a ±180° a mantenerse en 5.5-6.8°, y
+`vang` de saturar 71-76% del tiempo a prácticamente 0. Esa prueba fue corta
+(~10s) y con la persona casi estática — antes de dar el hallazgo por
+cerrado del todo:
 
-1. **Antes de tocar código:** revisar si existe una transformación TF real
-   `base_link→laser` (URDF/`static_transform_publisher`) con `yaw=π` — si
-   existe, lo correcto sería que `tracking_node` (y cualquier otro consumidor
-   de `/person_position`) transformara la posición vía TF en vez de asumir un
-   offset manual. Si no existe tal TF y el offset de `detection_node` es "de
-   facto" (solo ese comentario, sin TF real), decidir si conviene: (a)
-   aplicar el mismo offset de π en `tracking_node.angle_to`, o (b) cambiar
-   `detection_node` para publicar ya en convenio estándar (front=0) y
-   simplificar todo lo demás. La opción (b) es más limpia a largo plazo pero
-   toca más código (fallback de fusión, y cualquier otro consumidor de
-   `/person_position`); (a) es el parche mínimo.
-2. Aplicar el fix elegido, **verificar con datos sintéticos** (reproducir el
-   caso real: persona delante con x negativo → confirmar que `angle_to`/
-   `ang_err` sale ≈0, no ≈π) antes de probar en el robot.
-3. Probar en vivo: persona delante del robot a ~1m, activar TRACKING (con
-   gesto o SSH), confirmar en `telemetry.csv`/log que `angle_deg` converge
-   hacia 0 y se mantiene ahí (no oscila pegado a ±180°).
+1. Repetir con una ventana más larga (>1 min) y con la persona moviéndose
+   (caminando, girando alrededor del robot) para confirmar que `angle_deg`
+   sigue convergiendo bien en escenarios más exigentes, no solo el caso
+   fácil ya probado.
+2. Revisar si los marcadores de RViz (`user_interface_node`, consumen
+   `/expected_person_position`) ahora muestran a la persona en el lado
+   correcto — efecto colateral esperado del fix, no comprobado todavía.
 
-### 2. `near_gain` de forma aislada (retest, ahora que el error angular debería converger)
+### 2. `near_gain` de forma aislada (retest — las tomas del 13/07 quedaron contaminadas por el bug de π, ya corregido)
 
 1. Activar TRACKING (mejor por SSH sin gesto, para evitar la disrupción de
    detección que causa el gesto — ver hallazgo de fusión de la sesión

@@ -107,6 +107,105 @@ está cubierto por `sync_nuc.sh`, que solo sincroniza los tres archivos de
 `person_follower/`). Sincronizado manualmente hoy para poder extraer
 `position.csv`/`expected_position.csv` de los bags grabados.
 
+### Addendum (misma sesión, hora extra): fix del desfase de π implementado y confirmado
+
+No se dejó para la próxima sesión — con tiempo extra el mismo día se decidió
+el enfoque, se implementó y se verificó en vivo. Confirmado: no existe una
+TF real `base_link→laser` (`/tf_static` vacío, `tf2_echo` dice que el frame
+"laser" no existe) — el "yaw=π" era solo una convención de facto en un
+comentario. Único consumidor funcional de `/person_position` es
+`tracking_node` (`DWA.py` es una implementación alternativa no usada en el
+launch). Fix aplicado en el origen: `detection_node._publish_person_position`
+ahora invierte el signo de `x,y` **solo en la frontera de publicación**
+(`Point(x=-xy[0], y=-xy[1])`), dejando todo el estado interno (gating,
+`_position_history`, fallback de fusión) sin tocar, en el frame bruto del
+láser de siempre. No hizo falta cambiar `tracking_node` — su `atan2` ya
+asumía el convenio estándar, solo estaba recibiendo datos en el convenio
+equivocado.
+
+**Verificado en vivo tras el fix** (persona delante confirmada, ~1.3m,
+activado por SSH sin gesto): `/person_position` publica ahora `x` positivo
+(antes negativo). `angle_deg` en telemetría se mantiene estable en 5.5-6.8°
+(dentro de la zona muerta ±8°) en vez de pegado a ±180°. `vang` prácticamente
+en 0 (0.001-0.002 rad/s) en vez de saturado 71-76% del tiempo. Robot parado
+con `stop_tracking` tras la prueba.
+
+**Pendiente real para la próxima sesión:** retest limpio de `near_gain` y
+de la oscilación FSM ahora que el control angular converge de verdad —
+las dos tomas de hoy quedaron contaminadas por este bug, así que sus
+métricas (saturación 71-76%, MAE de distancia) no son representativas del
+sistema corregido. También sigue pendiente el fix del fallback de fusión
+(mobiliario colándose) y la recalibración de cámara.
+
+**Prueba adicional con movimiento real (tras el fix, mismo día):** con
+TRACKING activo y la persona moviéndose, el seguimiento funcionó bien
+(consistente con la mejora del fix) hasta que la persona se acercó a
+**~0.24m del robot** (`dist: 0.24` en el log) — a esa distancia la detección
+se perdió de verdad durante ~1s (LIDAR y cámara sin ver a la persona,
+puntos ciegos conocidos a corta distancia), disparando el
+`observation_timeout` de `tracking_node` y la transición a IDLE. Al
+recuperar la posición, la persona apareció al lado contrario (giro del
+robot o rodeo muy cercano). **Esto no es un efecto secundario del fix de
+hoy** — es el problema de robustez a muy corta distancia ya documentado y
+aplazado para la Sesión 4 (gate de continuidad + fallback de fusión).
+Confirma que ese sigue siendo el pendiente correcto, no algo nuevo.
+
+### Confirmación adicional del fix de π con movimiento real (19s, TRACKING activo)
+
+Grabación `pi_fix_movimiento_20260713`: TRACKING activo 19.1s sin ningún
+timeout ni pérdida de FSM, terminado por gesto de stop deliberado. Frente a
+la toma equivalente de antes del fix (`near_gain_v2_sin_gesto`):
+
+| Métrica | Antes del fix | Después del fix |
+|---|---|---|
+| Error angular medio | 159.7° | **21.4°** |
+| % saturación `\|vang\|≥0.95` (global) | 74.3% | **0.0%** |
+
+La gráfica de error angular muestra convergencia limpia: arranca cerca de
+±180° (persona aún posicionándose el primer segundo) y converge de forma
+suave y monótona a 0° en ~6s, manteniéndose ahí estable el resto de la
+toma pese al movimiento real de la persona. `vang` corrige de forma suave,
+sin ningún pico de saturación. CSVs/figuras en
+`validation/runs/20260713_pifix_movimiento_analysis/`. (Distancia mínima de
+nuevo 0.24m con 5 pérdidas de detección — mismo problema de corta distancia
+ya documentado arriba, no relacionado con este fix.)
+
+### Investigación descartada: posible bug de izquierda/derecha en tracking_node
+
+Tras el fix de π, el usuario probó de cara al robot y reportó: al dar un
+paso a su derecha, el robot giró "al lado contrario" en vez de seguirle, y
+después se desorientó (varias vueltas erráticas). Investigado a fondo:
+
+1. Confirmado empíricamente (persona quieta delante, luego un paso a su
+   derecha): `/person_position.y` pasa de ≈0 a positivo (+0.70). Verificado
+   por geometría que esto es el convenio esperado (persona a su derecha =
+   lado izquierdo del propio robot, relación espejo cuando están cara a
+   cara) — el signo de `y` es correcto, no es un bug.
+2. Simulación numérica pura (réplica exacta de las fórmulas de
+   `tracking_node.py`: zona muerta, PD, rate-limit) usando los ángulos
+   reales de la toma `pi_fix_movimiento_20260713`: con el convenio estándar
+   de ROS (giro antihorario = `wz` positivo), el código actual
+   (`ang_err = -angle_to`) **nunca converge** en la simulación — oscila sin
+   asentarse, coincidiendo con la sensación de "vueltas erráticas". Pero
+   probando la simulación asumiendo que el giro físico real de este robot
+   está invertido respecto al estándar ROS, el mismo código **sí converge**
+   limpiamente, reproduciendo los números reales observados (-169°→-8° en
+   ~4s, igual que la toma real).
+3. Como la prueba en vivo de antes **sí convergió de verdad** con el código
+   tal cual está (sin tocarlo), eso es la evidencia decisiva: este robot
+   gira en sentido contrario al estándar ROS, y `ang_err = -angle_to` ya
+   compensa correctamente ese hecho — **no es un bug, no se toca.**
+4. Conclusión: lo que se percibió como "giro al lado contrario" es
+   probablemente el efecto espejo normal (cara a cara, mi derecha es su
+   izquierda) combinado con pérdidas reales de detección — en el log de esa
+   franja horaria (~17:00-17:05h) hay varios ciclos TRACKING→IDLE con
+   "Timeout observación" real, el problema de corta distancia/gate de
+   continuidad ya documentado y aplazado para la Sesión 4, no algo nuevo.
+
+Script de simulación en el scratchpad de esta sesión (no en el repo, es
+desechable) — si se quiere repetir el análisis, reproducir con las fórmulas
+exactas de `_on_scan` en `tracking_node.py`.
+
 ### Pendiente para la próxima sesión
 
 Ver bloque "OBJETIVO de la Sesión 3" (reescrito) en `docs/sesion_siguiente.md`.
