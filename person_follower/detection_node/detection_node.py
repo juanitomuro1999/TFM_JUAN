@@ -9,6 +9,7 @@ from std_msgs.msg import Bool, Float32, Float32MultiArray, String
 from geometry_msgs.msg import Point
 import numpy as np
 from scipy.spatial import cKDTree
+from scipy import ndimage
 import math
 import time
 
@@ -238,10 +239,21 @@ class DetectionNode(Node):
         self._bearing_time = self.get_clock().now()
 
     def apply_median_filter(self, data, window_size):
-        filtered = np.copy(data)
-        for i in range(len(data)):
-            start = max(0, i - window_size // 2)
-            end = min(len(data), i + window_size // 2 + 1)
+        # Filtro de mediana vectorizado con scipy (antes: bucle Python con
+        # una llamada a np.median por punto, ~56ms/scan en el NUC — 70% del
+        # presupuesto de tiempo disponible entre scans a 11Hz, ver
+        # docs/decisiones.md 2026-07-13). scipy.ndimage usa mode='nearest'
+        # (replica el valor extremo) en los bordes, distinto de la ventana
+        # recortada del original — se recalculan esos puntos exactamente
+        # igual que antes para no cambiar el comportamiento.
+        data = np.asarray(data, dtype=float)
+        n = len(data)
+        half = window_size // 2
+        filtered = ndimage.median_filter(data, size=2 * half + 1, mode='nearest')
+        edge_idx = set(range(min(half, n))) | set(range(max(n - half, 0), n))
+        for i in edge_idx:
+            start = max(0, i - half)
+            end = min(n, i + half + 1)
             filtered[i] = np.median(data[start:end])
         return filtered
 

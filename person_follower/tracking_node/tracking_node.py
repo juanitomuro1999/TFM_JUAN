@@ -183,6 +183,7 @@ class TrackingNode(Node):
         self.declare_parameter('obstacle_threshold',         0.55)
         self.declare_parameter('startup_ramp_s',             1.5)
         self.declare_parameter('startup_max_wz',             0.5)
+        self.declare_parameter('observation_timeout',        2.0)
 
         self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
@@ -204,6 +205,7 @@ class TrackingNode(Node):
         self.obs_threshold  = self.get_parameter('obstacle_threshold').value
         self.startup_ramp_s   = self.get_parameter('startup_ramp_s').value
         self.startup_max_wz   = self.get_parameter('startup_max_wz').value
+        self.timeout_s        = self.get_parameter('observation_timeout').value
 
         # ── Kalman 6 estados ──────────────────────────────────────────────
         self.kf = KalmanTracker(q=kq, r=kr)
@@ -213,7 +215,6 @@ class TrackingNode(Node):
         self.person_detected       = False
         self.person_pos: Point | None = None
         self.last_obs_t: float | None = None
-        self.timeout_s             = 2.0
 
         self.prev_vx    = 0.0
         self.prev_angle = 0.0

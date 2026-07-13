@@ -1,5 +1,118 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-13 (lab) — Fix de CPU, causa raíz de la oscilación FSM, y bug de convenio angular en tracking_node
+
+### Objetivo: Sesión 2 del plan (FSM oscilando + near_gain + recalibrar cámara)
+
+### Fix de rendimiento: detection_node saturaba un core de CPU (93.7%)
+
+Antes de tocar la FSM, perfilado en vivo (`ps aux`/`top`) reveló que `detection_node`
+consumía el 93.7% de un core del NUC — casi sin margen respecto al periodo real de
+`/scan` (11.4Hz, ~87.7ms). Medido con un script standalone en el propio NUC
+(mismo tamaño de scan real, n=1080): pipeline completo 80.2ms, de los cuales
+`apply_median_filter` (bucle Python con una llamada a `np.median` por punto)
+se llevaba 56.5ms (70%). Vectorizado con `scipy.ndimage.median_filter`
+(bordes recalculados aparte para reproducir el comportamiento exacto, sin
+relleno). Verificado con 500 pruebas sintéticas (varios `window_size`/tamaños)
++ caso real: 0 discrepancias. Desplegado y confirmado en vivo: CPU
+93.7% → 27.3%, detección sin cambios (mismo streak continuo, mismas
+posiciones). Ver `docs/decisiones.md`.
+
+### Causa raíz de la oscilación FSM: reproducida en vivo, no era (solo) lo que se sospechaba
+
+Con el gesto real, la FSM osciló TRACKING↔IDLE ~14 veces/min. Secuencia
+diagnosticada con logs en vivo: al gesticular, el propio movimiento del brazo
+desincroniza LIDAR y cámara durante ~2s reales (no un parpadeo de un frame).
+Durante ese hueco, el fallback de fusión cámara+LIDAR enganchó clústeres
+espurios de mobiliario a 2.6-2.9m — porque **el candidato entra dentro del
+radio "plausible" de `max_person_speed` (2.0 m/s) y nunca pasa por el
+mecanismo de `continuity_confirm_frames`**, que solo actúa sobre candidatos
+ya rechazados como implausibles. Verificado sintéticamente: subir
+`continuity_confirm_frames` de 1 a 2-3 **no soluciona nada** (probado, 0
+cambio de resultado) — la solución real requeriría exigir confirmación
+siempre en el fallback de fusión, no solo cuando falla el chequeo de
+velocidad. Aplazado a la próxima sesión (cambio delicado del gate).
+
+También se descubrieron **tres timeouts independientes y descoordinados**
+en tres nodos distintos: `detection_node` (`detection_confirm_frames=3`/
+`detection_loss_frames=8`, este último subido de 4 a 8 en una sesión
+anterior sin quedar documentado en este diario — comentario en
+`config.yaml:81`), `control_node` (`tracking_loss_timeout=1.5s`), y
+`tracking_node` (`self.timeout_s=2.0` **hardcodeado, ni siquiera parámetro
+de ROS**). Parametrizado hoy como `observation_timeout` en `config.yaml`
+(mismo valor por defecto, sin cambio de comportamiento) para que quede
+documentado junto a los otros dos.
+
+### Hallazgo mayor: tracking_node no aplica el mismo convenio angular que detection_node
+
+Al repetir `near_gain` (grabado dos veces: con gesto y activando por SSH sin
+gesto para evitar la disrupción del brazo) apareció algo más grave que
+`near_gain` en sí: el error angular (`angle_deg` en `telemetry.csv`) **no
+converge nunca**, se queda oscilando pegado a ±180° durante toda la toma
+(42s), con `|vang|` saturado el 71-76% del tiempo en un patrón de onda
+cuadrada — incluso en la segunda toma, mucho más limpia (sin los saltos de
+posición espurios de la primera: 0.4% saltos >0.8m vs 1.5%, máx 0.93m vs
+3.38m).
+
+Confirmado con la persona físicamente delante del robot a 1m (verbal, sin
+ángulo): `/person_position` publica `x` **negativo** (`x=-1.18, y≈-0.008`).
+Esto no es un bug de `detection_node` — su propio código lo documenta y
+compensa explícitamente: `detection_node.py:431`, *"Persona de frente ≈ π en
+el láser (TF base→laser con yaw=π)"*, usado correctamente en el cálculo de
+`theta_target` del fallback de fusión. Pero **`tracking_node.py:283`
+(`angle_to = math.atan2(py, px)`) no aplica ese mismo desfase de π** — su
+zona muerta y PD angular tratan `angle_to≈0` (es decir, `px` positivo) como
+"persona delante", cuando el convenio real del láser dice que delante es
+`≈π`. Esto explica el error angular pegado a ±180° sin converger y la
+saturación en onda cuadrada (chattering en la singularidad antipodal, donde
+un ruido mínimo decide "girar por la izquierda o la derecha").
+
+**Importante — no se rompe el sistema:** el usuario confirma que en uso
+normal el seguimiento es "estable pero lento", no está roto. La hipótesis de
+cierre de hoy es que este desfase de convenio explica la lentitud/rigidez
+del giro (el `near_gain`/acoplamiento wz-vx atenúan un error que
+estructuralmente nunca debería ser tan grande) y los episodios de
+oscilación/saturación en casos límite (como el propio `near_gain`, donde la
+persona quedó casi exactamente antipodal), más que un sistema que no
+funciona en absoluto. **No se ha tocado el código de `tracking_node` para
+esto hoy** — es un cambio delicado del lazo de control angular, que merece
+revisión cuidadosa (incluyendo repasar si hay una transformación TF real
+`base_link→laser` con yaw=π en el URDF que debería aplicarse de forma
+consistente en todos los nodos, en vez de un offset manual solo en
+`detection_node`). Máxima prioridad de la próxima sesión — ver
+`docs/sesion_siguiente.md`.
+
+Test adicional de verificación de convenio de `wz`: publicado
+`angular.z=+0.15` directo a `/commands/velocity` (bypass de todo el control),
+robot giró hacia la izquierda (observación visual del usuario) — dato
+recogido pero no concluyente por sí solo sobre el convenio de signos sin
+una referencia externa fija; el hallazgo decisivo fue el comentario de
+`detection_node.py:431` contrastado con el código de `tracking_node.py`.
+
+### Datos recogidos (bags en el NUC, no copiados al repo por peso)
+
+- `near_gain_20260713` (con gesto, contaminado por el bug de fusión — 8
+  pérdidas de detección, salto máx 3.38m).
+- `near_gain_v2_sin_gesto` (activado por SSH, mucho más limpio — 3 pérdidas,
+  salto máx 0.93m — pero reveló el bug de convenio angular).
+- CSVs y figuras de ambas en `validation/runs/20260713_near_gain_analysis/`
+  y `validation/runs/20260713_near_gain_v2_analysis/` (sí están en el repo,
+  son ligeros).
+
+### Otro fix menor: pipeline de validación desactualizado en el NUC
+
+`validation/bag_to_csv.py` y `validation/plot_run.py` en el NUC estaban
+desincronizados desde la sesión de escritorio del 09/07 (`validation/` no
+está cubierto por `sync_nuc.sh`, que solo sincroniza los tres archivos de
+`person_follower/`). Sincronizado manualmente hoy para poder extraer
+`position.csv`/`expected_position.csv` de los bags grabados.
+
+### Pendiente para la próxima sesión
+
+Ver bloque "OBJETIVO de la Sesión 3" (reescrito) en `docs/sesion_siguiente.md`.
+
+---
+
 ## Sesión 2026-07-09 (lab, tarde) — Gesto real funcionando + fixes en vivo
 
 ### Objetivo: cámara/gesto (Sesión 1 del plan), improvisado sobre la marcha

@@ -5,6 +5,112 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-13 — Vectorizar apply_median_filter en detection_node (fix de rendimiento)
+
+- **Decisión:** reemplazar el bucle Python de `apply_median_filter`
+  (`detection_node.py`, una llamada a `np.median` por punto del scan) por
+  `scipy.ndimage.median_filter`, recalculando a mano solo los `window_size//2`
+  puntos de cada borde (que `scipy` rellena por defecto con `mode='nearest'`,
+  distinto del recorte sin relleno del original) para reproducir el
+  comportamiento exacto.
+- **Motivo:** perfilado en vivo (`top`) mostró `detection_node` consumiendo
+  93.7% de un core del NUC. Un script standalone en el propio NUC (mismo
+  tamaño real de scan, n=1080) aisló la causa: el pipeline completo de
+  `detect_person` tardaba 80.2ms de los 87.7ms disponibles entre scans a
+  11.4Hz (91% de duty cycle), y `apply_median_filter` por sí sola se llevaba
+  56.5ms (70% del total) — sin margen para picos de carga.
+- **Verificación:** 500 pruebas sintéticas (`window_size` y tamaños de array
+  variados) + caso real (n=1080, window=7): 0 discrepancias frente a la
+  implementación original. Desplegado y confirmado en vivo: CPU 93.7% →
+  27.3%, pipeline 80.2ms → 24.0ms, detección sin cambios observables (mismo
+  streak continuo).
+- **Alternativas descartadas:** ninguna — vectorizar un filtro de ventana
+  deslizante con `scipy` es la solución directa; no había trade-off real que
+  registrar.
+
+## 2026-07-13 — Subir continuity_confirm_frames: descartado tras verificación sintética
+
+- **Decisión:** NO subir `continuity_confirm_frames` de 1 a 2-3, pese a que
+  parecía la solución obvia para el enganche de clústeres espurios (mobiliario)
+  del gate de continuidad visto en vivo tras el gesto.
+- **Motivo:** verificado con un script sintético que replica
+  `_gate_by_continuity` exactamente: el candidato espurio observado en el log
+  real (mobiliario a 1.34m del último punto confirmado, tras 0.92s de hueco)
+  cae **dentro del radio "plausible"** de `max_person_speed` (2.0 m/s × 0.92s
+  + margen 0.3m = 2.14m) — y ese camino ("plausible") acepta el candidato
+  **sin pasar nunca por el mecanismo de `continuity_confirm_frames`**, que
+  solo se aplica a candidatos ya rechazados como implausibles. Subir el
+  contador de 1 a 3 dio el mismo resultado exacto en la prueba sintética (los
+  4 candidatos espurios seguían aceptándose) — cambiar este parámetro no
+  toca el caso real que falla.
+- **Alternativas para la próxima sesión (no implementadas hoy):** exigir
+  confirmación *siempre* que el candidato venga del fallback de fusión
+  cámara+LIDAR (señal más débil que un par de piernas emparejado), en vez de
+  solo cuando falla el chequeo de velocidad — o acortar el radio "plausible"
+  específicamente para ese camino. Requiere separar el estado de gating por
+  origen del candidato (leg-pair vs. fusión), cambio no trivial aplazado por
+  el tiempo disponible en sesión.
+
+## 2026-07-13 — Parametrizar observation_timeout de tracking_node (antes hardcodeado)
+
+- **Decisión:** convertir `self.timeout_s = 2.0` (hardcodeado en
+  `tracking_node.py`, ni siquiera declarado como parámetro de ROS) en un
+  parámetro `observation_timeout` declarado y expuesto en `config.yaml`,
+  mismo valor por defecto (2.0s) — cambio sin efecto de comportamiento.
+- **Motivo:** al investigar la oscilación FSM se descubrieron **tres
+  mecanismos de timeout independientes y descoordinados** en tres nodos
+  distintos: `detection_node` (`detection_confirm_frames=3`/
+  `detection_loss_frames=8`), `control_node` (`tracking_loss_timeout=1.5s`),
+  y este de `tracking_node`, que además era el único no parametrizado ni
+  documentado junto a los otros dos.
+- **Pendiente (no resuelto hoy):** los tres timeouts siguen sin coordinarse
+  entre sí — solo se ha hecho visible/configurable el tercero. Diseñar cómo
+  deberían relacionarse (o si conviene unificarlos en uno solo) queda para
+  otra sesión.
+
+## 2026-07-13 — Hallazgo: tracking_node no aplica el convenio "persona de frente ≈ π en el láser"
+
+- **Hallazgo (no una decisión de fix — no se ha tocado el código):**
+  `detection_node.py:431` documenta explícitamente que, en el frame del
+  láser de este robot, una persona delante del robot da un ángulo ≈π (no
+  ≈0) — *"Persona de frente ≈ π en el láser (TF base→laser con yaw=π)"* — y
+  su propio fallback de fusión ya compensa ese desfase al calcular
+  `theta_target`. Confirmado empíricamente hoy: con la persona delante del
+  robot a 1m (verbal, sin ángulo), `/person_position` publicó `x=-1.18`
+  (negativo).
+- **El problema:** `tracking_node.py:283` (`angle_to = math.atan2(py, px)`)
+  **no aplica ese mismo desfase de π** — su zona muerta (±8°) y PD angular
+  tratan `angle_to≈0` (`px` positivo) como "persona delante". Esto hace que,
+  con la persona realmente delante, el error angular calculado sea ≈180°, no
+  ≈0.
+- **Evidencia:** grabación de `near_gain` (42s, persona confirmada delante,
+  activación por SSH sin gesto para evitar contaminación): `angle_deg` en
+  `telemetry.csv` se queda oscilando pegado a ±180° durante toda la toma,
+  sin converger nunca hacia 0 pese a `wz` saturado (±1.0 rad/s) casi todo el
+  tiempo (71-76% del tiempo en un patrón de onda cuadrada — chattering en la
+  singularidad antipodal, donde un ruido angular mínimo decide el sentido de
+  giro).
+- **Por qué no se ha roto el sistema hasta ahora:** el usuario confirma que
+  en uso normal el seguimiento es "estable pero lento", no está roto.
+  Hipótesis de cierre de la sesión: este desfase explica la lentitud/rigidez
+  del giro y los episodios de saturación en casos límite (como este propio
+  `near_gain`, donde la geometría de partida quedó casi exactamente
+  antipodal), más que un fallo total — en operación típica el error angular
+  probablemente no se estanca tanto tiempo tan cerca de la singularidad.
+- **Verificación adicional (no concluyente por sí sola):** publicado
+  `angular.z=+0.15` directo a `/commands/velocity` (bypass de todo el
+  control), el robot giró hacia la izquierda (observación visual del
+  usuario) — dato registrado pero sin una referencia externa fija no permite
+  confirmar por sí solo el convenio de signo de `wz`; el hallazgo decisivo
+  fue el contraste de código entre los dos nodos.
+- **Pendiente de máxima prioridad, próxima sesión:** decidir cómo corregir
+  `tracking_node.py` (offset de π directo en `angle_to`, o revisar si existe
+  una transformación TF real `base_link→laser` en el URDF que debería
+  aplicarse de forma consistente en todos los nodos en vez de un ajuste
+  manual solo en `detection_node`). Cambio delicado del lazo de control
+  angular — no tocado hoy a propósito, para revisarlo con calma. Bloquea
+  poder aislar `near_gain` limpiamente.
+
 ## 2026-07-09 (sesión de lab) — Gesto real funcionando: umbral de visibilidad + cámara nueva
 
 - **Decisión:** bajar `gesture_min_visibility` de 0.6 a 0.5 en `config.yaml`, y

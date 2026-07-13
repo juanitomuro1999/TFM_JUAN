@@ -28,6 +28,14 @@ tracking_node:
     # el giro de corrección se veía muy brusco aunque físicamente correcto.
     startup_ramp_s: 1.5
     startup_max_wz: 0.5
+    # Tiempo (s) sin recibir /person_position antes de que tracking_node pare
+    # localmente (predicción Kalman durante oclusión breve, parada dura tras
+    # esto). Antes hardcodeado (self.timeout_s=2.0, no era parámetro de ROS) —
+    # parametrizado 2026-07-13 para que quede junto a tracking_loss_timeout
+    # (control_node, arriba) y detection_loss_frames (detection_node, abajo):
+    # son tres mecanismos de timeout independientes que no se coordinan entre
+    # sí, ver docs/decisiones.md.
+    observation_timeout: 2.0
 
 visual_detection_node:
   ros__parameters:
