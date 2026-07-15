@@ -1,5 +1,158 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-15 (lab, en curso) — Puerto USB kobuki/rplidar intercambiado + diagnóstico del "gira al lado contrario"
+
+### Objetivo: Sesión 3 del plan (confirmar fix de π con movimiento + near_gain + recalibrar cámara)
+
+### Arranque: kobuki y RPLIDAR habían intercambiado de puerto USB
+
+Al lanzar el stack, `rplidar_node` moría con "operation time out". Diagnosticado:
+`kobuki_node_params.yaml` tiene hardcodeado `device_port: /dev/ttyUSB0`, pero en este
+arranque la reenumeración USB asignó ttyUSB0 al adaptador CP2102 (el mismo que usa
+`/dev/rplidar`) y ttyUSB1 a la base Kobuki (confirmado con
+`/dev/serial/by-id/`: `usb-Silicon_Labs_CP2102...→ttyUSB0`,
+`usb-Yujin_Robot_iClebo_Kobuki...→ttyUSB1`) — kobuki_node intentaba hablar con el
+LIDAR. Solucionado relanzando `kobuki_ros_node` con
+`-p device_port:=/dev/serial/by-id/usb-Yujin_Robot_iClebo_Kobuki_kobuki_AH02IGFT-if00-port0`
+(ruta estable, no depende del orden de enumeración) en vez del launch file por
+defecto. No es un cambio de código del repo — solo afecta a cómo se lanza kobuki_node
+en el NUC; anotar en `docs/sesion_siguiente.md` para no repetir el diagnóstico.
+
+### Objetivo 1 (confirmar fix de π con movimiento real): fix de π confirmado, pero aparece un problema más grave
+
+Grabación de 74s (`validation/runs/20260715_sesion3_pi_movimiento/`) con la persona
+moviéndose/girando alrededor del robot. El fix de π del 13/07 **se sostiene**: cuando
+LIDAR y cámara coinciden, `dev_deg` se queda en 5-20° (ya no pegado a ±180°). Pero
+durante la prueba el usuario reportó en vivo "gira al lado contrario y se desorienta"
+— el mismo síntoma investigado y descartado el 13/07. Métricas globales de la toma:
+error angular medio 103.7°, saturación de `|vang|` 50.2% del tiempo — mucho peor que
+el caso fácil ya confirmado.
+
+Diagnóstico inicial (con evidencia de log, ver `docs/decisiones.md` 2026-07-15):
+**LIDAR y cámara pierden a la persona a la vez al girar** — un mecanismo real y
+confirmado, ver detalle abajo. El emparejamiento de piernas del LIDAR
+(`min_leg_distance`/`max_leg_distance`, 0.04-0.35m) falla cuando una pierna ocluye a
+la otra o la separación se sale de rango; la detección de pose de MediaPipe puede
+fallar un frame puntual por motion blur, y el debounce (`camera_debounce_count=2` a
+~2.5Hz de proceso) convierte ese frame suelto en ~800ms+ de "cámara no válida". Ambas
+fallan a la vez porque las dos modalidades comparten el mismo punto ciego (vista
+frontal de la persona). Hueco real observado: ~3.6s sin ninguna detección
+(1784124266.95-1784124270.55).
+
+**Corrección aplicada tras este diagnóstico (mitigación parcial, no la causa
+principal):** añadido `extrapolation_limit_s=0.6` en `tracking_node` (parar en vez de
+seguir extrapolando con Kalman pasado ese tiempo sin observación fresca, antes eran
+hasta 2.0s) y bajado `camera_debounce_count` de 2 a 1. Sincronizado y relanzado en el
+NUC. **Repetido el test de movimiento con estos cambios y el usuario reportó
+en vivo que seguía sin funcionar ("PARA, NO FUNCIONA")** — los datos de ese segundo
+test (`validation/runs/20260715_verif_fix_extrapolacion/`) mostraron `obs_age` bajo
+casi todo el tiempo (sin huecos largos esta vez) pero el ángulo seguía divergiendo
+igualmente — es decir, el mecanismo de "huecos de detección" no era la causa
+dominante del síntoma.
+
+### CAUSA RAÍZ REAL encontrada y corregida: signo invertido en el PD angular
+
+Con dos síntomas distintos (huecos de detección Y divergencia con datos frescos)
+apuntando al mismo síntoma final, se hizo una verificación directa del signo de
+`wz`: publicar `angular.z` constante en `/commands/velocity` (bypass total de
+percepción y control) y medir el `yaw` real vía `/odom`. Resultado, dos ensayos:
+`wz_cmd=+0.5` → yaw sube +18.7°; `wz_cmd=-0.5` → yaw baja -23.8°. **Mismo signo que
+el comando** — este robot sigue el convenio estándar de ROS, al contrario de lo
+concluido el 13/07 (que se basó en una simulación offline, sin medir el robot real).
+`tracking_node.py` tenía `ang_err = -angle_to`; corregido a `ang_err = angle_to`.
+Detalle completo, incluyendo por qué la simulación del 13/07 no lo detectó, en
+`docs/decisiones.md` (2026-07-15).
+
+**Verificado en vivo tras el fix** (`validation/runs/20260715_verif_signo/`, paso
+lateral corto y controlado): `angle_deg` se mantuvo entre -18° y +14° durante toda
+la toma (18.7s), sin ningún disparo ni envoltura en ±180°. Error angular medio 8.7°
+(antes 103.7° y 41.3° en los dos tests fallidos de hoy), saturación de `|vang|` 0.0%
+(antes 50.2% y 19.4%), 100% detección, 0 pérdidas, 0 saltos de posición. `vang`
+responde de forma suave y proporcional, convergiendo hacia 0 según la persona vuelve
+a quedar de frente — comportamiento de control estable, coherente con el signo ya
+corregido.
+
+Objetivo 1 del plan original (confirmar el fix de π) queda cerrado: el fix de π
+seguía siendo correcto, y el síntoma de "gira al lado contrario" reportado hoy (y
+originalmente el 13/07) tenía una causa distinta y más fundamental, ya corregida y
+verificada. El diagnóstico de huecos de detección LIDAR+cámara al girar sigue siendo
+real y documentado como limitación pendiente (ver `docs/decisiones.md`), pero ya no
+es crítico con el signo corregido.
+
+### Objetivo 2 (near_gain): aislado con el signo ya corregido — comportamiento sano
+
+Dos tomas adicionales tras el fix de signo:
+
+- `validation/runs/20260715_near_gain_v4_signo_fix/` (distancia 1.38-2.12m, no llegó
+  a la zona de `near_gain`): error angular medio 6.4°, 0% saturación, 0 pérdidas,
+  100% detección — seguimiento general ya muy estable.
+- `validation/runs/20260715_near_gain_v5_close/` (distancia 0.49-0.86m, sí dentro de
+  la zona objetivo): error angular medio 34.3°, saturación de `|vang|` 5.0%, 89.1%
+  detección (3 pérdidas). `angle_deg` se mueve entre -52° y +52° durante toda la
+  toma — **acotado, sin ningún disparo a ±180°**, y siempre con el signo correcto
+  (vang converge hacia el signo que reduce el error). La saturación puntual es
+  esperable: `near_gain = min(1.0, distance/target_dist)` con `target_dist=1.0m` ya
+  reduce `wz` a la mitad a 0.5m, pero un giro rápido de la persona a esa distancia
+  todavía puede saturar el PD antes de que `near_gain` termine de amortiguarlo — es
+  una dificultad física real del seguimiento de cerca (el mismo desplazamiento
+  lateral cambia el ángulo mucho más deprisa cuanto más cerca), no un bug. Candidato
+  a ajuste fino en una sesión futura (bajar `angular_gain` a distancias <0.7m, o
+  hacer que `near_gain` decaiga más agresivo), pero no bloquea nada.
+
+### Objetivo 3 (recalibrar cámara SPCA2650): cerrado sin cambios — no hace falta
+
+Antes de montar una prueba dedicada, se revisó `dev_deg` (desviación entre el rumbo
+de cámara y el clúster LIDAR elegido) agregando las ~2600 muestras de fusión de
+todas las pruebas de hoy (ya con los fixes de π y de signo aplicados): mediana 3.2°,
+media 5.0°, rango 0.0-24.9°. Frente a los ~9-10° medidos el 13/07 con esta misma
+cámara SPCA2650 (antes de los fixes de hoy), la mejora es clara — gran parte de esa
+desviación de 13/07 era arrastre de los bugs de π/signo contaminando el cálculo de
+`theta_target`, no una mala calibración de `bearing_sign`/`camera_hfov_deg` en sí.
+Con el usuario decidido: no se toca `bearing_sign=-1.0` ni `camera_hfov_deg=51.0`
+(sigue siendo el valor nominal de la C270, no recalibrado específicamente para la
+SPCA2650, pero funciona empíricamente bien) — no se justifica una prueba dedicada
+hoy. Si en sesiones futuras `dev_deg` vuelve a crecer de forma sostenida, revisar
+esto primero.
+
+### Extra (adelanto de la Sesión 5): 8 grabaciones para el Capítulo 7
+
+Con el sistema ya estable, se adelantó parte de la Sesión 5 — una toma por cada
+escenario de `validation/README.md` (recta, curva, parada, corto, oclusión,
+obstáculo), más dos repeticiones de oclusión/obstáculo. Bags y análisis en
+`validation/runs/20260715_<escenario>[_v2][_signo_fix|_breve]/`.
+
+- **`recta`, `curva`, `parada`, `corto`:** comportamiento sano, sin sorpresas.
+  Nota: `curva_signo_fix` reportó "0.2s / 4 muestras" de telemetría en el resumen
+  de `plot_run.py` pese a tener 302 pares de posición — parece un artefacto del
+  script (desajuste entre el conteo de `telemetry.csv` y `position.csv`), no un
+  problema de control; revisar `plot_run.py` si se repite en sesiones futuras.
+- **`obstaculo` (1ª toma):** a los 7.5s, con la cámara sin ver a la persona
+  (oculta cerca del obstáculo), el fallback de fusión enganchó momentáneamente
+  el propio obstáculo como candidato (salto de posición a 3.35m y luego a
+  0.37m), causando `angle_deg` hasta -69° y `vang` saturado ~3s antes de
+  recuperarse solo y re-enganchar bien a la persona. **No es un bug nuevo** —
+  es la manifestación directa, con evidencia de log clara, del fallo ya
+  documentado (fallback de fusión sin confirmación obligatoria para candidatos
+  fuera del par de piernas, ver diagnóstico de arriba y Sesión 4). `obstaculo_v2`
+  (repetición) salió limpio: ángulo acotado -19° a +22°, sin saturación,
+  evasión suave — buena toma de referencia para el Capítulo 7, con la primera
+  toma como evidencia documentada de la limitación.
+- **`oclusion` (1ª toma):** hueco real de ~27s sin telemetría mientras la
+  persona estaba oculta — el robot se quedó parado correctamente
+  (`extrapolation_limit_s` en efecto) y no hizo nada raro, solo que la
+  publicación de telemetría se corta junto con el movimiento durante la espera
+  (por diseño del fix de hoy, no es un bug). Repetido con una ocultación más
+  breve (`oclusion_v2_breve`): esta vez la persona nunca llegó a "perderse"
+  del todo (100% detectada) pero la posición fusionada saltó varias veces
+  cerca del obstáculo (`angle_deg` picos de hasta -98°, una lectura anómala a
+  0.11m), siempre recuperándose sola — el mismo fallo de fusión sin confirmar
+  que en `obstaculo`, disparado repetidamente por la cercanía al obstáculo.
+- **Conclusión:** las 8 tomas, tomadas en conjunto, son buena evidencia para el
+  Capítulo 7 tanto del comportamiento normal (ya sano tras el fix de signo)
+  como de la limitación conocida y pendiente (fusión sin confirmar cerca de
+  objetos) — no hace falta descartarlas, documentar ambas cosas con datos
+  reales es más honesto que solo mostrar los casos limpios.
+
 ## Sesión 2026-07-13 (lab) — Fix de CPU, causa raíz de la oscilación FSM, y bug de convenio angular en tracking_node
 
 ### Objetivo: Sesión 2 del plan (FSM oscilando + near_gain + recalibrar cámara)

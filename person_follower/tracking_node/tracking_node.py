@@ -184,6 +184,7 @@ class TrackingNode(Node):
         self.declare_parameter('startup_ramp_s',             1.5)
         self.declare_parameter('startup_max_wz',             0.5)
         self.declare_parameter('observation_timeout',        2.0)
+        self.declare_parameter('extrapolation_limit_s',      0.6)
 
         self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
@@ -206,6 +207,7 @@ class TrackingNode(Node):
         self.startup_ramp_s   = self.get_parameter('startup_ramp_s').value
         self.startup_max_wz   = self.get_parameter('startup_max_wz').value
         self.timeout_s        = self.get_parameter('observation_timeout').value
+        self.extrap_limit_s   = self.get_parameter('extrapolation_limit_s').value
 
         # ── Kalman 6 estados ──────────────────────────────────────────────
         self.kf = KalmanTracker(q=kq, r=kr)
@@ -274,7 +276,21 @@ class TrackingNode(Node):
             self._stop()
             return
 
-        # Durante oclusión breve (< timeout): usar predicción Kalman
+        # Diagnosticado 2026-07-15 (docs/decisiones.md): LIDAR y cámara pueden
+        # perder a la persona a la vez durante ~2-4s reales al girar (las dos
+        # modalidades de fusión comparten el mismo punto ciego, la vista
+        # frontal). Extrapolar con Kalman durante todo ese hueco reacciona a
+        # una posición que ya no es de fiar -- se percibía como "gira al lado
+        # contrario". Por eso, pasado extrapolation_limit_s sin observación
+        # fresca, se para (igual que en timeout_s) en vez de seguir navegando
+        # a ciegas sobre la extrapolación; el intento de re-enganchar sigue
+        # disponible hasta timeout_s, solo que sin mover el robot mientras
+        # tanto.
+        if elapsed > self.extrap_limit_s:
+            self._stop()
+            return
+
+        # Durante oclusión breve (< extrapolation_limit_s): usar predicción Kalman
         if elapsed > 0.3:
             px, py = self.kf.predict_position(elapsed)
         else:
@@ -293,7 +309,21 @@ class TrackingNode(Node):
         self.prev_vx = vx
 
         # ── Velocidad angular: PD con zona muerta ────────────────────────
-        ang_err = -angle_to
+        # Corregido 2026-07-15 (docs/decisiones.md): el 13/07 se concluyó
+        # (con una simulación numérica, sin medir el robot real) que este
+        # robot gira en sentido contrario al estándar ROS y que por tanto
+        # ang_err=-angle_to era correcto. Verificado hoy con un test directo
+        # y objetivo (comando de wz constante a /commands/velocity, sin pasar
+        # por percepción, midiendo el yaw real de /odom): wz_cmd=+0.5 → yaw
+        # sube +18.7°; wz_cmd=-0.5 → yaw baja -23.8°. Mismo signo que el
+        # comando: este robot SÍ sigue el convenio estándar (positivo =
+        # antihorario). La inversión de signo de abajo estaba mal — el
+        # controlador empujaba sistemáticamente en la dirección contraria a
+        # la correcta, enmascarado en pruebas casi estáticas porque el error
+        # se queda dentro de la zona muerta, pero diverge en cuanto el error
+        # crece (persona moviéndose/girando) — la causa real de "gira al
+        # lado contrario" reportado repetidamente.
+        ang_err = angle_to
         # Clamp derivada: evita pico cuando la detección salta tras oclusión
         d_ang   = max(-0.3, min(0.3, ang_err - self.prev_angle))
 

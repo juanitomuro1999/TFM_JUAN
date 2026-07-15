@@ -5,6 +5,113 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-15 — CORREGIDO: signo invertido en el PD angular de tracking_node (causa raíz real de "gira al lado contrario")
+
+- **Decisión:** revertir `ang_err = -angle_to` a `ang_err = angle_to` en
+  `tracking_node.py` (línea junto al cálculo de `angle_to = atan2(py, px)`).
+- **Motivo:** el 13/07 se concluyó, con una simulación numérica offline (sin
+  medir el robot real), que "este robot gira en sentido contrario al
+  estándar ROS" y que por tanto invertir el signo (`ang_err=-angle_to`) era
+  necesario y correcto. Repetido hoy el problema en dos pruebas de
+  movimiento real (ver entrada anterior de hoy sobre el diagnóstico de
+  LIDAR+cámara) con el usuario confirmando en vivo "gira al lado contrario",
+  se hizo una verificación directa y objetiva, sin pasar por percepción en
+  absoluto: publicar `angular.z` constante en `/commands/velocity` y medir
+  el yaw real vía `/odom` (integrado por el propio `kobuki_ros_node` desde
+  IMU/encoders). Resultado, con dos ensayos independientes:
+  `wz_cmd=+0.5 rad/s` (3s) → `yaw` sube +18.7°; `wz_cmd=-0.5 rad/s` (3s) →
+  `yaw` baja -23.8°. **Mismo signo que el comando** — este robot sigue el
+  convenio estándar (positivo = antihorario, REP103), al contrario de lo
+  concluido el 13/07. Con `ang_err=-angle_to`, el PD angular empujaba
+  sistemáticamente en la dirección contraria a la necesaria para reducir el
+  error — enmascarado en pruebas casi estáticas (persona quieta y de frente)
+  porque el error se queda dentro de la zona muerta angular (±8°) y apenas
+  se nota, pero se convierte en una divergencia de realimentación positiva
+  en cuanto el error crece por encima de la zona muerta (persona
+  moviéndose/girando), justo el patrón visto en los dos tests de hoy
+  (`angle_deg` creciendo sin parar hasta envolver en ±180° repetidamente).
+- **Por qué la simulación del 13/07 no lo detectó:** simuló convergencia
+  para un caso casi antipodal concreto observado en un bag ya grabado, sin
+  una referencia externa dura del signo real de rotación del robot — la
+  "confirmación en vivo" de esa fecha fue observación visual del usuario
+  sin punto de referencia fijo, que resultó ambigua (ver
+  `PROGRESO.md`, 2026-07-13, "test adicional... no concluyente"). La
+  verificación de hoy usa `/odom` como referencia objetiva y elimina esa
+  ambigüedad.
+- **Cambio relacionado en la misma sesión:** además de este fix, se añadió
+  `extrapolation_limit_s` (parar tras 0.6s sin observación fresca en vez de
+  extrapolar con Kalman hasta 2.0s) y se bajó `camera_debounce_count` de 2 a
+  1 — ambos siguen siendo mejoras válidas por sí mismas (evitan que el
+  robot navegue a ciegas durante huecos de detección reales, que siguen
+  existiendo — ver diagnóstico de arriba), pero **no eran la causa principal
+  del síntoma reportado hoy** — el signo invertido lo era.
+- **Pendiente de verificar:** repetir el test de seguimiento con movimiento
+  real ahora con el signo corregido antes de dar el TFM por resuelto en este
+  punto. Si el usuario confirma que ya no gira al lado contrario, esto
+  reemplaza la conclusión de la entrada de 13/07 ("simulación con esa
+  asunción SÍ reproduce...") como la explicación correcta y definitiva.
+- **Alternativas descartadas:** ninguna — una vez medido el signo real de
+  forma objetiva, la corrección es directa.
+
+## 2026-07-15 — Diagnóstico: LIDAR y cámara pierden a la persona a la vez al girar (causa real de "gira al lado contrario")
+
+- **Hallazgo (no es un bug de signo):** durante la prueba de movimiento real
+  de la Sesión 3 (objetivo 1, confirmar el fix de π del 13/07), el usuario
+  reportó en vivo que el robot "gira hacia el otro lado y se desorienta" al
+  moverse/girar — el mismo síntoma que se había investigado y descartado
+  como bug el 13/07 (ver entrada de esa fecha). Repetido el análisis con los
+  datos de hoy (`validation/runs/20260715_sesion3_pi_movimiento/`), el fix
+  de π **se mantiene** (`dev_deg` entre LIDAR y cámara se queda en 5-20°
+  cuando ambos coinciden, ya no pegado a ±180°), pero aparece un problema
+  distinto y más grave: **LIDAR y cámara dejan de detectar a la persona
+  simultáneamente durante los giros**, dejando huecos de ~2-4s sin ninguna
+  medición fresca. Durante esos huecos, el filtro de Kalman de
+  `tracking_node` extrapola con la última velocidad conocida; cuando vuelve
+  una medición (a menudo con salto grande tras el hueco), el PD angular
+  reacciona de golpe — eso se percibe como "gira al lado contrario".
+- **Causa raíz (dos modalidades con el mismo punto débil: la vista frontal):**
+  - **LIDAR (`detect_person`/`detect_leg_clusters`):** el emparejamiento de
+    piernas exige dos clústeres separados entre `min_leg_distance` (0.04m) y
+    `max_leg_distance` (0.35m). Al girar el cuerpo, una pierna puede ocluir a
+    la otra (colapsan a un solo clúster) o la separación aparente se sale de
+    esa ventana — el emparejamiento falla justo cuando la persona no está de
+    frente.
+  - **Cámara (`visual_detection_node._detect_mp`):** `/person_detected_visual`
+    se publica cada frame según si MediaPipe encuentra `pose_landmarks` en
+    absoluto (no solo la visibilidad de hombros). Un giro rápido introduce
+    motion blur que puede hacer fallar la detección de pose en un frame
+    puntual. Como `detection_node` exige `camera_debounce_count=2` frames
+    consecutivos en `True` tras cualquier `False` (y la cámara procesa a
+    ~2.5Hz por el coste de MediaPipe), un solo frame perdido cuesta ~800ms+
+    de "cam no válida" aunque la persona siga en el encuadre. Verificado en
+    el log: a las 1784124266.517 ambos hombros visibility=1.00 y 33
+    landmarks visibles; 437ms después (1784124266.954) ya aparece
+    `lidar: False, cam: False` — y el hueco total sin ninguna detección se
+    extiende de 1784124266.95 a 1784124270.55 (~3.6s).
+  - **El fallback de fusión no cubre este caso** porque necesita *ambas*
+    señales: sin clúster general dentro de `fusion_angle_tol_deg` (25°) o sin
+    rumbo de cámara reciente (`bearing_timeout=1.5s`), no hay candidato que
+    publicar — y aquí las dos fallan a la vez, no una sustituye a la otra.
+  - **Los tres timeouts de "dar por perdida a la persona" siguen
+    descoordinados** (ver entrada 2026-07-13): `detection_loss_frames=8`
+    (~0.7s a 11.5Hz), `tracking_loss_timeout=1.5s` (`control_node`),
+    `observation_timeout=2.0s` (`tracking_node`) — ninguno coincide con la
+    duración real observada del hueco (~2-4s), así que cada capa reacciona
+    en un momento distinto sin una política única.
+- **No corregido hoy** — es un problema de arquitectura (las dos modalidades
+  de fusión comparten el mismo punto ciego: la vista frontal de la persona),
+  no una línea de código suelta. Requiere decidir una estrategia (¿girar el
+  propio robot para mantener a la persona de frente en vez de asumir que
+  camina de frente al sensor? ¿añadir una tercera señal — p. ej. seguir la
+  velocidad de Kalman durante el hueco con un tope de tiempo más corto y
+  coordinado? ¿relajar `max_leg_distance`/permitir clúster único como pierna
+  "vista de perfil"?) — para la memoria, documentar como limitación conocida
+  del enfoque de fusión si no da tiempo a resolverlo con las sesiones que
+  quedan.
+- **Alternativas descartadas:** ninguna aún — es un hallazgo de diagnóstico,
+  pendiente de decidir el fix en una sesión futura (o de escritorio, ya que
+  el análisis en sí no requirió el robot, solo los datos ya grabados).
+
 ## 2026-07-13 — Vectorizar apply_median_filter en detection_node (fix de rendimiento)
 
 - **Decisión:** reemplazar el bucle Python de `apply_median_filter`

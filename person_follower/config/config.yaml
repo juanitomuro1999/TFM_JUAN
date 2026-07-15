@@ -36,6 +36,13 @@ tracking_node:
     # son tres mecanismos de timeout independientes que no se coordinan entre
     # sí, ver docs/decisiones.md.
     observation_timeout: 2.0
+    # Añadido 2026-07-15 (docs/decisiones.md): pasado este tiempo sin
+    # observación fresca, el robot para (no sigue extrapolando con Kalman)
+    # aunque todavía no se haya alcanzado observation_timeout. Diagnosticado
+    # que LIDAR+cámara pueden perder a la persona a la vez ~2-4s reales al
+    # girar, y extrapolar todo ese hueco hacía que el robot "girara al lado
+    # contrario" persiguiendo una posición ya poco fiable.
+    extrapolation_limit_s: 0.6
 
 visual_detection_node:
   ros__parameters:
@@ -95,6 +102,13 @@ detection_node:
     fusion_max_distance: 4.0      # alcance máx. del fallback (m) — supera max_detection_distance
     bearing_sign: -1.0            # signo cámara→láser (CALIBRAR en vivo desde los logs)
     bearing_timeout: 1.5          # validez del último rumbo (s); cámara ~2.5 Hz
+    camera_timeout: 1.0           # s sin detección visual antes de invalidarla
+    # Detecciones visuales consecutivas para volver a considerar "cam válida"
+    # tras un False. Bajado de 2 a 1 el 2026-07-15: a ~2.5Hz (coste de
+    # MediaPipe), un solo frame de motion blur durante un giro ya costaba
+    # ~800ms extra de "cámara no válida" encima de la propia pérdida real
+    # (ver docs/decisiones.md, 2026-07-15).
+    camera_debounce_count: 1
     # ── Filtro de continuidad (anti-salto a clusters espurios) ────────────
     # Rechaza el candidato/cluster si implica una velocidad > max_person_speed
     # respecto a la última posición publicada (ver detection_node._gate_by_continuity).

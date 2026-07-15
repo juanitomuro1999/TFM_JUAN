@@ -58,13 +58,19 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 |---|---|
 | ~~1~~ | ~~Cámara — re-encuadrar + validar gesto real~~ **✅ hecho 2026-07-09** (no como se planeó — resuelto por software + cambio de cámara improvisado, no reencuadre físico de la C270 — ver abajo) |
 | ~~2~~ | ~~FSM oscilando + near_gain aislado + recalibrar cámara~~ **✅ hecho 2026-07-13** (parcial — ver estado heredado abajo: fix de CPU sí cerrado, oscilación/near_gain llevaron a un hallazgo mayor sin resolver, cámara aplazada) |
-| **3 (próxima)** | **Corregir desfase de π en tracking_node (prioridad máxima, nuevo)** + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva |
-| 4 | Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión (aplazado hoy) + resolver reproducibilidad de métricas del Capítulo 7 |
+| ~~3~~ | ~~Corregir desfase de π en tracking_node + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva~~ **✅ hecho 2026-07-15** (el fix de π se sostuvo, pero apareció un fallo mayor no relacionado — signo invertido en el PD angular, causa real de "gira al lado contrario" desde el 13/07 — encontrado y corregido; `near_gain` aislado y sano; cámara evaluada sin necesidad de recalibrar — ver estado heredado abajo) |
+| **4 (próxima)** | Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + **el hueco de detección LIDAR+cámara al girar (nuevo, 2026-07-15, mismo tema)** + resolver reproducibilidad de métricas del Capítulo 7 |
 | 5 | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
 | 6 | Nav2 — fase A: solo localización AMCL |
 | 7 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
 | 8 | Colchón + grabar vídeo de demostración del TFM |
-| 9 | **Última sesión de lab del TFM** (según el presupuesto original de 9 confirmado el 2026-07-09). El usuario mencionó el 2026-07-13 "9 o 10 sesiones" quedando desde ahora — verificar con él al inicio de la próxima sesión si el presupuesto real cambió o si contaba distinto, y ajustar esta tabla en consecuencia antes de asumir cuál es la última. |
+| 9 | **Última sesión de lab del TFM.** |
+
+**Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
+presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
+como la nº1) — **quedan 6 sesiones (4 a 9)** a partir de hoy. La mención del
+13/07 de "9 o 10 sesiones quedando desde ese día" no era el recuento correcto;
+descartar esa cifra. No volver a plantear esta duda en sesiones futuras.
 
 **Si sesiones 5-6 (Nav2) se retrasan o no salen bien:** es el bloque más
 prescindible de la lista — empieza de cero (`docs/decisiones.md`,
@@ -164,53 +170,87 @@ tiempo de robot salvo que sobre alguna sesión de las 9.
   `camara_nueva_velred`. Revisar cuáles aportan al Capítulo 7 antes de que
   se acumulen sin criterio.
 
-## OBJETIVO de la Sesión 3 (próxima): confirmar el fix de π con movimiento + retest near_gain/oscilación + recalibrar cámara
+## Estado heredado de la sesión 2026-07-15 (no repetir, solo verificar)
 
-### 1. Confirmar el fix de π con una prueba más larga y con movimiento real
+- ✅ **Puerto USB de kobuki/rplidar intercambiado tras reinicio** — el NUC
+  reenumera `ttyUSB0`/`ttyUSB1` de forma no determinista entre arranques.
+  Si `rplidar_node` muere con "operation time out" al lanzar, comprobar
+  `/dev/serial/by-id/` y relanzar `kobuki_ros_node` con
+  `-p device_port:=/dev/serial/by-id/usb-Yujin_Robot_iClebo_Kobuki_kobuki_AH02IGFT-if00-port0`
+  en vez de depender del `/dev/ttyUSB0` hardcodeado en
+  `kobuki_node_params.yaml`. Ver `PROGRESO.md`, 2026-07-15.
+- ✅ **Fix de π confirmado con movimiento real** — se sostiene con la
+  persona moviéndose/girando, no solo en el caso fácil ya probado el 13/07.
+- ✅ **CORREGIDO — causa raíz real de "gira al lado contrario"**: signo
+  invertido en el PD angular de `tracking_node` (`ang_err = -angle_to` era
+  incorrecto; corregido a `ang_err = angle_to`). Verificado de forma
+  objetiva con `/odom` (sin percepción) y en vivo con dos pruebas de
+  seguimiento real. Esto **reemplaza** la conclusión del 13/07 ("este robot
+  gira en sentido contrario al estándar ROS") — ver `docs/decisiones.md`,
+  2026-07-15, para el detalle completo y por qué la simulación anterior no
+  lo detectó. **No tocar este signo de nuevo sin repetir esa verificación
+  objetiva con `/odom`.**
+- ✅ **`near_gain` aislado y evaluado** (0.49-0.86m): comportamiento acotado
+  (-52° a +52°, nunca ±180°) y con el signo correcto; saturación puntual
+  esperable a esa distancia tan corta. Candidato a ajuste fino (bajar
+  `angular_gain` <0.7m, o `near_gain` más agresivo) pero no bloquea nada —
+  ver `PROGRESO.md`.
+- ✅ **Cámara SPCA2650 evaluada, no recalibrada** — `dev_deg` con los datos
+  de hoy (ya con los fixes aplicados): mediana 3.2°, sin sesgo sistemático.
+  Los ~9-10° del 13/07 eran en gran parte arrastre de los bugs de π/signo,
+  no una mala calibración de `bearing_sign`/`camera_hfov_deg`. No se tocó
+  ningún parámetro de cámara.
+- 🔄 **Diagnosticado, no corregido — LIDAR y cámara pierden a la persona a
+  la vez al girar** (~2-4s reales sin ninguna detección): el emparejamiento
+  de piernas del LiDAR falla cuando una pierna ocluye a la otra durante el
+  giro, y la pose de MediaPipe puede fallar un frame puntual por motion
+  blur — las dos modalidades comparten el mismo punto ciego (vista frontal
+  de la persona), así que el fallback de fusión no cubre el caso. Con el
+  signo ya corregido esto ya no causa que el robot "gire mal" (ahora se
+  para en vez de extrapolar, gracias a `extrapolation_limit_s=0.6`), pero
+  sigue siendo una limitación real de la arquitectura de fusión. Detalle
+  completo y opciones de fix a decidir en `docs/decisiones.md`, 2026-07-15
+  — ver objetivo de la Sesión 4 de abajo, que ahora incorpora este hallazgo.
+- 🔄 **`camera_debounce_count` bajado de 2 a 1** — mitigación parcial del
+  punto anterior, sigue siendo válida por sí misma independientemente del
+  fix de arquitectura pendiente.
 
-El desfase de convenio angular (`detection_node` publicaba en el convenio
-bruto del láser — delante ≈ π — mientras `tracking_node.angle_to` asumía
-delante = 0°) **ya se corrigió y verificó en vivo el 2026-07-13** (ver
-`docs/decisiones.md` y `PROGRESO.md`): con la persona delante y quieta,
-`angle_deg` pasó de oscilar pegado a ±180° a mantenerse en 5.5-6.8°, y
-`vang` de saturar 71-76% del tiempo a prácticamente 0. Esa prueba fue corta
-(~10s) y con la persona casi estática — antes de dar el hallazgo por
-cerrado del todo:
+## OBJETIVO de la Sesión 4 (próxima): fallback de fusión robusto durante giros + gate de continuidad + reproducibilidad del Capítulo 7
 
-1. Repetir con una ventana más larga (>1 min) y con la persona moviéndose
-   (caminando, girando alrededor del robot) para confirmar que `angle_deg`
-   sigue convergiendo bien en escenarios más exigentes, no solo el caso
-   fácil ya probado.
-2. Revisar si los marcadores de RViz (`user_interface_node`, consumen
-   `/expected_person_position`) ahora muestran a la persona en el lado
-   correcto — efecto colateral esperado del fix, no comprobado todavía.
+**Contexto actualizado 2026-07-15:** el hallazgo de hoy (LIDAR y cámara
+pierden a la persona a la vez al girar, ver estado heredado arriba) es el
+mismo tema que ya estaba planeado para esta sesión (confirmación en el
+fallback de fusión) — abordarlos juntos.
 
-### 2. `near_gain` de forma aislada (retest — las tomas del 13/07 quedaron contaminadas por el bug de π, ya corregido)
+### Arreglar la pérdida de detección conjunta al girar (fusiona el hallazgo de hoy con el de 13/07)
 
-1. Activar TRACKING (mejor por SSH sin gesto, para evitar la disrupción de
-   detección que causa el gesto — ver hallazgo de fusión de la sesión
-   anterior) con la persona ya delante del robot, confirmando `angle_deg`
-   cerca de 0 antes de acercarse.
-2. Grabar con `validation/record_run.sh <etiqueta> <duracion_s>` (sí está
-   sincronizado al NUC ahora) mientras la persona se acerca deliberadamente a
-   0.5-0.7m del robot y cambia de dirección ahí.
-3. Procesar con `bag_to_csv.py` (en el NUC) + `plot_run.py` (portátil, ya
-   trae la extracción de `position.csv`/`expected_position.csv`). Mirar
-   `vang`: debe variar suave, sin picos, y sin saturación permanente — con
-   el fix de π aplicado, ya no debería aparecer el patrón de onda cuadrada
-   visto el 2026-07-13.
+1. Decidir una estrategia concreta entre las esbozadas en
+   `docs/decisiones.md` (2026-07-15): ¿aceptar un clúster de pierna único
+   (no emparejado) como candidato de menor confianza cuando no hay par
+   válido, gateado por continuidad? ¿ampliar `max_leg_distance` para
+   tolerar la oclusión parcial durante el giro? ¿bajar aún más el
+   debounce/timeout de cámara? Verificar cada opción con datos sintéticos
+   (reproduciendo la secuencia real del log de hoy, epoch
+   1784124265-1784124271) antes de probarla en el robot.
+2. Una vez implementada, repetir un test de movimiento/giro similar al de
+   hoy y comprobar que ya no aparece el hueco de ~2-4s sin detección.
 
-### 3. Recalibrar cámara nueva
+### Gate de continuidad + confirmación en el fallback (pendiente desde 13/07)
 
-Repetir la comprobación de `bearing_sign`/`camera_hfov_deg` (como se hizo el
-25/06 con la C270: mirar `dev_deg` en los logs de fusión y confirmar que el
-rumbo de cámara coincide con el clúster LiDAR elegido) ahora con la
-SPCA2650 — el FOV real puede ser distinto al de la C270. `dev_deg` ronda
-9-10° en las tomas del 13/07 (vs 0-6° con la C270), pero mejor reevaluarlo
-después del fix de π por si el error angular general estaba contaminando
-esa lectura indirectamente.
+El fix de deriva acumulada del 09/07 corrigió el caso concreto observado en
+vivo, pero no se ha probado deliberadamente con mobiliario denso ni un
+recorrido largo:
 
-## OBJETIVO de la Sesión 4: estresar el gate de continuidad + arreglar confirmación en el fallback de fusión + reproducibilidad del Capítulo 7
+1. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
+   recorrido más largo (>2 min) para ver con qué frecuencia se activa el
+   fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
+2. Si siguen colándose saltos, subir `continuity_confirm_frames` a 2 o 3
+   y/o ajustar `continuity_window_s` — comparar métricas antes/después.
+   **Nota 2026-07-13: verificado sintéticamente que esto NO basta** para el
+   caso de mobiliario a poca distancia (cae dentro del radio "plausible" de
+   `max_person_speed` sin pasar por `continuity_confirm_frames`) — ver abajo.
+
+### Arreglar confirmación en el fallback de fusión (2026-07-13)
 
 ### Gate de continuidad
 
@@ -320,6 +360,12 @@ ros2 node list
 timeout 5 ros2 topic hz /scan
 grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levantar el brazo
 ```
+
+> **Si `rplidar_node` muere con "operation time out":** el puerto USB se ha
+> reenumerado (ver estado heredado 2026-07-15) — comprobar
+> `ls -la /dev/serial/by-id/` y relanzar `kobuki_ros_node` apuntando
+> explícitamente a la ruta `by-id` de la Kobuki en vez de depender del
+> `/dev/ttyUSB0` por defecto del launch file.
 
 ## Checklist de cierre de sesión
 

@@ -523,6 +523,75 @@ fallo".
 
 ---
 
+### 15 de julio — El robot "giraba al lado contrario": encontrado y corregido el signo invertido del control angular
+
+**Contexto:** tercera sesión de laboratorio. El plan era confirmar con
+movimiento real el fix del desfase de π (ya corregido el 13 de julio),
+aislar `near_gain` y recalibrar la cámara nueva. Antes de nada, se detectó
+que el puerto USB del RPLIDAR y de la base Kobuki se habían intercambiado
+tras el último reinicio (reenumeración no determinista del sistema
+operativo) — solucionado relanzando `kobuki_node` apuntando a la ruta
+estable `/dev/serial/by-id/...` en vez del `/dev/ttyUSB0` hardcodeado.
+
+**El síntoma reaparece, peor de lo esperado:** con el robot ya siguiendo a
+una persona en movimiento real (no solo quieta, como el 13 de julio), el
+usuario reportó en vivo que el robot "giraba al lado contrario y se
+desorientaba" — el mismo síntoma que se había investigado y descartado como
+bug dos días antes. Los datos de esa primera toma mostraron un error
+angular medio de 103.7° y saturación del control angular el 50% del
+tiempo, muy por encima de lo esperado tras el fix de π.
+
+**Primer diagnóstico — real, pero no la causa principal:** analizando el
+log segundo a segundo, se confirmó que LiDAR y cámara pierden a la persona
+a la vez durante los giros (hasta ~3.6s seguidos sin ninguna detección) —
+las dos modalidades de fusión comparten el mismo punto ciego, la vista
+frontal de la persona: el emparejamiento de piernas del LiDAR falla cuando
+una pierna ocluye a la otra, y MediaPipe puede perder la pose en un frame
+puntual por el motion blur del giro, encareciendo la recuperación por un
+debounce pensado para detecciones estables. Se corrigió parcialmente
+—parar el robot pasados 0.6s sin observación fresca en vez de seguir
+extrapolando con el filtro de Kalman hasta 2 segundos completos— y se
+relajó el debounce de cámara. Repetido el test... el usuario dijo que
+seguía sin funcionar.
+
+**La causa real:** con dos síntomas distintos (huecos largos de detección
+Y divergencia con datos frescos) apuntando al mismo problema final, se
+decidió verificar el signo del control de la forma más directa posible,
+sin depender de percepción en absoluto: publicar una velocidad angular
+constante directamente a los motores y medir el giro real del robot con su
+propia odometría. El resultado fue inequívoco — comandar `wz=+0.5 rad/s`
+gira el robot en el sentido que aumenta su orientación medida, y
+`wz=-0.5 rad/s` en el sentido contrario. Es decir, este robot **sí** sigue
+el convenio estándar de ROS, al contrario de lo que se había concluido el
+13 de julio con una simulación numérica sin esta referencia directa. El
+código de `tracking_node` invertía el signo del error angular
+(`ang_err = -angle_to`) pensando que compensaba un giro invertido que, en
+realidad, no existía. Con un error pequeño (persona casi de frente y
+quieta, el caso probado el 13 de julio) esa inversión apenas se nota porque
+el error queda dentro de la zona muerta angular — pero en cuanto el error
+crece, como ocurre naturalmente al moverse o girar, el controlador empuja
+sistemáticamente en la dirección contraria a la necesaria, una
+realimentación positiva que explica tanto la desorientación de hoy como la
+sospecha —descartada entonces— del 13 de julio.
+
+Corregido el signo (`ang_err = angle_to`) y verificado con dos pruebas en
+vivo: un paso lateral corto (ángulo acotado entre -18° y +14° durante toda
+la toma, error medio 8.7°, 0% de saturación) y un acercamiento hasta
+0.5-0.7m para aislar `near_gain` (ángulo acotado entre -52° y +52°, sin
+ningún disparo a ±180°, con saturación puntual esperable a esa distancia
+tan corta pero siempre en la dirección correcta). El seguimiento pasó de
+divergir por completo a converger de forma estable y predecible.
+
+**Lección para la memoria:** una simulación offline sobre datos ya
+grabados puede confirmar una hipótesis incorrecta si esos mismos datos no
+cubren el régimen (aquí, error angular grande) donde el error se manifiesta
+— la verificación definitiva de una suposición sobre el hardware real
+requiere, cuando es posible, una medida directa y objetiva (aquí, la
+odometría del propio robot) y no solo el ajuste de un modelo a
+observaciones pasadas.
+
+---
+
 ## Julio 2026 (planificado)
 
 ### Fase 3 — Navegación autónoma (Nav2)

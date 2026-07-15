@@ -62,7 +62,7 @@ class DetectionNode(Node):
         # Parámetros configurables
         self.declare_parameter('enabled', True)
         self.declare_parameter('camera_timeout', 1.0)               # segundos antes de invalidar detección visual
-        self.declare_parameter('camera_debounce_count', 2)         # detecciones visuales consecutivas mínimas
+        self.declare_parameter('camera_debounce_count', 1)         # detecciones visuales consecutivas mínimas (ver config.yaml, 2026-07-15)
         # Parámetros LIDAR y clustering
         self.declare_parameter('max_detection_distance', 6.0)
         self.declare_parameter('min_detection_distance', 0.1)
