@@ -152,6 +152,8 @@ class DetectionNode(Node):
         self._continuity_reject_streak = 0  # scans consecutivos de salto implausible sin confirmar
         self._pending_reanchor: np.ndarray | None = None  # candidato implausible en seguimiento de consistencia
         self._position_history: list = []  # [(t_seg, np.array[x,y])] confirmadas, últimos continuity_window_s
+        self._fusion_confirm_streak = 0  # scans consecutivos con el mismo candidato de FUSIÓN (ver _confirm_fusion_candidate)
+        self._fusion_pending_candidate: np.ndarray | None = None
 
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
@@ -203,6 +205,8 @@ class DetectionNode(Node):
                 self._continuity_reject_streak = 0  # streak obsoleto tras perder el anclaje
                 self._pending_reanchor = None
                 self._position_history = []  # ventana de deriva obsoleta tras perder el anclaje
+                self._fusion_confirm_streak = 0
+                self._fusion_pending_candidate = None
 
         final_detection = self._confirmed
 
@@ -264,6 +268,79 @@ class DetectionNode(Node):
         interpolated_ranges = np.interp(interpolated_angles, original_angles, ranges)
         return interpolated_ranges, interpolated_angles
 
+    def _filter_by_drift(self, positions, now):
+        """
+        Filtro previo y duro, compartido por `_gate_by_continuity` (pares de
+        piernas) y `_confirm_fusion_candidate` (fusión): descarta candidatos
+        que se alejen más de `max_person_speed·Δt_ventana + position_jump_margin`
+        de la posición confirmada más antigua dentro de `continuity_window_s`
+        segundos. Sin esto, una cadena de clústeres espurios (p.ej. las patas
+        de una silla cercana) separados poco más que `position_jump_margin`
+        entre sí puede "caminar" de uno a otro frame a frame — cada salto
+        individual parece plausible, pero la suma en 1-2s traza un barrido de
+        varios metros alrededor del robot (visto en vivo el 2026-07-09,
+        sesión de gesto real: PROGRESO.md). Devuelve `positions` sin filtrar
+        si no hay historial reciente (arranque o tras una pérdida larga).
+        """
+        now_s = now.nanoseconds * 1e-9
+        self._position_history = [(t, p) for t, p in self._position_history
+                                   if now_s - t <= self.continuity_window_s]
+        if not self._position_history:
+            return positions
+        window_t, window_ref = self._position_history[0]
+        window_elapsed = now_s - window_t
+        max_window_jump = self.max_person_speed * max(window_elapsed, 0.0) + self.position_jump_margin
+        return [p for p in positions if np.linalg.norm(p - window_ref) <= max_window_jump]
+
+    def _confirm_fusion_candidate(self, candidate, now):
+        """
+        Exige `continuity_confirm_frames` scans consecutivos con el mismo
+        candidato de FUSIÓN (repitiéndose en aprox. el mismo punto,
+        tolerancia `position_jump_margin`) antes de aceptarlo — a
+        diferencia de `_gate_by_continuity`, esto se aplica SIEMPRE, incluso
+        si el candidato cae dentro del radio "plausible" respecto a la
+        última posición confirmada, e incluso sin ancla previa.
+
+        Motivo (hallazgo 2026-07-13, `docs/decisiones.md`): ese radio
+        "plausible" (`max_person_speed·Δt + position_jump_margin`) crece
+        rápido — >2m en ~1s — y es suficiente para que mobiliario cercano se
+        cuele como si fuera la persona (caso real: mueble a 1.34m del último
+        punto confirmado tras 0.92s de hueco, dentro del radio plausible de
+        2.14m). `_gate_by_continuity` no lo detecta porque su mecanismo de
+        confirmación por consistencia solo actúa sobre candidatos ya
+        rechazados como implausibles, y este caso nunca llega a rechazarse.
+
+        No se aplica a los candidatos de pares de piernas
+        (`_gate_by_continuity` sigue igual para esos): un par de piernas ya
+        emparejado es una señal mucho más fuerte que un único clúster
+        general alineado con el rumbo de cámara, y exigir aquí la misma
+        confirmación penalizaría innecesariamente al camino más fiable.
+
+        `candidate` es `None` si este scan no hay ningún candidato de fusión
+        válido (sin rumbo reciente, sin clúster dentro de tolerancia
+        angular, etc.) — rompe cualquier racha en curso, igual que un
+        candidato que cambia de sitio entre scans. Con
+        `continuity_confirm_frames=1` (valor por defecto) el comportamiento
+        es idéntico al anterior: acepta el candidato en el primer scan.
+
+        Devuelve el candidato si queda confirmado, o `None` si aún no.
+        """
+        if candidate is None:
+            self._fusion_confirm_streak = 0
+            self._fusion_pending_candidate = None
+            return None
+
+        if self._fusion_pending_candidate is not None and \
+                np.linalg.norm(candidate - self._fusion_pending_candidate) <= self.position_jump_margin:
+            self._fusion_confirm_streak += 1
+        else:
+            self._fusion_confirm_streak = 1
+        self._fusion_pending_candidate = candidate
+
+        if self._fusion_confirm_streak >= self.continuity_confirm_frames:
+            return candidate
+        return None
+
     def _gate_by_continuity(self, positions, now):
         """
         Filtra `positions` (lista de np.array [x,y]) descartando las que
@@ -299,28 +376,12 @@ class DetectionNode(Node):
         suma en 1-2s traza un barrido de varios metros alrededor del robot
         (visto en vivo el 2026-07-09, sesión de gesto real: PROGRESO.md).
         """
+        positions = self._filter_by_drift(positions, now)
+        if not positions:
+            return []
+
         if self._last_confirmed_pos is None or self._last_position_time is None:
             return positions
-
-        # Deriva acumulada: filtro previo, duro, independiente del mecanismo
-        # de confirmación por consistencia de abajo (ese mecanismo no sirve
-        # aquí — una cadena de clústeres espurios consecutivos es, por
-        # definición, "consistente" frame a frame, así que confirmarla no la
-        # distingue de una reaparición real). Si ningún candidato respeta la
-        # deriva máxima desde la posición confirmada más antigua dentro de
-        # `continuity_window_s`, se descartan todos sin más antes de mirar el
-        # salto frame a frame.
-        now_s = now.nanoseconds * 1e-9
-        self._position_history = [(t, p) for t, p in self._position_history
-                                   if now_s - t <= self.continuity_window_s]
-        if self._position_history:
-            window_t, window_ref = self._position_history[0]
-            window_elapsed = now_s - window_t
-            max_window_jump = self.max_person_speed * max(window_elapsed, 0.0) + self.position_jump_margin
-            positions = [p for p in positions
-                         if np.linalg.norm(p - window_ref) <= max_window_jump]
-            if not positions:
-                return []
 
         elapsed = (now - self._last_position_time).nanoseconds * 1e-9
         max_jump = self.max_person_speed * max(elapsed, 0.0) + self.position_jump_margin
@@ -435,8 +496,18 @@ class DetectionNode(Node):
         # el clúster general cuyo ángulo coincide mejor con ese rumbo y
         # publicamos su centroide como /person_position. Da posición aunque no
         # se distingan dos piernas.
+        #
+        # A diferencia del camino de pares de piernas (arriba), aquí el
+        # candidato siempre pasa por `_confirm_fusion_candidate`, no por
+        # `_gate_by_continuity` — ver docstring de ese método (2026-07-16):
+        # un único clúster general alineado con el rumbo es una señal más
+        # débil que un par de piernas emparejado, y el radio "plausible" de
+        # `_gate_by_continuity` es lo bastante grande como para aceptar
+        # mobiliario cercano sin pasar nunca por una confirmación.
         if self.fusion_enabled and self._bearing is not None:
             age = (self.get_clock().now() - self._bearing_time).nanoseconds * 1e-9
+            now = self.get_clock().now()
+            fusion_candidate, log_data = None, None
             if age <= self.bearing_timeout and len(clusters) > 0:
                 # Rumbo cámara → ángulo esperado en el frame del láser.
                 # Persona de frente ≈ π en el láser (TF base→laser con yaw=π).
@@ -444,30 +515,35 @@ class DetectionNode(Node):
                     math.sin(math.pi + self.bearing_sign * self._bearing),
                     math.cos(math.pi + self.bearing_sign * self._bearing),
                 )
-                now = self.get_clock().now()
                 centroids = [np.mean(cl, axis=0) for cl in clusters]
                 in_range = [c for c in centroids
                             if self.min_detection_distance
                                < float(np.linalg.norm(c))
                                <= self.fusion_max_distance]
-                gated = self._gate_by_continuity(in_range, now)
+                in_range = self._filter_by_drift(in_range, now)
 
                 best, best_dev = None, float('inf')
-                for c in gated:
+                for c in in_range:
                     theta_c = math.atan2(c[1], c[0])
                     dev = abs(math.atan2(math.sin(theta_c - theta_target),
                                          math.cos(theta_c - theta_target)))
                     if dev < best_dev:
                         best, best_dev = c, dev
                 if best is not None and best_dev <= self.fusion_angle_tol:
-                    self._publish_person_position(
-                        best, now, "Posición de persona publicada (FUSION cam+LIDAR)",
-                        {"x_laser": round(float(best[0]), 3), "y_laser": round(float(best[1]), 3),
-                         "beta_deg": round(math.degrees(self._bearing), 1),
-                         "theta_tgt_deg": round(math.degrees(theta_target), 1),
-                         "dev_deg": round(math.degrees(best_dev), 1),
-                         "dist": round(float(np.linalg.norm(best)), 2)})
-                    return True
+                    fusion_candidate = best
+                    log_data = {
+                        "x_laser": round(float(best[0]), 3), "y_laser": round(float(best[1]), 3),
+                        "beta_deg": round(math.degrees(self._bearing), 1),
+                        "theta_tgt_deg": round(math.degrees(theta_target), 1),
+                        "dev_deg": round(math.degrees(best_dev), 1),
+                        "dist": round(float(np.linalg.norm(best)), 2),
+                    }
+
+            confirmed = self._confirm_fusion_candidate(fusion_candidate, now)
+            if confirmed is not None:
+                self._publish_person_position(
+                    confirmed, now, "Posición de persona publicada (FUSION cam+LIDAR)", log_data)
+                return True
 
         self.log_info("No se encontraron pares de piernas válidos")
         return False

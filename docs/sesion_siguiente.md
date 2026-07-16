@@ -17,13 +17,16 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
    correcto para este robot, que gira en sentido contrario al estándar
    ROS). Si quieres releerlo con calma para confirmar que el razonamiento
    te convence antes de la próxima sesión de lab, está todo documentado.
-3. **Diseñar el fix del fallback de fusión** (confirmación obligatoria para
-   candidatos que no vienen de un par de piernas) — es puramente código +
-   verificación sintética, no necesita el robot. Ver sección "Arreglar
-   confirmación en el fallback de fusión" más abajo (Sesión 4) — se puede
-   dejar implementado y verificado con datos sintéticos de antemano, para
-   que la próxima sesión de lab solo haga falta sincronizar y probar en
-   vivo, ahorrando tiempo de robot.
+3. ~~**Diseñar el fix del fallback de fusión**~~ — **✅ hecho 2026-07-16
+   (trabajo de escritorio):** implementado en `detection_node.py`
+   (`_confirm_fusion_candidate` + `_filter_by_drift`, ver
+   `docs/decisiones.md` 2026-07-16) y verificado con
+   `validation/verify_fusion_confirm.py` (sin ROS, réplica exacta de la
+   lógica — reproduce el caso real del 13/07, mueble a 1.34m tras 0.92s de
+   hueco, y confirma que ya no se cuela). **Pendiente para la Sesión 4:**
+   sincronizar (`bash sync_nuc.sh`) y validar en vivo o con un rosbag antes
+   de darlo por cerrado — esto solo verifica la lógica aislada, no el nodo
+   real con ROS.
 
 > Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Robot: NUC **nuc-224**,
 > `ssh user@10.48.0.1` (password `qwerty`), `ROS_DOMAIN_ID=24`, ROS 2 Jazzy,
@@ -269,24 +272,32 @@ denso ni un recorrido largo:
    caso de mobiliario a poca distancia (cae dentro del radio "plausible" de
    `max_person_speed` sin pasar por `continuity_confirm_frames`) — ver abajo.
 
-### Arreglar confirmación en el fallback de fusión (nuevo, 2026-07-13)
+### Arreglar confirmación en el fallback de fusión (nuevo, 2026-07-13) — ✅ diseño+verificación sintética hechos 2026-07-16, pendiente validar en vivo
 
-Encontrado hoy: un candidato del fallback de fusión cámara+LIDAR se acepta
-sin confirmación si cae dentro del radio "plausible" de `max_person_speed`
-(2.0 m/s × tiempo transcurrido + margen) respecto al último punto
-confirmado — y ese radio crece rápido (>2m en ~1s), suficiente para que
-mobiliario cercano se cuele como si fuera la persona. `continuity_confirm_frames`
-no ayuda porque solo actúa sobre candidatos ya rechazados como implausibles.
-Ver script de verificación y detalle completo en `docs/decisiones.md`
-(2026-07-13, "Subir continuity_confirm_frames: descartado").
+Encontrado el 13/07: un candidato del fallback de fusión cámara+LIDAR se
+acepta sin confirmación si cae dentro del radio "plausible" de
+`max_person_speed` (2.0 m/s × tiempo transcurrido + margen) respecto al
+último punto confirmado — y ese radio crece rápido (>2m en ~1s), suficiente
+para que mobiliario cercano se cuele como si fuera la persona.
+`continuity_confirm_frames` no ayudaba porque solo actuaba sobre candidatos
+ya rechazados como implausibles. Ver script de verificación y detalle
+completo en `docs/decisiones.md` (2026-07-13, "Subir
+continuity_confirm_frames: descartado").
 
-1. Modificar `detect_person`/`_gate_by_continuity` para que los candidatos
-   que llegan por el camino de fusión (no por par de piernas) exijan
-   confirmación (`continuity_confirm_frames` consecutivos en el mismo sitio)
-   **siempre**, no solo cuando fallan el chequeo de velocidad plausible.
-2. Verificar con el mismo script sintético de hoy (replicar la secuencia
+1. ~~Modificar `detect_person`/`_gate_by_continuity` para que los
+   candidatos que llegan por el camino de fusión (no por par de piernas)
+   exijan confirmación (`continuity_confirm_frames` consecutivos en el
+   mismo sitio) **siempre**, no solo cuando fallan el chequeo de velocidad
+   plausible.~~ **Hecho 2026-07-16:** nuevo `_confirm_fusion_candidate` +
+   `_filter_by_drift` en `detection_node.py`, ver `docs/decisiones.md`
+   (2026-07-16).
+2. ~~Verificar con el mismo script sintético de hoy (replicar la secuencia
    real observada: mobiliario a 1.34m tras 0.92s de hueco) antes de probar
-   en el robot.
+   en el robot.~~ **Hecho 2026-07-16:** `validation/verify_fusion_confirm.py`,
+   seis escenarios en verde, incluida esa secuencia exacta.
+3. **Pendiente (Sesión 4):** sincronizar al NUC (`bash sync_nuc.sh`) y
+   validar con datos reales — en vivo o contra un rosbag con el escenario
+   de mobiliario del 13/07 — antes de dar el fix por cerrado.
 
 ### Reproducibilidad de métricas del Capítulo 7
 

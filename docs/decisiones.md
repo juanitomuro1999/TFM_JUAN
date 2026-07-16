@@ -5,6 +5,78 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-16 — Confirmación obligatoria en el fallback de fusión (preparado sin robot, pendiente de validar en el lab)
+
+- **Decisión:** en `detection_node.py`, el camino de fusión cámara+LIDAR ya
+  no usa `_gate_by_continuity` (compartido hasta hoy con el camino de pares
+  de piernas). Ahora usa un mecanismo dedicado,
+  `_confirm_fusion_candidate`, que exige `continuity_confirm_frames` scans
+  consecutivos con el candidato en aprox. el mismo sitio (tolerancia
+  `position_jump_margin`) antes de aceptarlo — **siempre**, no solo cuando
+  el candidato falla el chequeo de velocidad plausible. El filtro de deriva
+  acumulada (ventana `continuity_window_s`) se extrajo a un helper
+  compartido, `_filter_by_drift`, y sigue aplicándose igual en ambos
+  caminos. `_gate_by_continuity` (pares de piernas) no cambia de
+  comportamiento.
+- **Motivo:** hallazgo de 2026-07-13 (entrada de más abajo, "Subir
+  continuity_confirm_frames: descartado"): un candidato de fusión se
+  aceptaba sin ninguna confirmación si caía dentro del radio "plausible" de
+  `max_person_speed·Δt + position_jump_margin` respecto al último punto
+  confirmado — y ese radio crece rápido (2.14m tras solo 0.92s con los
+  valores por defecto), suficiente para que mobiliario cercano se cuele
+  como si fuera la persona. Subir `continuity_confirm_frames` de 1 a 2-3 no
+  arreglaba esto porque ese mecanismo solo se aplicaba a candidatos ya
+  rechazados como implausibles — el caso real (mueble a 1.34m tras 0.92s)
+  nunca llegaba a rechazarse. La tarea 1 de la Sesión 4
+  (`docs/sesion_siguiente.md`) es exactamente diseñar este fix.
+- **Por qué solo a fusión y no también a pares de piernas:** un par de
+  piernas ya emparejado (dos clústeres a distancia coherente entre sí) es
+  una señal geométrica bastante más fuerte que un único clúster general
+  elegido solo por alinearse angularmente con el rumbo de cámara. Exigir la
+  misma confirmación al camino de piernas penalizaría innecesariamente el
+  camino más fiable de detección, sin necesidad — el problema documentado
+  es específico del camino de fusión.
+- **Verificación:** `validation/verify_fusion_confirm.py` (nuevo, sin ROS
+  — este portátil no tiene `rclpy`, ver `PROGRESO.md` 2026-07-09).
+  `FusionGateSim` replica la lógica exacta de `_filter_by_drift`,
+  `_confirm_fusion_candidate` y `_gate_by_continuity`. Seis escenarios
+  (ocho comprobaciones individuales), todos en verde:
+  1. Reproduce el bug original con el mecanismo anterior (control negativo).
+  2. El mismo caso real (mueble a 1.34m tras 0.92s) ya NO se acepta hasta
+     el 3er scan consecutivo con `continuity_confirm_frames=3`.
+  3. Ruido disperso (posiciones aleatorias) nunca acumula racha en 20 scans.
+  4. Una persona real (posición consistente con ruido de medida pequeño) se
+     confirma exactamente en el scan `continuity_confirm_frames`, ni antes
+     ni después.
+  5. Con el valor por defecto (`continuity_confirm_frames=1`), el
+     comportamiento es idéntico al anterior — el fix no añade latencia si
+     nadie sube el parámetro a mano.
+  6. `_gate_by_continuity` (pares de piernas) no cambia de comportamiento.
+  **Pendiente de validar con datos reales/en vivo en la Sesión 4** — esto
+  es solo lógica aislada, replicada a mano en el script de verificación, no
+  el nodo real ejecutándose con ROS.
+- **Efecto colateral (positivo) del refactor:** antes, el camino de fusión
+  llamaba a `_gate_by_continuity`, que también actualiza
+  `_continuity_reject_streak`/`_pending_reanchor` — variables pensadas solo
+  para el camino de pares de piernas. Un candidato de fusión rechazado
+  podía así interferir con la racha de confirmación de un salto de piernas
+  en curso, y viceversa. Al separar los caminos con estado dedicado
+  (`_fusion_confirm_streak`/`_fusion_pending_candidate`), esa interferencia
+  ya no es posible. No se observó en vivo (no hay log conocido que lo
+  atribuya), pero es una fuente de bugs intermitentes descartada de paso.
+- **Alternativas descartadas:**
+  - *Subir `continuity_confirm_frames` sin más:* ya descartado el 13/07
+    (ver abajo) — no ataca la causa.
+  - *Aplicar la misma exigencia de confirmación también a pares de
+    piernas:* más simple (un solo mecanismo), pero penaliza sin necesidad
+    la señal más fiable del sistema con la misma latencia que necesita la
+    señal más débil.
+  - *Requerir confirmación proporcional a la distancia del salto* (más
+    exigente cuanto más lejos el candidato): más preciso en teoría, pero
+    añade un parámetro nuevo a calibrar sin evidencia de que el umbral fijo
+    actual sea insuficiente; se prefirió el mecanismo más simple hasta ver
+    datos reales que lo justifiquen.
+
 ## 2026-07-15 — CORREGIDO: signo invertido en el PD angular de tracking_node (causa raíz real de "gira al lado contrario")
 
 - **Decisión:** revertir `ang_err = -angle_to` a `ang_err = angle_to` en

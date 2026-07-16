@@ -1,6 +1,6 @@
 # Diario de progreso — TFM Person Follower
 
-## Sesión 2026-07-16 (trabajo de escritorio, sin robot) — Capítulo 5 (estado del arte) redactado
+## Sesión 2026-07-16 (trabajo de escritorio, sin robot) — Capítulo 5 redactado + fix del fallback de fusión diseñado y verificado sintéticamente
 
 ### Objetivo: tarea de escritorio nº1 de `docs/sesion_siguiente.md` ("redactar capítulo 5 o 6")
 
@@ -32,14 +32,62 @@ Actualizado también `docs/01_introduccion.md` §1.5 (capítulo 5 ya no
 "pendiente"), `README.md` (árbol de `docs/`) y `docs/sesion_siguiente.md`
 (tarea 1 de la lista de escritorio marcada como hecha).
 
+### Objetivo: tarea de escritorio nº3 de `docs/sesion_siguiente.md` ("diseñar el fix del fallback de fusión")
+
+Con el capítulo 5 encarrilado, se atacó también la tarea 3 — puramente
+código + verificación sintética, no necesita el robot — para dejarla lista
+antes de la Sesión 4 de lab.
+
+**Cambios en `person_follower/detection_node/detection_node.py`:**
+
+- Nuevo `_filter_by_drift(positions, now)`: extrae el filtro de deriva
+  acumulada (ventana `continuity_window_s`) que antes vivía dentro de
+  `_gate_by_continuity`, ahora compartido por los dos caminos de gating.
+- Nuevo `_confirm_fusion_candidate(candidate, now)`: exige
+  `continuity_confirm_frames` scans consecutivos con el candidato en el
+  mismo sitio (tolerancia `position_jump_margin`) antes de aceptarlo,
+  **siempre** — no solo cuando falla el chequeo de velocidad plausible,
+  que era el hueco que dejaba colarse mobiliario cercano (hallazgo
+  13/07). Solo se usa en el camino de fusión cámara+LIDAR; los pares de
+  piernas siguen usando `_gate_by_continuity` sin cambios.
+- `detect_person`: el bloque de fallback de fusión ya no llama a
+  `_gate_by_continuity` — calcula el mejor candidato por desviación
+  angular como antes, pero la aceptación final pasa por
+  `_confirm_fusion_candidate`.
+- Nuevo estado: `_fusion_confirm_streak`, `_fusion_pending_candidate`
+  (separados de `_continuity_reject_streak`/`_pending_reanchor`, que
+  siguen siendo solo del camino de piernas — evita que un candidato de
+  fusión interfiera con una racha de piernas en curso, y viceversa).
+
+**Verificación:** `validation/verify_fusion_confirm.py` (nuevo, sin ROS).
+Réplica exacta de la lógica (`FusionGateSim`) porque este portátil no tiene
+`rclpy` (ver sesión 09/07 más abajo). Reproduce el caso real documentado
+el 13/07 (mueble a 1.34m tras 0.92s de hueco) y confirma: (a) con el
+mecanismo anterior se colaba en el primer scan, (b) con el nuevo, no se
+acepta hasta el 3er scan consecutivo con `continuity_confirm_frames=3`,
+(c) ruido disperso nunca acumula racha, (d) una persona real se confirma
+exactamente en el scan N, (e) con el valor por defecto
+(`continuity_confirm_frames=1`) el comportamiento es idéntico al anterior
+— sin latencia añadida si nadie sube el parámetro, (f) el camino de piernas
+no cambia. Las seis pruebas pasan (`python validation/verify_fusion_confirm.py`
+→ `TODO OK`, exit 0). Detalle completo, motivo y alternativas descartadas
+en `docs/decisiones.md` (2026-07-16).
+
+**Sin verificar en el robot/con datos reales todavía** — es lógica
+aislada. La Sesión 4 (`docs/sesion_siguiente.md`) sigue necesitando probar
+esto en vivo (o contra un rosbag) antes de darlo por cerrado, y sigue
+pendiente el hueco de detección conjunta LIDAR+cámara al girar (hallazgo
+del 15/07), que la Sesión 4 también cubre.
+
 ### Pendiente para la próxima sesión
 
-No cambia respecto a lo ya planificado — este trabajo de escritorio no
-consumió tiempo de robot. Sigue pendiente la Sesión 4 de lab
-(`docs/sesion_siguiente.md`): fallback de fusión robusto durante giros +
-gate de continuidad + reproducibilidad de Capítulo 7. Capítulo 6
-(implementación) y la relectura del hallazgo de π/signo (tarea 2 de
-escritorio) siguen sin hacer.
+Este trabajo de escritorio no consumió tiempo de robot. La Sesión 4 de lab
+(`docs/sesion_siguiente.md`) ahora tiene el fix del fallback de fusión ya
+implementado y verificado sintéticamente — solo falta sincronizar
+(`bash sync_nuc.sh`) y probar en vivo. Sigue pendiente el resto de la
+Sesión 4 (hueco de detección al girar, gate de continuidad con mobiliario
+denso, reproducibilidad de Capítulo 7). Capítulo 6 (implementación) y la
+relectura del hallazgo de π/signo (tarea 2 de escritorio) siguen sin hacer.
 
 ---
 

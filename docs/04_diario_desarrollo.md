@@ -592,7 +592,7 @@ observaciones pasadas.
 
 ---
 
-### 16 de julio — Capítulo 5 (estado del arte) redactado (trabajo de escritorio)
+### 16 de julio — Capítulo 5 redactado y fix del fallback de fusión diseñado (trabajo de escritorio)
 
 **Contexto:** día de trabajo, sin acceso al laboratorio. De las tareas de
 escritorio dejadas pendientes el 15 de julio (`docs/sesion_siguiente.md`),
@@ -622,6 +622,27 @@ bibliográficas verificables (artículos revisados por pares, comunicaciones
 en conferencia y documentación técnica de SLAM Toolbox/Nav2/BlazePose).
 Pendiente de revisión por el autor antes de considerarlo cerrado,
 particularmente el razonamiento de la sección de síntesis.
+
+Con tiempo de sobra, se abordó también la tarea de escritorio nº3: diseñar
+el fix del gate de continuidad del fallback de fusión encontrado el 13 de
+julio, cuyo síntoma era que un candidato de fusión cámara+LIDAR podía
+aceptarse sin ninguna confirmación si caía dentro del radio de velocidad
+"plausible" respecto al último punto confirmado — radio que, con los
+valores por defecto, supera los dos metros en menos de un segundo, margen
+de sobra para que un mueble cercano se cuele como si fuera la persona. La
+solución separa por primera vez el camino de confirmación del fallback de
+fusión del de los pares de piernas del LiDAR: el primero ahora exige
+siempre varios scans consecutivos con el candidato en el mismo sitio antes
+de aceptarlo, mientras que el segundo —una señal geométrica ya de por sí
+más fiable— conserva exactamente el comportamiento anterior. Al no poder
+ejecutar el nodo real en este portátil (sin ROS 2 instalado), la
+verificación se hizo replicando la lógica exacta en un script aislado que
+reproduce la secuencia real observada el 13 de julio (un mueble a 1.34
+metros del último punto confirmado, tras un hueco de detección de 0.92
+segundos) y comprueba que, con el fix, ya no se acepta hasta el tercer scan
+consecutivo en el mismo lugar — quedando así preparado para que la próxima
+sesión de laboratorio solo tenga que sincronizar el código y validarlo con
+el robot real.
 
 ---
 
