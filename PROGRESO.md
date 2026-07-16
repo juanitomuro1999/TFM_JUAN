@@ -1,5 +1,48 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-16 (trabajo de escritorio, sin robot) — Capítulo 5 (estado del arte) redactado
+
+### Objetivo: tarea de escritorio nº1 de `docs/sesion_siguiente.md` ("redactar capítulo 5 o 6")
+
+Sin acceso al laboratorio hoy (trabajo). Se eligió el capítulo 5 (estado del
+arte) frente al 6 (implementación) por no depender de releer el código en
+detalle y poder avanzarse con una revisión bibliográfica.
+
+Redactado `docs/05_estado_del_arte.md` (nuevo): revisión de sistemas de
+seguimiento de personas con robots móviles, detección de piernas por LiDAR
+2D, estimación de pose por visión (MediaPipe/BlazePose), fusión sensorial
+LiDAR-cámara, interacción por gestos, filtros bayesianos de seguimiento
+(Kalman), evitación de obstáculos (DWA) y navegación autónoma (SLAM
+Toolbox, Nav2). Cada sección conecta la literatura revisada con la decisión
+de diseño real tomada en este proyecto (referenciando `docs/02_arquitectura.md`
+y `docs/decisiones.md`), en vez de quedarse en una revisión bibliográfica
+desconectada del sistema. Incluye una sección de síntesis (5.10) que
+resume en qué se diferencia la integración de este TFM de los trabajos
+citados, y un listado de referencias con enlaces verificables (14 fuentes:
+artículos de revista/conferencia, arXiv y la documentación de SLAM Toolbox/
+Nav2/BlazePose).
+
+**Sin verificar por el usuario todavía** — texto nuevo, no releído aún por
+Juan. Revisar antes de darlo por cerrado, especialmente las afirmaciones de
+la síntesis (5.10) sobre por qué se prefirió cada método frente a las
+alternativas, para confirmar que reflejan el razonamiento real y no solo
+una justificación a posteriori.
+
+Actualizado también `docs/01_introduccion.md` §1.5 (capítulo 5 ya no
+"pendiente"), `README.md` (árbol de `docs/`) y `docs/sesion_siguiente.md`
+(tarea 1 de la lista de escritorio marcada como hecha).
+
+### Pendiente para la próxima sesión
+
+No cambia respecto a lo ya planificado — este trabajo de escritorio no
+consumió tiempo de robot. Sigue pendiente la Sesión 4 de lab
+(`docs/sesion_siguiente.md`): fallback de fusión robusto durante giros +
+gate de continuidad + reproducibilidad de Capítulo 7. Capítulo 6
+(implementación) y la relectura del hallazgo de π/signo (tarea 2 de
+escritorio) siguen sin hacer.
+
+---
+
 ## Sesión 2026-07-15 (lab, en curso) — Puerto USB kobuki/rplidar intercambiado + diagnóstico del "gira al lado contrario"
 
 ### Objetivo: Sesión 3 del plan (confirmar fix de π con movimiento + near_gain + recalibrar cámara)

@@ -592,6 +592,39 @@ observaciones pasadas.
 
 ---
 
+### 16 de julio — Capítulo 5 (estado del arte) redactado (trabajo de escritorio)
+
+**Contexto:** día de trabajo, sin acceso al laboratorio. De las tareas de
+escritorio dejadas pendientes el 15 de julio (`docs/sesion_siguiente.md`),
+se abordó la redacción del capítulo 5 de la memoria, "Estado del arte",
+que hasta ahora no existía como documento (`docs/01_introduccion.md` §1.5
+lo listaba como pendiente junto al capítulo 6).
+
+El capítulo revisa la literatura relevante para cada subsistema del
+proyecto — sistemas de seguimiento de personas con robots móviles,
+detección de piernas por LiDAR 2D, estimación de pose humana por visión
+(BlazePose/MediaPipe), fusión sensorial LiDAR-cámara, interacción por
+gestos, filtros bayesianos de seguimiento de estado (Kalman), evitación
+reactiva de obstáculos (Dynamic Window Approach) y navegación autónoma
+(SLAM Toolbox, Nav2) — y, en cada sección, conecta esa literatura con la
+decisión de diseño concreta tomada en este TFM, en vez de presentar la
+revisión bibliográfica de forma aislada del sistema real. Cierra con una
+sección de síntesis que resume la naturaleza del proyecto como integración
+pragmática de técnicas ya establecidas sobre una plataforma con recursos
+limitados (NUC sin GPU, cámara monocular), más que como aportación
+algorítmica original, y enumera las adaptaciones prácticas concretas que sí
+son propias de este trabajo (DBSCAN propio sobre `cKDTree`, esquema de
+fusión asimétrico, Kalman lineal en vez de EKF/UKF, vocabulario mínimo de
+gestos, alcance recortado de Nav2).
+
+Documento nuevo en `docs/05_estado_del_arte.md`, con catorce referencias
+bibliográficas verificables (artículos revisados por pares, comunicaciones
+en conferencia y documentación técnica de SLAM Toolbox/Nav2/BlazePose).
+Pendiente de revisión por el autor antes de considerarlo cerrado,
+particularmente el razonamiento de la sección de síntesis.
+
+---
+
 ## Julio 2026 (planificado)
 
 ### Fase 3 — Navegación autónoma (Nav2)

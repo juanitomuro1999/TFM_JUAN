@@ -80,6 +80,6 @@ Limitaciones asumidas:
 - **Capítulo 2 – Arquitectura del sistema:** descripción detallada de los nodos, topics y flujo de datos.
 - **Capítulo 3 – Herramientas de IA:** declaración de uso de herramientas de inteligencia artificial como apoyo al desarrollo.
 - **Capítulo 4 – Diario de desarrollo:** registro cronológico del progreso técnico.
-- **Capítulo 5 (pendiente) – Estado del arte:** revisión bibliográfica de sistemas similares.
+- **Capítulo 5 – Estado del arte:** ver [`docs/05_estado_del_arte.md`](05_estado_del_arte.md) — revisión bibliográfica de sistemas similares, conectada con las decisiones de diseño de este TFM. *(Redactado 2026-07-16, trabajo de escritorio; pendiente de revisión por el autor.)*
 - **Capítulo 6 (pendiente) – Implementación:** detalles técnicos de cada módulo desarrollado.
 - **Capítulo 7 (borrador) – Resultados y evaluación:** ver [`docs/07_resultados.md`](07_resultados.md) — andamiaje con los datos ya recogidos, pendiente de completar antes de redactarlo como prosa final.
