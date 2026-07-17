@@ -105,16 +105,48 @@ como la nº1) — **quedan 6 sesiones (4 a 9)** a partir de hoy. La mención del
 13/07 de "9 o 10 sesiones quedando desde ese día" no era el recuento correcto;
 descartar esa cifra. No volver a plantear esta duda en sesiones futuras.
 
-**Si sesiones 5-6 (Nav2) se retrasan o no salen bien:** es el bloque más
-prescindible de la lista — empieza de cero (`docs/decisiones.md`,
-2026-07-09) y objetivos 1/2/4 ya tienen inversión y datos reales detrás.
-Mejor recortar Nav2 a "solo localización" o a "trabajo futuro documentado"
-que sacrificar tiempo de las sesiones 2-4 por él.
+### Calendario estimado (añadido 2026-07-17)
 
-**Objetivo 6 (QR, exploratorio) y la redacción de los Capítulos 5-6 de la
-memoria no tienen sesión de lab asignada** — son trabajo de escritorio
-(bibliografía, prosa) o exploratorio de baja prioridad; no compiten por
-tiempo de robot salvo que sobre alguna sesión de las 9.
+Con 14 días de julio restantes (17→31) para las 6 sesiones que quedan (4-9),
+la cadencia máxima admisible es de **~2.3 días entre sesiones**. La cadencia
+real hasta ahora (sesión 1→2: 4 días; 2→3: 2 días; media ~3 días) **no llega**
+— a ese ritmo la sesión 9 caería en agosto, fuera de plazo (sin acceso al
+lab ese mes, ver arriba). Hace falta mantener el ritmo más rápido de los dos
+ya vistos (~2 días), no la media.
+
+| Sesión | Fecha estimada* | Nota de riesgo |
+|---|---|---|
+| 4 | ~19 jul | Sobrecargada — 4 objetivos distintos (verificar sector de obstáculos + fallback de fusión en vivo + hueco al girar + reproducibilidad Cap.7). Si se alarga, primero recortar: convertir la decisión de estrategia del "hueco al girar" en trabajo de escritorio previo (dejar solo la prueba en vivo para la sesión) |
+| 5 | ~21 jul | Depende de que la 4 cierre la reproducibilidad de métricas — si no, esta sesión hereda ese trabajo antes de las repeticiones |
+| 6 | ~23 jul | Nav2 fase A — bloque oficialmente prescindible (ver nota de abajo) |
+| 7 | ~25 jul | Nav2 fase B — condicional a que la 6 saliera bien |
+| 8 | ~27 jul | Colchón (recoger lo que quedó atrás) + grabar vídeo de demo del TFM — margen de seguridad real del plan |
+| 9 | ~29-31 jul | Última sesión — cierre. Sin margen después de esta: lo que no quede aquí pasa a "limitación/trabajo futuro documentado" en la memoria, no se pospone |
+
+*Fechas ilustrativas calculadas a partir de la cadencia real de las sesiones
+1-3, no de días de acceso al lab ya confirmados — ajustar esta tabla en
+cuanto se conozcan las fechas reales de las próximas sesiones.
+
+**Después de julio:** agosto sin lab (redactar Cap.7 final con los datos de
+la sesión 5, escribir el capítulo de conclusiones/trabajo futuro que
+todavía no existe en `01_introduccion.md` §1.5, preparar la defensa) y
+septiembre con lab reservado solo al cierre (demo final), no a validación
+nueva — ver Fase 5 en `README.md`/`docs/01_introduccion.md` §1.4.
+
+**Si las sesiones 6-7 (Nav2) se retrasan o no salen bien:** es el bloque más
+prescindible de la lista — empieza de cero (`docs/decisiones.md`,
+2026-07-09) y los objetivos 1/2/4 ya tienen inversión y datos reales detrás.
+Mejor recortar Nav2 a "solo localización" o a "trabajo futuro documentado"
+que sacrificar tiempo de las sesiones 8-9 por él.
+
+**Trabajo de escritorio en paralelo, sin gastar tiempo de robot (se puede
+hacer cualquier día, incluidos los días sin lab):** el objetivo 6 (QR,
+exploratorio) y ya redactados los Capítulos 5-6 de la memoria (pendientes
+de revisión del autor, no de escritura); revisar `DWA.py`/`C_man.py`/
+`cierre_seguro.py`/`UI_man.py` y decidir su limpieza (`docs/06_implementacion.md`
+§6.11); corregir la etiqueta "DWA" del diagrama del Capítulo 2, que ahora
+contradice al Capítulo 6. Nada de esto compite por tiempo de robot salvo
+que sobre alguna sesión de las 9.
 
 ## Estado heredado de la sesión 2026-07-13 (no repetir, solo verificar)
 
