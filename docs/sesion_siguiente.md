@@ -6,11 +6,14 @@ Pendientes de la sesión de lab del 2026-07-13 que no requieren el robot —
 se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 
 1. ~~**Redactar capítulo 5 (estado del arte) o 6 (implementación) de la
-   memoria**~~ — **✅ hecho 2026-07-16 (trabajo de escritorio):** redactado
-   `docs/05_estado_del_arte.md` (capítulo 5). Catorce referencias
-   bibliográficas verificables, cada sección conectada con la decisión de
-   diseño real de este TFM. Pendiente de revisión por el autor antes de
-   darlo por cerrado. El capítulo 6 (implementación) sigue en 0%.
+   memoria**~~ — **✅ hecho 2026-07-16 (trabajo de escritorio, ambos
+   capítulos):** redactados `docs/05_estado_del_arte.md` (14 referencias
+   bibliográficas verificables) y `docs/06_implementacion.md` (detalle real
+   de algoritmos/fórmulas de cada nodo activo, a partir del código fuente
+   — incluye el hallazgo de que `tracking_node` no implementa DWA real
+   pese a lo que dice el Capítulo 2/README, y un inventario del código
+   legado no registrado en `setup.py`). Ambos pendientes de revisión por
+   el autor antes de darlos por cerrados.
 2. **Revisar el hallazgo del "posible bug izquierda/derecha" de hoy** (ver
    `PROGRESO.md`, sesión 2026-07-13) — se investigó a fondo y se descartó
    como bug (simulación numérica confirma que `ang_err = -angle_to` es

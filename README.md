@@ -214,7 +214,8 @@ TFM_JUAN/
 │   ├── 02_arquitectura.md
 │   ├── 03_herramientas_ia.md
 │   ├── 04_diario_desarrollo.md
-│   └── 05_estado_del_arte.md
+│   ├── 05_estado_del_arte.md
+│   └── 06_implementacion.md
 ├── person_follower/
 │   ├── collision_handling_node/
 │   ├── control_node/

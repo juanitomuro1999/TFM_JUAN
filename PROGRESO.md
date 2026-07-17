@@ -1,5 +1,72 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-17 (trabajo de escritorio, sin robot) — Capítulo 6 (implementación) redactado
+
+### Objetivo: redactar el capítulo 6 de la memoria (implementación), pendiente tras el 16/07
+
+Sin acceso al laboratorio hoy tampoco. Con el capítulo 5 y el fix del
+fallback de fusión ya cerrados el 16/07, se abordó el capítulo 6
+("Implementación"), el último bloque grande de la memoria que seguía a 0%.
+
+Redactado `docs/06_implementacion.md`: a diferencia del Capítulo 2
+(topología — nodos, topics, flujo de datos), este capítulo documenta cómo
+está implementado cada nodo *activo* — algoritmos, fórmulas de control,
+estructuras de datos — leyendo directamente el código fuente de los siete
+nodos registrados en `setup.py` y los valores reales de `config.yaml`, no
+una descripción idealizada. Cubre: el DBSCAN propio sobre `cKDTree` y el
+filtro geométrico multi-feature de `detection_node` (incluye el gating de
+continuidad y la confirmación de fusión rediseñada ayer); el detector dual
+HOG/MediaPipe y la lógica de gestos+rumbo de `visual_detection_node`; el
+Kalman de 6 estados (modelo de aceleración constante, gate de Mahalanobis
+con confirmación por racha, forma de Joseph) y el controlador PD con zona
+muerta/arranque suave/evasión reactiva de `tracking_node`; la FSM y la
+teleoperación por teclado de `control_node`; y los nodos más simples
+(`collision_handling_node`, `user_interface_node`, `slam_node` legado).
+
+**Dos hallazgos no triviales durante la redacción, verificados contra el
+código y no solo contra la documentación existente:**
+
+1. **`tracking_node` no implementa DWA real**, pese a que el diagrama del
+   Capítulo 2 y el README todavía lo etiquetan como "Kalman + DWA". La
+   evasión de obstáculos activa es un método reactivo de campo de
+   repulsión, más simple. La implementación real de un Dynamic Window
+   Approach (búsqueda en el espacio de velocidades, visualización de
+   trayectorias en RViz) existe en el repositorio (`tracking_node/DWA.py`)
+   pero **no está registrada en `setup.py`** — es código anterior, no en
+   ejecución. Documentado en `docs/06_implementacion.md` §6.5 y §6.11.
+   Queda pendiente corregir la etiqueta "DWA" del diagrama del Capítulo 2
+   para que no contradiga al Capítulo 6 — no se ha tocado hoy para no
+   mezclar el alcance de ambos capítulos en la misma sesión.
+2. **Tres nodos más tienen una versión no registrada conviviendo en el
+   mismo directorio** (`control_node/C_man.py` y `cierre_seguro.py`,
+   `user_interface_node/UI_man.py`), con el mismo patrón que `DWA.py`:
+   misma clase, mismo nombre, no importados por nada. Verificado con
+   búsqueda textual en todo el repo que ninguno de estos ficheros se
+   importa desde otro módulo. Inventariado en §6.11 con una recomendación
+   de limpieza (eliminar o mover a un directorio `legacy/`) de cara a la
+   entrega final, pero no ejecutada hoy — es una decisión de repositorio,
+   no de contenido de la memoria, y se prefirió dejarla para que el autor
+   la revise antes de borrar nada.
+
+**Sin verificar por el usuario todavía**, igual que el capítulo 5 — texto
+nuevo, pendiente de que Juan lo repase, en particular las dos
+observaciones anteriores (confirmar que el DWA real y los ficheros `_man`/
+`cierre_seguro` son efectivamente prescindibles antes de limpiarlos).
+
+Actualizados también `docs/01_introduccion.md` §1.5, `README.md` (árbol de
+`docs/`) y `docs/sesion_siguiente.md` (tarea 1 ya recoge ambos capítulos).
+
+### Pendiente para la próxima sesión
+
+Sigue pendiente la Sesión 4 de lab (fallback de fusión en vivo + hueco de
+detección al girar + gate de continuidad con mobiliario + reproducibilidad
+de Capítulo 7). De escritorio: revisar el DWA.py y los ficheros `_man`
+legado (decidir limpieza), corregir la etiqueta "DWA" del diagrama del
+Capítulo 2, y la relectura opcional del hallazgo de π/signo (tarea 2,
+sesion_siguiente.md) sigue sin hacer.
+
+---
+
 ## Sesión 2026-07-16 (trabajo de escritorio, sin robot) — Capítulo 5 redactado + fix del fallback de fusión diseñado y verificado sintéticamente
 
 ### Objetivo: tarea de escritorio nº1 de `docs/sesion_siguiente.md` ("redactar capítulo 5 o 6")

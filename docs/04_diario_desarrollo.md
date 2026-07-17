@@ -646,6 +646,44 @@ el robot real.
 
 ---
 
+### 17 de julio — Capítulo 6 (implementación) redactado (trabajo de escritorio)
+
+**Contexto:** segundo día seguido sin acceso al laboratorio. Con el
+capítulo 5 y el fix del fallback de fusión ya cerrados el día anterior, se
+redactó el capítulo 6 de la memoria, "Implementación" — el último gran
+bloque de escritura que seguía al 0%.
+
+A diferencia del capítulo 2 (arquitectura, a nivel de topología de nodos y
+topics), este capítulo documenta cómo está implementado cada nodo que
+realmente se ejecuta: el clustering DBSCAN propio y el filtro geométrico
+de piernas de `detection_node`; el detector visual intercambiable
+HOG/MediaPipe y la extracción conjunta de gesto y rumbo a partir de los
+mismos landmarks en `visual_detection_node`; el filtro de Kalman de seis
+estados con modelo de aceleración constante y gate de Mahalanobis, y el
+controlador PD con zona muerta, acoplamiento lineal-angular, atenuación a
+corta distancia y arranque suave de `tracking_node`; la máquina de estados
+finitos y la teleoperación por teclado de `control_node`; y los nodos más
+sencillos del sistema.
+
+La redacción, al obligar a leer el código fuente completo de cada nodo en
+vez de apoyarse solo en la documentación de arquitectura ya existente, sacó
+a la luz dos discrepancias entre lo documentado y lo que realmente corre en
+el robot. La primera: el nodo de seguimiento no implementa un Dynamic
+Window Approach real, pese a que tanto el diagrama de arquitectura como el
+README siguen etiquetándolo así — la evasión de obstáculos activa es un
+método reactivo más simple, y la implementación real de DWA (con búsqueda
+en el espacio de velocidades y visualización de trayectorias candidatas en
+RViz) existe en el repositorio pero no está registrada como ejecutable, es
+código de una iteración anterior. La segunda, del mismo tipo: otros tres
+ficheros del paquete (dos variantes del nodo de control y una del de
+interfaz de usuario) conviven sin usarse junto a la versión activa de su
+nodo. Ninguna de las dos cosas se ha corregido todavía — quedan anotadas
+como pendientes de revisión y limpieza antes del cierre del TFM, para no
+mezclar en la misma sesión la redacción de la memoria con cambios de
+repositorio que conviene que el autor revise primero.
+
+---
+
 ## Julio 2026 (planificado)
 
 ### Fase 3 — Navegación autónoma (Nav2)
