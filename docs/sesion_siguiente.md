@@ -14,12 +14,20 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
    pese a lo que dice el Capítulo 2/README, y un inventario del código
    legado no registrado en `setup.py`). Ambos pendientes de revisión por
    el autor antes de darlos por cerrados.
-2. **Revisar el hallazgo del "posible bug izquierda/derecha" de hoy** (ver
-   `PROGRESO.md`, sesión 2026-07-13) — se investigó a fondo y se descartó
-   como bug (simulación numérica confirma que `ang_err = -angle_to` es
-   correcto para este robot, que gira en sentido contrario al estándar
-   ROS). Si quieres releerlo con calma para confirmar que el razonamiento
-   te convence antes de la próxima sesión de lab, está todo documentado.
+2. ~~**Revisar el hallazgo del "posible bug izquierda/derecha"**~~ — **✅
+   hecho 2026-07-17.** Nota: esta entrada quedó desactualizada — la
+   conclusión del 13/07 aquí descrita (`ang_err=-angle_to` correcto,
+   "robot gira al revés del estándar ROS") **fue revertida el 15/07** tras
+   una verificación directa con `/odom` (ver `docs/decisiones.md`,
+   2026-07-15): el robot sí sigue el convenio estándar, y el código
+   correcto es `ang_err=angle_to` (ya aplicado). La revisión de hoy
+   confirma que el razonamiento del fix del 15/07 es sólido — evidencia
+   convergente de varias fuentes independientes (test `/odom` en bucle
+   abierto, consistencia geométrica con la evasión de obstáculos, incluso
+   el propio test visual del 13/07 que se descartó entonces por "no
+   concluyente" apuntaba ya en la dirección correcta). No reabrir esta
+   duda. De paso, revisando el mismo fichero, salió un hallazgo nuevo y
+   distinto — ver punto 4.
 3. ~~**Diseñar el fix del fallback de fusión**~~ — **✅ hecho 2026-07-16
    (trabajo de escritorio):** implementado en `detection_node.py`
    (`_confirm_fusion_candidate` + `_filter_by_drift`, ver
@@ -30,6 +38,23 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
    sincronizar (`bash sync_nuc.sh`) y validar en vivo o con un rosbag antes
    de darlo por cerrado — esto solo verifica la lógica aislada, no el nodo
    real con ROS.
+4. **NUEVO (2026-07-17), barato — verificar el sector de la evasión de
+   obstáculos de `tracking_node`.** Hallazgo sin confirmar (ver
+   `docs/decisiones.md`, 2026-07-17): `_obstacle_avoidance` filtra el
+   sector frontal (`abs(ang)<=50°`) sobre el ángulo **crudo** de `/scan`,
+   sin aplicar el desfase de π que `detection_node` sí tiene documentado y
+   corregido desde el 13/07 ("persona de frente ≈ π en el láser", RPLIDAR
+   montado invertido). Si ese desfase aplica igual a todo `/scan`, la
+   evasión podría estar vigilando el sector **trasero**, no el frontal —
+   relevante para seguridad, no solo para precisión de seguimiento.
+   Verificación de segundos: colocar un obstáculo conocido delante del
+   robot (dentro de `obstacle_threshold=0.35m`) y comprobar si se dispara
+   el log `"Obstáculo frontal: adj=... lin_factor=..."`; repetir con el
+   obstáculo detrás. Priorizar esto al principio de la Sesión 4, antes de
+   entrar en el resto del objetivo (es barato y de seguridad) — ver
+   `docs/decisiones.md` para el detalle completo y cómo verificarlo
+   también sin robot si se extiende `bag_to_csv.py` para extraer `/scan`
+   crudo de un bag ya grabado.
 
 > Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Robot: NUC **nuc-224**,
 > `ssh user@10.48.0.1` (password `qwerty`), `ROS_DOMAIN_ID=24`, ROS 2 Jazzy,
@@ -229,6 +254,13 @@ tiempo de robot salvo que sobre alguna sesión de las 9.
 pierden a la persona a la vez al girar, ver estado heredado arriba) es el
 mismo tema que ya estaba planeado para esta sesión (confirmación en el
 fallback de fusión) — abordarlos juntos.
+
+**Antes de nada (2026-07-17, barato, prioridad):** verificar el hallazgo
+sin confirmar del sector de `_obstacle_avoidance` en `tracking_node` — ver
+punto 4 de "Tareas de escritorio" más arriba y `docs/decisiones.md`
+(2026-07-17). Es una comprobación de segundos con un obstáculo delante y
+otro detrás, y tiene implicación de seguridad si se confirma — hacerlo al
+llegar, antes de entrar en el resto de esta sesión.
 
 ### Arreglar la pérdida de detección conjunta al girar (fusiona el hallazgo de hoy con el de 13/07)
 

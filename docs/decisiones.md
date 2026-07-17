@@ -5,6 +5,58 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-17 — HALLAZGO SIN VERIFICAR: la evasión de obstáculos de `tracking_node` podría mirar al sector trasero, no al frontal
+
+- **Contexto:** revisión de escritorio del hallazgo del signo invertido del
+  15/07 (tarea 2 de `docs/sesion_siguiente.md`). Al releer
+  `tracking_node._obstacle_avoidance` para confirmar que el fix de signo
+  del PD angular no dejaba nada suelto, apareció esta hipótesis nueva y
+  distinta — no es el mismo bug, ni se ha tocado código.
+- **La hipótesis:** `_obstacle_avoidance` calcula `ang = scan.angle_min +
+  i·scan.angle_increment` directamente sobre `/scan` **crudo**, y filtra
+  `if abs(ang) > radians(50): continue` (es decir, solo analiza el sector
+  dentro de ±50° de `ang=0` en el frame crudo del láser). Pero
+  `detection_node.py` documenta explícitamente, y lo tiene verificado en
+  vivo desde el 13/07 (`docs/decisiones.md`, "Fix: normalizar el convenio
+  de /person_position en el origen"), que en el frame crudo de este robot
+  concreto **"persona de frente ≈ π en el láser"** — el RPLIDAR está
+  montado invertido (TF `base_footprint→laser` con yaw=π,
+  `docs/02_arquitectura.md` §2.5). Si ese desfase aplica de forma uniforme
+  a todo `/scan` (no hay motivo aparente para que no sea así — es una
+  propiedad del montaje físico del sensor, no del contenido del mensaje),
+  entonces `ang≈0` en crudo es la parte **trasera** del robot, no la
+  delantera, y el filtro `abs(ang)<=50°` de `_obstacle_avoidance` estaría
+  vigilando el sector trasero en vez del sector frontal por el que el
+  robot realmente avanza.
+- **Por qué no se ha corregido ni confirmado todavía:** es una hipótesis
+  derivada por analogía con un hallazgo ya verificado en *otro* nodo, no
+  algo comprobado de forma directa para `tracking_node`. No hay forma de
+  verificarlo con los datos ya grabados en este portátil —
+  `validation/bag_to_csv.py` no extrae `/scan` crudo a CSV, así que no hay
+  manera de comprobarlo sin ROS 2 instalado (este equipo no lo tiene, ver
+  `PROGRESO.md` 2026-07-09) ni sin repetir la extracción de un bag ya
+  grabado en una máquina con ROS.
+- **Cómo verificarlo (barato, próxima sesión de lab):** colocar un
+  obstáculo conocido justo delante del robot (dentro de
+  `obstacle_threshold=0.35m`) y comprobar si se dispara el log
+  `"Obstáculo frontal: adj=... lin_factor=..."` y si `lin_factor` baja de
+  1.0. Repetir con el obstáculo justo detrás en vez de delante. Si el
+  aviso solo se dispara con el obstáculo detrás (o con ambos, lo cual
+  también sería raro), confirma la hipótesis. Alternativa sin gastar
+  tiempo de robot: extender `bag_to_csv.py` para extraer `/scan` crudo de
+  un bag ya grabado con un obstáculo en posición conocida (p. ej.
+  `validation/runs/20260715_obstaculo*/`) y comprobar a qué ángulo cae el
+  obstáculo real.
+- **Impacto si se confirma:** relevante para seguridad — un robot que
+  avanza sin ver obstáculos delante (porque su evasión reactiva vigila el
+  sector equivocado) es un riesgo real, no solo una imprecisión de
+  seguimiento. No bloquea el resto del sistema (la evasión de obstáculos
+  es una capa adicional, no la única protección — `collision_handling_node`
+  también vigila el `/scan` completo, aunque tampoco está conectado a
+  `control_node` todavía, §2.3.5), pero merece prioridad si se confirma.
+- **Alternativas descartadas:** ninguna todavía — es un hallazgo, no una
+  decisión de diseño. No se ha tocado `tracking_node.py` para esto.
+
 ## 2026-07-16 — Confirmación obligatoria en el fallback de fusión (preparado sin robot, pendiente de validar en el lab)
 
 - **Decisión:** en `detection_node.py`, el camino de fusión cámara+LIDAR ya

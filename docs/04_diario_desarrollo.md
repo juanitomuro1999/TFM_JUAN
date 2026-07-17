@@ -646,7 +646,7 @@ el robot real.
 
 ---
 
-### 17 de julio — Capítulo 6 (implementación) redactado (trabajo de escritorio)
+### 17 de julio — Capítulo 6 redactado y hallazgo del signo revisado (trabajo de escritorio)
 
 **Contexto:** segundo día seguido sin acceso al laboratorio. Con el
 capítulo 5 y el fix del fallback de fusión ya cerrados el día anterior, se
@@ -681,6 +681,28 @@ nodo. Ninguna de las dos cosas se ha corregido todavía — quedan anotadas
 como pendientes de revisión y limpieza antes del cierre del TFM, para no
 mezclar en la misma sesión la redacción de la memoria con cambios de
 repositorio que conviene que el autor revise primero.
+
+Con tiempo todavía disponible, se releyó también con calma el hallazgo del
+signo invertido del controlador angular, pendiente desde el 15 de julio
+como tarea opcional de escritorio. La conclusión de esa fecha —revertir la
+inversión de signo introducida el 13 de julio, después de verificar de
+forma directa y objetiva con la odometría del robot que el giro real no
+estaba invertido respecto al estándar— se sostiene con una relectura
+crítica: la verificación en bucle abierto con una referencia externa es
+metodológicamente muy superior a la simulación en bucle cerrado que había
+llevado a la conclusión contraria, y aparecen además dos indicios
+adicionales, no señalados hasta ahora, que apuntan en la misma dirección
+— la coherencia geométrica del signo ya corregido con la convención de
+giro confirmada, y el hecho de que la evasión de obstáculos del mismo
+nodo ya usaba, sin saberlo, esa misma convención sin invertir. Revisando
+el código de la evasión de obstáculos por ese motivo surgió, de paso, una
+sospecha nueva y distinta: que el sector que vigila esa evasión podría
+estar mal orientado, mirando la parte trasera del robot en vez de la
+delantera, por no aplicar el mismo desfase angular que sí está corregido
+en otro nodo para el mismo sensor. Queda anotada como hallazgo pendiente
+de verificar en la próxima sesión de laboratorio, sin tocar código
+todavía — de confirmarse, tendría implicación de seguridad y no solo de
+precisión de seguimiento.
 
 ---
 

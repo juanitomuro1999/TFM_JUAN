@@ -1,6 +1,6 @@
 # Diario de progreso — TFM Person Follower
 
-## Sesión 2026-07-17 (trabajo de escritorio, sin robot) — Capítulo 6 (implementación) redactado
+## Sesión 2026-07-17 (trabajo de escritorio, sin robot) — Capítulo 6 redactado + hallazgo de signo confirmado + nuevo hallazgo (sector de obstáculos) sin verificar
 
 ### Objetivo: redactar el capítulo 6 de la memoria (implementación), pendiente tras el 16/07
 
@@ -56,14 +56,54 @@ observaciones anteriores (confirmar que el DWA real y los ficheros `_man`/
 Actualizados también `docs/01_introduccion.md` §1.5, `README.md` (árbol de
 `docs/`) y `docs/sesion_siguiente.md` (tarea 1 ya recoge ambos capítulos).
 
+### Relectura del hallazgo del signo invertido (tarea 2) — confirmado, y hallazgo nuevo sin verificar
+
+Con tiempo de sobra, se abordó también la tarea 2 (opcional): releer con
+calma el hallazgo del 13/07 y su corrección del 15/07 (`ang_err` invertido
+en el PD angular de `tracking_node`) para confirmar que el razonamiento
+del fix convence. **Confirmado** — la corrección del 15/07 está bien
+fundamentada: el test directo con `/odom` (bucle abierto, referencia
+externa, desacoplado de la propia percepción que se investigaba) es
+metodológicamente mucho más fuerte que la simulación offline en bucle
+cerrado del 13/07 que llevó a la conclusión contraria. Encontradas además
+dos corroboraciones no documentadas hasta ahora: (a) con el convenio de
+giro ya confirmado por `/odom`, `ang_err=angle_to` sin invertir es
+geométricamente la ley de control correcta, coherente con
+`angle_to=atan2(py,px)` en convención estándar; (b) la evasión de
+obstáculos del mismo nodo ya usaba esa misma convención sin invertir
+(`repulsion += w·(-ang)`) — antes del fix, seguimiento y evasión de
+obstáculos usaban convenios de signo incoherentes entre sí dentro del
+mismo fichero. Detalle completo de la revisión en la conversación de esta
+sesión; no se ha escrito una entrada nueva en `docs/decisiones.md` para
+esto porque no cambia ninguna decisión ya tomada, solo la confirma.
+
+**Hallazgo nuevo, sin verificar, encontrado al releer el mismo fichero:**
+`tracking_node._obstacle_avoidance` filtra el sector frontal
+(`abs(ang)<=50°`) sobre el ángulo crudo de `/scan`, sin aplicar el desfase
+de π que `detection_node` sí tiene documentado y corregido desde el 13/07
+para ese mismo robot ("persona de frente ≈ π en el láser", RPLIDAR
+montado invertido). Si ese desfase aplica igual a todo `/scan` (no hay
+motivo aparente para que no sea así, es una propiedad física del montaje
+del sensor), la evasión de obstáculos podría estar vigilando el sector
+**trasero** en vez del frontal — relevante para seguridad, no solo para
+precisión. Documentado como hallazgo sin confirmar, con plan de
+verificación barato (obstáculo conocido delante/detrás, revisar el log
+`"Obstáculo frontal"`), en `docs/decisiones.md` (2026-07-17) y añadido
+como punto 4 de las tareas de `docs/sesion_siguiente.md`, priorizado al
+principio de la Sesión 4 por ser barato de comprobar y potencialmente de
+seguridad. **No se ha tocado código** — es una hipótesis derivada por
+analogía con un hallazgo ya verificado en otro nodo, pendiente de
+confirmación real.
+
 ### Pendiente para la próxima sesión
 
-Sigue pendiente la Sesión 4 de lab (fallback de fusión en vivo + hueco de
+Sigue pendiente la Sesión 4 de lab — ahora con un punto añadido al
+principio: verificar el sector de `_obstacle_avoidance` (barato, ver
+arriba) antes de entrar en el resto (fallback de fusión en vivo + hueco de
 detección al girar + gate de continuidad con mobiliario + reproducibilidad
-de Capítulo 7). De escritorio: revisar el DWA.py y los ficheros `_man`
-legado (decidir limpieza), corregir la etiqueta "DWA" del diagrama del
-Capítulo 2, y la relectura opcional del hallazgo de π/signo (tarea 2,
-sesion_siguiente.md) sigue sin hacer.
+de Capítulo 7). De escritorio sigue pendiente: revisar `DWA.py` y los
+ficheros `_man`/`cierre_seguro` legado (decidir limpieza) y corregir la
+etiqueta "DWA" del diagrama del Capítulo 2.
 
 ---
 
