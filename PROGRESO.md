@@ -1,5 +1,25 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-21 (lab, Sesión 5, continuación 2) — Segundo golpe, distinto del primero: la evasión frenó a tiempo pero el margen fue insuficiente
+
+Repetido el escenario `obstaculo`, esta vez con la persona rodeando el
+obstáculo en movimiento (no quedándose parada cerca). A la ida el robot se
+mantuvo alejado sin problema; a la vuelta, golpe leve, sin daños.
+
+Reconstruido el bag (`validation/runs/20260721_obstaculo_rodeo/`) igual que
+el hallazgo anterior: esta vez la evasión **sí funcionó** — el objeto entró
+en el sector frontal corregido, la distancia bajó de 0.77m a 0.35m (umbral
+exacto) y `vx` frenó de 0.18 a 0.0 m/s en ~0.3s en cuanto se cruzó el
+umbral. Aun así hubo contacto leve. Hipótesis: el umbral de 0.35m se mide
+desde el LIDAR, no desde el borde físico del robot (montado hacia dentro
+del chasis), y sumado al tiempo de frenado el margen real hasta el
+contacto es menor de lo que sugiere el parámetro. A diferencia del primer
+choque de hoy (el sensor nunca vio nada, problema de altura), aquí sí hubo
+detección y frenada — es un problema de margen de seguridad, no de sector.
+Mitigación a valorar: subir `obstacle_threshold` compensando el offset
+LIDAR→borde físico, sin implementar todavía. Detalle completo en
+`docs/decisiones.md` (2026-07-21).
+
 ## Sesión 2026-07-21 (lab, Sesión 5, continuación) — El robot choca con una silla pese al sector ya corregido: límite físico del LIDAR 2D
 
 Primera repetición del escenario `obstaculo` de la Sesión 5 (ver

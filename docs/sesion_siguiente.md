@@ -18,22 +18,31 @@ en `docs/07_resultados.md` §7.5).
 | `parada` | Persona se detiene → standoff a `target_distance` (1 m) |
 | `corto` | Persona se acerca a <1 m → valida `near_gain`/giro brusco a corta distancia |
 | `oclusion` | Persona pasa tras un obstáculo → predicción Kalman + recuperación |
-| `obstaculo` | Obstáculo en la trayectoria → evasión — **⚠️ 2026-07-21: primera repetición terminó en colisión real con una silla, ver aviso de seguridad justo abajo antes de repetir este escenario** |
+| `obstaculo` | Obstáculo en la trayectoria → evasión — **⚠️ 2026-07-21: DOS choques reales con una silla en las dos primeras repeticiones, ver aviso de seguridad justo abajo antes de repetir este escenario** |
 
-> **⚠️ AVISO DE SEGURIDAD (2026-07-21):** la primera repetición del
-> escenario `obstaculo` en la Sesión 5 terminó en una colisión real (sin
-> daños) — el robot detectó la silla, se paró, pero no la rodeó, y al
-> moverse la persona chocó contra ella. Analizado en `docs/decisiones.md`
-> (2026-07-21): `lin_factor` nunca bajó de 1.0 en toda la toma — el objeto
-> real estaba a 0.75m del LIDAR (por encima del `obstacle_threshold` de
-> 0.35m), consistente con que el LIDAR 2D veía las patas de la silla pero
-> no el asiento/reposabrazos, que sobresale más hacia el robot a otra
-> altura. **No es un bug de sector ni de umbral** (el sector ya está
-> corregido y verificado) — es un límite físico del sensor. Antes de
-> repetir este escenario: mantener distancia de seguridad manual con
-> mobiliario real hasta decidir alguna mitigación (conectar
+> **⚠️ AVISO DE SEGURIDAD (2026-07-21):** las dos primeras repeticiones del
+> escenario `obstaculo` en la Sesión 5 terminaron en colisión real (sin
+> daños en ningún caso), por **dos causas distintas** — ver
+> `docs/decisiones.md` (2026-07-21) para el detalle completo de ambas:
+> 1. **1er choque** (robot parado cerca, persona rodeándolo): `lin_factor`
+>    nunca bajó de 1.0 en toda la toma — el objeto real estaba a 0.75m del
+>    LIDAR (por encima de `obstacle_threshold=0.35m`), porque el LIDAR 2D
+>    veía las patas de la silla pero no el asiento/reposabrazos, que
+>    sobresale más hacia el robot a otra altura. Límite físico del sensor,
+>    no un bug de sector.
+> 2. **2º choque** (persona rodeando el obstáculo en movimiento, a la
+>    vuelta): esta vez la evasión **sí funcionó** — detectó dentro del
+>    sector correcto, frenó `vx` de 0.18 a 0.0 m/s en ~0.3s al cruzar el
+>    umbral — y aun así hubo contacto leve. El umbral se mide desde el
+>    LIDAR, no desde el borde físico del robot, así que el margen real es
+>    menor de lo que sugiere el parámetro.
+>
+> Antes de repetir este escenario: mantener distancia de seguridad manual
+> con mobiliario real hasta decidir alguna mitigación (subir
+> `obstacle_threshold` con margen medido, conectar
 > `collision_handling_node`, bajar velocidad cerca del target, o aceptar
-> como limitación documentada — ver mitigaciones en `docs/decisiones.md`).
+> como limitación documentada — ver mitigaciones completas en
+> `docs/decisiones.md`).
 
 **Antes de repetir cada escenario, comprobar que sigue vigente:**
 - `continuity_confirm_frames=3` (subido en la Sesión 4) — no bajarlo sin

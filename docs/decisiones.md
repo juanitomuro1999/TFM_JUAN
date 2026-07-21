@@ -5,6 +5,49 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-21 — Segundo hallazgo de seguridad, distinto del primero: la evasión frena a tiempo pero el margen hasta el borde físico del robot es insuficiente
+
+- **Contexto:** repetición del escenario `obstaculo`, esta vez con la
+  persona rodeando el obstáculo en movimiento en vez de quedarse parada
+  cerca (ver entrada de arriba, mismo día, para el primer choque).
+  Resultado reportado por el usuario: **a la ida se mantuvo alejado sin
+  problema; a la vuelta, golpe leve, sin daños.**
+  (`validation/runs/20260721_obstaculo_rodeo/`).
+- **Este golpe NO es el mismo caso que el primero.** Reconstruido el
+  instante exacto leyendo `/scan` y `/commands/velocity` directamente del
+  bag (mismo método que el hallazgo anterior): el objeto entra en el
+  sector frontal ya corregido (~15-22° reales, dentro de ±50°) y la
+  distancia baja de forma continua — 0.77m → 0.39m → **0.35m** (el
+  umbral exacto). En cuanto cruza el umbral, `lin_factor` sí reacciona:
+  `vx` frena de 0.180 a 0.000 m/s en ~0.3s (167.699s→168.017s, ver log del
+  bag), y el robot queda parado con el objeto oscilando entre 0.34-0.35m.
+  **La evasión funcionó tal como está diseñada** — detectó dentro del
+  sector correcto y frenó — y aun así hubo contacto leve.
+- **Hipótesis de la causa:** el umbral de 0.35m se mide desde el LIDAR,
+  no desde el borde físico del robot (el sensor va montado hacia dentro
+  del chasis, no en el borde delantero) — un objeto a 0.35m del LIDAR
+  puede estar bastante más cerca del borde real del robot. Sumado a los
+  ~0.3s que tarda en frenar del todo (rate-limit de `acc_limit`), el
+  margen efectivo hasta el contacto se reduce más de lo que sugiere el
+  parámetro por sí solo. A diferencia del primer choque de hoy (el sensor
+  nunca vio nada por un problema de altura), aquí sí hay detección y sí
+  hay frenada — es un problema de margen de seguridad, no de sector ni de
+  altura del sensor.
+- **Mitigación más directa a valorar (no implementada hoy):** subir
+  `obstacle_threshold` (0.35m actual) para dar más margen real,
+  compensando tanto el offset LIDAR→borde físico como el tiempo de
+  frenado — requiere medir ese offset físico en el robot real y decidir
+  un valor con margen, no solo intuición. Alternativa: bajar `max_speed`
+  en la aproximación frontal para reducir el tiempo/distancia de frenado,
+  ya limitado hoy a 0.18 m/s desde el 2026-07-09.
+- **Alternativas descartadas:** ninguna todavía — mismo estado que el
+  hallazgo anterior, pendiente de decidir con el autor.
+- **Pendiente:** medir el offset físico LIDAR→borde delantero del robot
+  (dato que no requiere el robot encendido, solo un metro); repetir este
+  escenario con `obstacle_threshold` aumentado para confirmar que el
+  margen extra evita el contacto sin frenar demasiado pronto en
+  situaciones normales de seguimiento.
+
 ## 2026-07-21 — HALLAZGO DE SEGURIDAD: el robot chocó con una silla pese al sector de evasión ya corregido — límite físico del LIDAR 2D, no un bug de software
 
 - **Contexto:** prueba en vivo del escenario `obstaculo` (Sesión 5, primera
