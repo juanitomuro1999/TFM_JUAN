@@ -1,5 +1,33 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-21 (lab, Sesión 5, continuación) — El robot choca con una silla pese al sector ya corregido: límite físico del LIDAR 2D
+
+Primera repetición del escenario `obstaculo` de la Sesión 5 (ver
+`validation/runs/20260721_obstaculo/`), justo después de cerrar la Sesión
+4. El robot detectó a la silla, se paró, pero no la rodeó — y al moverse
+la persona, chocó contra ella. Sin daños en robot ni silla.
+
+Analizado el bag: `lin_factor` se mantuvo en 1.00 los 67s completos de la
+toma — la evasión de obstáculos (recién corregida esta misma sesión) nunca
+llegó a activarse. Leyendo el `/scan` crudo completo (no solo el sector
+frontal) directamente del bag durante el tramo de giro sostenido
+(`vang` saturado a -1.0), había un objeto casi fijo a 0.75m — muy por
+encima del `obstacle_threshold` de 0.35m. Conclusión: no es un bug de
+umbral ni de sector (ya corregido y verificado hoy) — es un límite físico
+del LIDAR 2D, que solo mide un plano horizontal a la altura de las patas
+de la silla; el punto de contacto real (probablemente el asiento o el
+reposabrazos) sobresale hacia el robot más que las patas, a una altura que
+el sensor no ve. Revisado también `collision_handling_node.py` (existe,
+no conectado a `control_node`): usa el mínimo de los 360° del scan con
+umbral 0.4m, cubriría cualquier dirección pero tampoco habría detectado
+este caso concreto (0.75m > 0.4m, mismo problema de altura). Detalle
+completo y lista de mitigaciones a valorar (conectar
+`collision_handling_node`, integrar la cámara Orbbec RGBD, bajar
+velocidad/`near_gain` cerca del target) en `docs/decisiones.md`
+(2026-07-21). Sin implementar ninguna mitigación todavía — pendiente de
+decidir con el autor si se aborda en una sesión futura o se documenta
+como limitación conocida del sistema.
+
 ## Sesión 2026-07-21 (lab, Sesión 4) — Bug de seguridad confirmado y corregido: evasión de obstáculos vigilaba el sector trasero
 
 ### Arranque de sesión

@@ -5,6 +5,73 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-21 — HALLAZGO DE SEGURIDAD: el robot chocó con una silla pese al sector de evasión ya corregido — límite físico del LIDAR 2D, no un bug de software
+
+- **Contexto:** prueba en vivo del escenario `obstaculo` (Sesión 5, primera
+  repetición), con el robot siguiendo de verdad y una silla colocada en la
+  trayectoria. El usuario reportó en directo: *"ha detectado la silla, se
+  ha parado y no la ha rodeado, y luego al moverme yo se ha golpeado contra
+  ella"*. Sin daños reportados en robot ni silla.
+- **Análisis del bag (`validation/runs/20260721_obstaculo/`):** `lin_factor`
+  se mantuvo en **1.00 durante los 67s completos de la toma** — la evasión
+  de obstáculos (ya corregida esta misma sesión, ver entrada de sector
+  invertido arriba) **nunca llegó a activarse**, ni antes ni durante el
+  golpe. La telemetría muestra un tramo (t≈51-55s) con `vang` saturado a
+  -1.0 rad/s de forma sostenida — el robot girando fuerte sobre sí mismo,
+  coherente con la persona moviéndose alrededor a corta distancia
+  (`dist`≈1.0-1.2m, zona de `near_gain`).
+- **Verificación del `/scan` crudo completo** (no solo el sector de ±50°)
+  en ese mismo tramo (leído directamente del bag con `rosbag2_py`, storage
+  `mcap`): un objeto casi estático a **0.75m** del LIDAR, cuyo ángulo va
+  cambiando de -168° a -157° crudo (≈12°-23° reales, ya corregidos) según
+  el robot gira — coherente con la silla vista por el LIDAR a la altura de
+  sus patas mientras el robot pivota cerca de ella. **0.75m es muy superior
+  a `obstacle_threshold=0.35m`** — no es un problema de umbral demasiado
+  agresivo ni de que el sector siga mal orientado (ya está corregido y
+  verificado hoy); es que el punto de contacto real (probablemente el
+  asiento o el reposabrazos, que sobresalen hacia el robot más que las
+  patas) está a una altura que el LIDAR 2D, montado a la altura de las
+  patas, simplemente no ve.
+- **Conclusión — límite físico del sensor, no un bug corregible con
+  parámetros:** un LIDAR 2D solo mide un único plano horizontal. Mobiliario
+  con geometría que varía con la altura (patas estrechas, asiento/
+  reposabrazos que vuelan hacia dentro) puede estar fuera de ese plano en
+  la zona de las patas y dentro en la zona del asiento — invisible para
+  cualquier avance de evasión basado solo en `/scan` a esa altura, sin
+  importar cómo de bien esté orientado el sector o cómo de generoso sea el
+  umbral. Revisado también `collision_handling_node.py` (existe pero no
+  está conectado a `control_node`, ver entrada 2026-07-17): usa
+  `min(msg.ranges)` sobre los 360° completos con umbral de 0.4m — cubriría
+  cualquier dirección, no solo el sector frontal, pero **tampoco habría
+  detectado este caso concreto** (0.75m > 0.4m, mismo problema de altura).
+- **Impacto:** confirma que la corrección del sector de hoy (entrada de
+  arriba) era necesaria pero no suficiente — el sistema sigue sin
+  protección real contra mobiliario con geometría que varía con la altura.
+  Relevante para el capítulo de limitaciones de la memoria, no solo como
+  nota de sesión.
+- **Mitigaciones a valorar (ninguna implementada hoy):**
+  1. Conectar `collision_handling_node` a `control_node` (existe, no
+     conectado) — cubre los 360°, no solo el sector frontal, aunque no
+     este caso concreto de altura.
+  2. Integrar la cámara Orbbec Astra (RGBD, `OrbbecSDK_ROS2` en
+     `ros2_ws/src` sin compilar desde hace meses) para detección de
+     obstáculos en 3D, no solo en el plano del LIDAR — cambio de
+     arquitectura mayor, ya señalado como pendiente desde antes.
+  3. Bajar la altura de montaje del LIDAR o añadir un segundo sensor a
+     otra altura — cambio de hardware, no solo de software.
+  4. Como mitigación mínima y barata: reducir `max_speed`/`near_gain` aún
+     más en la zona de `target_distance` (donde el robot gira mucho sobre
+     sí mismo) para dar más margen de reacción humana, sin resolver la
+     causa raíz.
+- **Alternativas descartadas:** ninguna todavía — es un hallazgo de
+  diagnóstico y una lista de mitigaciones a valorar, no una decisión
+  tomada. Requiere que el autor decida cuánto alcance dedicarle con las
+  sesiones de lab que quedan (5 de 9).
+- **Pendiente:** decidir con el autor si esto se aborda en una sesión
+  futura (mitigación 1, la más barata) o se documenta directamente como
+  limitación conocida del sistema en la memoria — ver `docs/07_resultados.md`
+  §7.5 y el capítulo de limitaciones/trabajo futuro.
+
 ## 2026-07-21 — Subir continuity_confirm_frames de 1 a 3 tras estresar con mobiliario denso
 
 - **Contexto:** último punto del objetivo de la Sesión 4 — probar
