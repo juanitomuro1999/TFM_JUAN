@@ -288,18 +288,21 @@ sin confirmar del sector de `_obstacle_avoidance` en `tracking_node`~~ —
 "Tareas de escritorio" más arriba y `docs/decisiones.md` (2026-07-21).
 Confirmado y corregido. Sigue el resto del objetivo de la Sesión 4 abajo.
 
-### Arreglar la pérdida de detección conjunta al girar (fusiona el hallazgo de hoy con el de 13/07)
+### Arreglar la pérdida de detección conjunta al girar — ✅ implementado y validado 2026-07-21 (Sesión 4)
 
-1. Decidir una estrategia concreta entre las esbozadas en
-   `docs/decisiones.md` (2026-07-15): ¿aceptar un clúster de pierna único
-   (no emparejado) como candidato de menor confianza cuando no hay par
-   válido, gateado por continuidad? ¿ampliar `max_leg_distance` para
-   tolerar la oclusión parcial durante el giro? ¿bajar aún más el
-   debounce/timeout de cámara? Verificar cada opción con datos sintéticos
-   (reproduciendo la secuencia real del log de hoy, epoch
-   1784124265-1784124271) antes de probarla en el robot.
-2. Una vez implementada, repetir un test de movimiento/giro similar al de
-   hoy y comprobar que ya no aparece el hueco de ~2-4s sin detección.
+~~Decidir una estrategia concreta... verificar con datos sintéticos...
+repetir un test de movimiento/giro~~ — hecho hoy. Implementado el fallback
+de pierna única (`_confirm_single_leg_candidate` en `detection_node.py`,
+ver `docs/decisiones.md` 2026-07-21): cuando no hay par de piernas válido
+pero sí un clúster único ya clasificado como pierna, se acepta como
+candidato gateado por consistencia, antes del fallback de cámara.
+Verificado sintéticamente (`validation/verify_single_leg_fallback.py`) y en
+vivo con una persona girando delante del robot: 630 detecciones vía el
+nuevo fallback, 315 vía par normal (sin regresión), 0 errores, y el único
+hueco observado bajó a ~1.6s (antes 2-4s). **Pendiente, no bloqueante:**
+repetir con el robot realmente siguiendo (tracking activo, moviéndose de
+verdad) en vez de solo con el robot parado, y acumular más repeticiones
+para ver si el hueco residual de ~1.6s es sistemático.
 
 ### Gate de continuidad + confirmación en el fallback (pendiente desde 13/07)
 

@@ -5,6 +5,62 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-21 — Fallback de pierna única (sin par) para el hueco de detección al girar
+
+- **Contexto:** objetivo principal de la Sesión 4 (docs/sesion_siguiente.md),
+  fusiona el hallazgo de diagnóstico del 2026-07-15 ("LIDAR y cámara pierden
+  a la persona a la vez al girar") con el de 2026-07-13. Ver esa entrada del
+  15/07 para el diagnóstico completo: al girar, una pierna ocluye a la otra
+  (el emparejamiento de `detect_person` exige DOS clústeres dentro de
+  `max_leg_distance`) y, a la vez, la cámara puede fallar un frame por
+  motion blur — las dos modalidades de fusión comparten el mismo punto
+  ciego, dejando huecos reales de ~2-4s sin ninguna detección.
+- **Decisión — de las tres estrategias esbozadas el 15/07, se implementó
+  "aceptar un clúster de pierna único como candidato de menor confianza":**
+  en `detection_node.detect_person`, cuando el emparejamiento de piernas no
+  produce ningún par válido pero SÍ hay al menos un clúster ya clasificado
+  geométricamente como pierna (`_is_leg_cluster`) sin pareja, se toma su
+  centroide como candidato — filtrado por deriva (`_filter_by_drift`, igual
+  que los otros caminos) y gateado con un mecanismo de confirmación por
+  consistencia dedicado (`_confirm_single_leg_candidate`, streak
+  independiente, misma lógica que `_confirm_fusion_candidate` del
+  2026-07-16) antes del fallback de cámara+LIDAR. Se prefirió sobre las
+  otras dos opciones esbozadas: ampliar `max_leg_distance` habría relajado
+  el emparejamiento para TODOS los casos, no solo el de oclusión parcial al
+  girar (más riesgo de emparejar dos clústeres que no son la misma
+  persona); bajar más el debounce de cámara ya está en su mínimo práctico
+  (`camera_debounce_count=1` desde el 15/07) y no ataca la causa LIDAR.
+- **Por qué antes del fallback de cámara, no después:** un único clúster ya
+  clasificado como pierna (tamaño, radio, circularidad, aspect ratio) es una
+  señal geométrica más fuerte que un clúster general solo alineado por
+  rumbo de cámara — se le da prioridad.
+- **Verificación sintética** (`validation/verify_single_leg_fallback.py`,
+  sin ROS, réplica exacta de la lógica nueva): 4 escenarios en verde —
+  8 scans consecutivos con una sola pierna visible publican posición en
+  todos (hueco relleno); un clúster espurio disperso que no se repite en
+  el mismo sitio nunca se confirma (continuity_confirm_frames=3); con ese
+  mismo parámetro, una pierna real y consistente se confirma exactamente
+  en el 3er scan, no antes; documentado el invariante de que esta rama solo
+  se evalúa si no hay par de piernas.
+- **Validado en vivo** (sesión de lab, sin necesidad de mover el robot ni
+  activar tracking — `detection_node` corre independientemente): con una
+  persona girando repetidamente delante del robot durante ~30s, el log
+  mostró **630 detecciones vía el nuevo fallback de pierna única** y
+  **315 vía par normal** (sin regresión en el caso normal), **0 vía fusión
+  de cámara** (no hizo falta) y **0 errores**. Solo se observó una pérdida
+  de racha (`streak` resetea de 315 a 12, es decir hueco real) de
+  aproximadamente **1.6s**, frente a los 2-4s documentados el 15/07 —
+  mejora clara aunque no elimina el hueco al 100% (puede ocurrir si
+  incluso la única pierna visible queda momentáneamente oculta, o si el
+  giro es tan rápido que el filtro de deriva rechaza el salto).
+- **Alternativas descartadas:** ver arriba (ampliar `max_leg_distance`,
+  bajar más el debounce de cámara).
+- **Pendiente:** repetir con el robot en movimiento real (tracking activo,
+  robot avanzando y girando de verdad tras la persona), no solo con el
+  robot parado y la persona moviéndose — hoy se validó la detección en
+  aislado. Cuantificar el hueco residual de ~1.6s con más repeticiones
+  para ver si es sistemático o puntual.
+
 ## 2026-07-21 — Reproducibilidad de la tabla 7.4: saltos de posición sí reproducen, saturación angular no
 
 - **Contexto:** punto 3 del objetivo de la Sesión 4 (reproducibilidad de

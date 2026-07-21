@@ -154,6 +154,8 @@ class DetectionNode(Node):
         self._position_history: list = []  # [(t_seg, np.array[x,y])] confirmadas, últimos continuity_window_s
         self._fusion_confirm_streak = 0  # scans consecutivos con el mismo candidato de FUSIÓN (ver _confirm_fusion_candidate)
         self._fusion_pending_candidate: np.ndarray | None = None
+        self._single_leg_confirm_streak = 0  # scans consecutivos con el mismo candidato de PIERNA ÚNICA (ver _confirm_single_leg_candidate)
+        self._single_leg_pending_candidate: np.ndarray | None = None
 
         self.publish_status("Nodo OK.")
         self.initialize_shutdown_listener()
@@ -207,6 +209,8 @@ class DetectionNode(Node):
                 self._position_history = []  # ventana de deriva obsoleta tras perder el anclaje
                 self._fusion_confirm_streak = 0
                 self._fusion_pending_candidate = None
+                self._single_leg_confirm_streak = 0
+                self._single_leg_pending_candidate = None
 
         final_detection = self._confirmed
 
@@ -338,6 +342,46 @@ class DetectionNode(Node):
         self._fusion_pending_candidate = candidate
 
         if self._fusion_confirm_streak >= self.continuity_confirm_frames:
+            return candidate
+        return None
+
+    def _confirm_single_leg_candidate(self, candidate, now):
+        """
+        Exige `continuity_confirm_frames` scans consecutivos con el mismo
+        candidato de PIERNA ÚNICA (mismo mecanismo que
+        `_confirm_fusion_candidate`, streak independiente) antes de
+        aceptarlo.
+
+        Motivo (docs/decisiones.md, 2026-07-15 y 2026-07-21): al girar, una
+        pierna puede ocluir a la otra durante ~2-4s reales, y el
+        emparejamiento de `detect_person` exige DOS clústeres dentro de
+        `max_leg_distance` — con una sola pierna visible no hay candidato
+        de pares, y antes de este fix se caía directamente al fallback de
+        cámara (una señal más débil: un clúster general solo alineado por
+        rumbo, no un clúster geométricamente clasificado como pierna). Un
+        único clúster de pierna real es una señal más fuerte que eso, pero
+        más débil que un par emparejado — de ahí que, igual que la fusión,
+        pase siempre por esta confirmación por consistencia en vez de por
+        `_gate_by_continuity` (cuyo radio "plausible" es más permisivo).
+
+        `candidate` es `None` si este scan no hay ningún clúster de pierna
+        sin emparejar dentro de distancia — rompe la racha en curso.
+
+        Devuelve el candidato si queda confirmado, o `None` si aún no.
+        """
+        if candidate is None:
+            self._single_leg_confirm_streak = 0
+            self._single_leg_pending_candidate = None
+            return None
+
+        if self._single_leg_pending_candidate is not None and \
+                np.linalg.norm(candidate - self._single_leg_pending_candidate) <= self.position_jump_margin:
+            self._single_leg_confirm_streak += 1
+        else:
+            self._single_leg_confirm_streak = 1
+        self._single_leg_pending_candidate = candidate
+
+        if self._single_leg_confirm_streak >= self.continuity_confirm_frames:
             return candidate
         return None
 
@@ -489,6 +533,37 @@ class DetectionNode(Node):
                 selected, now, "Posición de persona publicada",
                 {"x_laser": selected[0], "y_laser": selected[1]})
             return True
+
+        # ── Fallback de pierna única (sin par) ───────────────────────────────
+        # Al girar, una pierna puede ocluir a la otra (docs/decisiones.md,
+        # 2026-07-15/21): el emparejamiento de arriba exige DOS clústeres
+        # dentro de max_leg_distance, y con una sola pierna visible no hay
+        # candidato de pares aunque el LIDAR sí vea una pierna real. Antes de
+        # esto se caía directo al fallback de cámara (clúster general solo
+        # alineado por rumbo) o, si la cámara también fallaba (motion blur al
+        # girar), a "sin detección" — de ahí el hueco de ~2-4s observado.
+        # Se acepta aquí un único clúster ya clasificado geométricamente como
+        # pierna (señal más fuerte que un clúster general, más débil que un
+        # par), gateado con la misma confirmación por consistencia que la
+        # fusión (no con _gate_by_continuity, más permisivo).
+        if leg_clusters:
+            now = self.get_clock().now()
+            single_positions = [np.mean(cl, axis=0) for cl in leg_clusters]
+            single_positions = [p for p in single_positions
+                                 if np.linalg.norm(p) <= self.max_detection_distance]
+            single_positions = self._filter_by_drift(single_positions, now)
+            if single_positions:
+                last = np.array(self._last_confirmed_pos) if self._last_confirmed_pos is not None else None
+                key = (lambda p: np.linalg.norm(p - last)) if last is not None else (lambda p: np.linalg.norm(p))
+                nearest = min(single_positions, key=key)
+                confirmed = self._confirm_single_leg_candidate(nearest, now)
+                if confirmed is not None:
+                    self._publish_person_position(
+                        confirmed, now, "Posición de persona publicada (PIERNA ÚNICA, sin par)",
+                        {"x_laser": round(float(confirmed[0]), 3), "y_laser": round(float(confirmed[1]), 3)})
+                    return True
+            else:
+                self._confirm_single_leg_candidate(None, now)
 
         # ── Fallback de fusión cámara+LIDAR ──────────────────────────────────
         # Si el LIDAR no encontró un par de piernas válido (persona quieta,

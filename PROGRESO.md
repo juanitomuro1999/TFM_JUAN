@@ -38,6 +38,22 @@ un obstáculo real en el camino, para confirmar que `lin_factor` frena la
 marcha de verdad — hoy solo se confirmó el sector correcto y el disparo del
 log, sin desplazamiento.
 
+### Fallback de pierna única para el hueco de detección al girar (objetivo principal de la sesión)
+
+Implementado en `detection_node.detect_person`: cuando no hay par de
+piernas válido pero sí un clúster único ya clasificado como pierna, se
+acepta como candidato (gateado con `_confirm_single_leg_candidate`, mismo
+mecanismo que la fusión cámara+LIDAR del 16/07), antes de caer al fallback
+de cámara. Verificado sintéticamente
+(`validation/verify_single_leg_fallback.py`, 4 escenarios en verde) y en
+vivo: con una persona girando delante del robot ~30s (sin mover el robot,
+sin activar tracking), el log registró 630 detecciones vía el nuevo
+fallback, 315 vía par normal (sin regresión), 0 vía cámara y 0 errores.
+Solo una pérdida de racha de ~1.6s en toda la prueba, frente a los 2-4s
+documentados el 15/07. Detalle completo en `docs/decisiones.md`
+(2026-07-21). Pendiente: repetir con el robot realmente siguiendo
+(tracking activo) y cuantificar el hueco residual con más repeticiones.
+
 ### Reproducibilidad de la tabla 7.4 (Capítulo 7): saltos sí, saturación no
 
 Punto 3 del objetivo de la Sesión 4, pendiente desde el 09/07 (requería una
