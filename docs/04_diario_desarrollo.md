@@ -704,6 +704,74 @@ de verificar en la próxima sesión de laboratorio, sin tocar código
 todavía — de confirmarse, tendría implicación de seguridad y no solo de
 precisión de seguimiento.
 
+### 21 de julio — Sesión 4 de laboratorio: sector de obstáculos corregido, hueco de detección al girar resuelto, gate de continuidad afinado con mobiliario real
+
+Cuarta sesión de laboratorio, con los cuatro objetivos que traía preparados
+desde el 17 de julio. Se empezó, como estaba previsto, por la comprobación
+más barata y con implicación de seguridad: el hallazgo sin confirmar sobre
+la evasión de obstáculos. Con una silla de laboratorio colocada a 25
+centímetros del LIDAR, primero delante y luego detrás del robot, se leyó
+el escaneo láser crudo directamente para ver en qué ángulo caía la
+distancia mínima detectada. El resultado fue inequívoco: con la silla
+delante, el mínimo aparecía en un ángulo crudo cercano a ±180 grados; con
+la silla detrás, cercano a 0 grados. Esto confirmó que la evasión de
+obstáculos, que trataba los ángulos cercanos a 0 como "delante", llevaba
+vigilando en realidad la parte trasera del robot — el mismo desfase de π
+que ya se corregía en la fusión de posición, aplicado aquí por primera
+vez. Se corrigió normalizando el ángulo crudo antes del filtro de sector,
+y se comprobó en vivo, sin mover el robot, que el aviso de "obstáculo
+frontal" pasaba a dispararse correctamente con la silla delante.
+
+El segundo objetivo, el más sustancial de la sesión, abordaba el hueco de
+detección de varios segundos que aparecía al girar, diagnosticado en la
+sesión anterior: al girar el cuerpo, una pierna puede ocultar a la otra
+para el LIDAR justo cuando la cámara también puede fallar un fotograma por
+el desenfoque de movimiento, dejando a las dos modalidades de percepción
+ciegas a la vez. De las estrategias esbozadas para atacarlo, se optó por
+aceptar un único clúster de pierna, sin pareja, como candidato de menor
+confianza cuando el emparejamiento habitual no encuentra ningún par
+válido — exigiendo la misma confirmación por consistencia entre
+fotogramas que ya se usaba para el candidato de fusión cámara-cámara.
+Verificado primero con un guion sintético sin necesidad de ROS, se
+comprobó después en vivo, con una persona girando repetidamente delante
+del robot: el nuevo camino cubrió más de seiscientas detecciones donde
+antes no habría habido ninguna, y el único hueco observado en toda la
+prueba se quedó en poco más de un segundo y medio, frente a los dos a
+cuatro segundos documentados antes del cambio.
+
+Con el robot ya siguiendo de verdad, se aprovechó para abordar también el
+tercer objetivo, pendiente desde principios de mes: estresar el filtro de
+continuidad con mobiliario deliberadamente denso cerca de la trayectoria,
+en un recorrido de más de dos minutos. La primera toma, con el valor por
+defecto del parámetro de confirmación, mostró que casi uno de cada ocho
+saltos de posición superaba los ochenta centímetros entre muestras
+consecutivas — bastante más que en ninguna toma anterior —, y el registro
+en vivo dejó ver un caso concreto: una posición que saltaba más de un
+metro en un tiempo demasiado corto para ser humanamente posible, para
+volver enseguida a la zona de donde había salido. Subir el número de
+fotogramas consecutivos exigidos para confirmar un candidato, de uno a
+tres, redujo esos saltos a menos de la mitad y eliminó por completo la
+saturación angular observada, a cambio de una detección y una precisión
+de distancia ligeramente peores que, con una sola repetición por
+condición, no se pueden atribuir con seguridad al cambio del parámetro en
+vez de a la variabilidad natural de dos caminatas reales distintas.
+
+Por último, aprovechando que la conectividad con el NUC permitía por fin
+ejecutar el pipeline de extracción de bags fuera del portátil de
+escritorio, se completó el cuarto objetivo: reproducir con el pipeline
+committeado las métricas de saltos y saturación que hasta ahora solo
+existían calculadas con un script ya perdido de principios de julio. El
+resultado fue mixto y se documentó como tal, sin suavizarlo: el porcentaje
+de saltos de posición se reprodujo razonablemente bien, pero la mejora de
+saturación angular que aquel cálculo antiguo atribuía a los tres primeros
+fixes de continuidad no se sostuvo con el pipeline reproducible — la
+saturación se mantuvo alta en las tres tomas originales, sin la tendencia
+decreciente reportada entonces. La tabla y su lectura en el capítulo de
+resultados se actualizaron en consecuencia, dejando constancia de que
+esos tres fixes concretos mejoraron la continuidad de la detección pero
+no, por sí solos, la agresividad del giro a corta distancia — ese ajuste
+llegaría más adelante, con `near_gain`.
+
 ---
 
 ## Julio 2026 (planificado)

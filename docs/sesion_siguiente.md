@@ -1,5 +1,51 @@
 # Prompt — Próxima sesión
 
+## OBJETIVO de la Sesión 5 (próxima): repeticiones de validación para el Capítulo 7
+
+Con el ruido de fondo de continuidad ya resuelto y ajustado en la Sesión 4
+(saltos de posición, saturación angular, hueco de detección al girar, sector
+de obstáculos — ver `docs/decisiones.md` 2026-07-21 y estado heredado más
+abajo): repetir **2-3 tomas por escenario** de `validation/README.md` para
+tener varianza, no solo un valor por condición (limitación N=1 documentada
+en `docs/07_resultados.md` §7.5).
+
+**Escenarios a repetir** (`bash validation/record_run.sh <etiqueta> [duración_s]`):
+
+| Escenario | Qué valida |
+|---|---|
+| `recta` | Persona camina en línea recta alejándose |
+| `curva` | Persona describe una curva / cambio de dirección — **ahora también ejercita el fallback de pierna única nuevo (Sesión 4)** |
+| `parada` | Persona se detiene → standoff a `target_distance` (1 m) |
+| `corto` | Persona se acerca a <1 m → valida `near_gain`/giro brusco a corta distancia |
+| `oclusion` | Persona pasa tras un obstáculo → predicción Kalman + recuperación |
+| `obstaculo` | Obstáculo en la trayectoria → evasión (sector ya corregido en Sesión 4, repetir para confirmar `lin_factor` frenando de verdad con movimiento real — pendiente de la Sesión 4) |
+
+**Antes de repetir cada escenario, comprobar que sigue vigente:**
+- `continuity_confirm_frames=3` (subido en la Sesión 4) — no bajarlo sin
+  repetir la prueba de mobiliario denso que motivó el cambio.
+- El fallback de pierna única (`_confirm_single_leg_candidate`) sigue en
+  `detection_node.py` — debería reducir huecos de detección en `curva` y
+  `oclusion` respecto a tomas anteriores a la Sesión 4.
+
+**Al terminar cada toma:** `bag_to_csv.py` (en el NUC) + `plot_run.py` (en
+el portátil) + comparar contra las tomas equivalentes ya existentes en
+`validation/runs/` (si las hay) para ver si el fallback de pierna única y
+`continuity_confirm_frames=3` mejoran las cifras en escenarios reales
+distintos al de mobiliario denso de la Sesión 4.
+
+**Pendientes menores heredados de la Sesión 4** (hacer si sobra tiempo,
+ninguno bloquea el objetivo principal — ver `docs/decisiones.md`
+2026-07-21 para el detalle completo de cada uno):
+- Confirmar que `lin_factor` de la evasión de obstáculos frena de verdad
+  la marcha con el robot en movimiento real (hoy solo se confirmó el
+  sector correcto y el disparo del log, sin movimiento).
+- Repetir el giro con tracking activo (robot moviéndose de verdad tras la
+  persona), no solo con el robot parado, para el fallback de pierna única.
+- Cruzar `position.csv` con `distance` en los instantes "estables" de los
+  bags `20260708_movimiento_fix1/fix2` para confirmar o descartar el
+  efecto de acercamiento sin `near_gain` como causa de la saturación alta
+  de la tabla 7.4.
+
 ## Tareas de escritorio para mañana (sin robot, sin acceso al lab)
 
 Pendientes de la sesión de lab del 2026-07-13 que no requieren el robot —
@@ -87,8 +133,8 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~1~~ | ~~Cámara — re-encuadrar + validar gesto real~~ **✅ hecho 2026-07-09** (no como se planeó — resuelto por software + cambio de cámara improvisado, no reencuadre físico de la C270 — ver abajo) |
 | ~~2~~ | ~~FSM oscilando + near_gain aislado + recalibrar cámara~~ **✅ hecho 2026-07-13** (parcial — ver estado heredado abajo: fix de CPU sí cerrado, oscilación/near_gain llevaron a un hallazgo mayor sin resolver, cámara aplazada) |
 | ~~3~~ | ~~Corregir desfase de π en tracking_node + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva~~ **✅ hecho 2026-07-15** (el fix de π se sostuvo, pero apareció un fallo mayor no relacionado — signo invertido en el PD angular, causa real de "gira al lado contrario" desde el 13/07 — encontrado y corregido; `near_gain` aislado y sano; cámara evaluada sin necesidad de recalibrar — ver estado heredado abajo) |
-| **4 (próxima)** | Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + **el hueco de detección LIDAR+cámara al girar (nuevo, 2026-07-15, mismo tema)** + resolver reproducibilidad de métricas del Capítulo 7 |
-| 5 | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
+| ~~4~~ | ~~Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + el hueco de detección LIDAR+cámara al girar + resolver reproducibilidad de métricas del Capítulo 7~~ **✅ hecho 2026-07-21** (los cuatro objetivos completados en una sola sesión — ver estado heredado abajo y `docs/decisiones.md`) |
+| **5 (próxima)** | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
 | 6 | Nav2 — fase A: solo localización AMCL |
 | 7 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
 | 8 | Colchón + grabar vídeo de demostración del TFM |
@@ -96,9 +142,10 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 
 **Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
 presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
-como la nº1) — **quedan 6 sesiones (4 a 9)** a partir de hoy. La mención del
-13/07 de "9 o 10 sesiones quedando desde ese día" no era el recuento correcto;
-descartar esa cifra. No volver a plantear esta duda en sesiones futuras.
+como la nº1). Tras completar la Sesión 4 (2026-07-21) — **quedan 5 sesiones
+(5 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
+era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
+en sesiones futuras.
 
 ### Calendario estimado (añadido 2026-07-17)
 
@@ -275,7 +322,7 @@ que sobre alguna sesión de las 9.
   punto anterior, sigue siendo válida por sí misma independientemente del
   fix de arquitectura pendiente.
 
-## OBJETIVO de la Sesión 4 (próxima): fallback de fusión robusto durante giros + gate de continuidad + reproducibilidad del Capítulo 7
+## Estado heredado de la sesión 2026-07-21 (Sesión 4 — no repetir, solo verificar)
 
 **Contexto actualizado 2026-07-15:** el hallazgo de hoy (LIDAR y cámara
 pierden a la persona a la vez al girar, ver estado heredado arriba) es el
@@ -369,13 +416,6 @@ hipótesis sin confirmar sobre la causa en `docs/decisiones.md`
 con `distance` en los instantes "estables" de fix1/fix2 para confirmar o
 descartar el efecto de acercamiento a corta distancia sin `near_gain`
 (que no existía todavía el 08/07) como causa de la saturación alta.
-
-## OBJETIVO de la Sesión 5: repeticiones de validación para el Capítulo 7
-
-Con el ruido de fondo (saltos/saturación) ya resuelto y ajustado: repetir
-2-3 tomas por escenario de `validation/README.md` (recta, curva, parada,
-corto, oclusión, obstáculo) para tener varianza, no solo un valor por
-condición (`docs/07_resultados.md` §7.5).
 
 ## OBJETIVO de las Sesiones 6-7: Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09)
 
