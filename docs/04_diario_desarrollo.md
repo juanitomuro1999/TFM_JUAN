@@ -772,6 +772,52 @@ esos tres fixes concretos mejoraron la continuidad de la detección pero
 no, por sí solos, la agresividad del giro a corta distancia — ese ajuste
 llegaría más adelante, con `near_gain`.
 
+### 21 de julio (continuación) — Sesión 5: dos colisiones reales al repetir el escenario de obstáculo, por dos causas distintas
+
+Con la Sesión 4 recién cerrada, se empezó la Sesión 5 (repeticiones de
+validación del Capítulo 7) por el escenario de obstáculo, en parte para
+confirmar con movimiento real el sector de evasión corregido esa misma
+mañana. La primera repetición no salió bien: el robot detectó la silla
+colocada en el camino, se paró, pero no llegó a rodearla, y al moverse la
+persona que lo seguía chocó contra ella — sin daños, pero un golpe real.
+
+Analizando el rosbag de esa toma se encontró algo que no encajaba con lo
+corregido por la mañana: el indicador de frenado por obstáculo nunca se
+activó en ninguna de las muestras registradas. Leyendo directamente el
+láser crudo del bag durante el tramo de mayor giro, aparecía un objeto
+casi fijo a 0.75 metros del sensor, muy por encima del umbral de
+seguridad configurado. La explicación más plausible no es un error de
+software sino un límite físico del propio sensor: un LIDAR 2D solo mide
+un plano horizontal, a la altura aproximada de las patas de una silla; el
+asiento o el reposabrazos, que suelen sobresalir más hacia dentro a otra
+altura, quedan fuera de ese plano y por tanto invisibles para cualquier
+evasión basada solo en ese sensor, sin importar lo bien orientado que esté
+el sector o lo generoso que sea el umbral.
+
+Se repitió el escenario una segunda vez, esta vez con la persona rodeando
+el obstáculo en movimiento en vez de quedarse cerca. A la ida el robot se
+mantuvo alejado sin problema; a la vuelta, un golpe leve, de nuevo sin
+daños. Pero el análisis del bag mostró un patrón completamente distinto al
+primero: el objeto sí entró esta vez dentro del sector frontal corregido,
+la distancia bajó de forma continua hasta cruzar el umbral de seguridad, y
+la velocidad lineal del robot frenó en consecuencia, de su valor máximo a
+cero en unas pocas décimas de segundo. La evasión funcionó exactamente
+como estaba pensada — y aun así hubo un roce. La explicación aquí es otra:
+el umbral se mide desde la posición del propio sensor, no desde el borde
+físico real del robot, que queda más adelantado; sumado al tiempo que
+tarda en frenar del todo, el margen efectivo hasta el contacto resulta más
+pequeño de lo que sugiere el valor del parámetro por sí solo.
+
+Ambos hallazgos quedan documentados como limitaciones de seguridad reales,
+con posibles mitigaciones anotadas para valorar en una sesión futura
+(ampliar el umbral con un margen medido físicamente, conectar el nodo de
+manejo de colisiones que existe en el repositorio pero no está enlazado al
+nodo de control, o considerar una segunda modalidad de sensado a otra
+altura) — ninguna implementada todavía, a la espera de decidir con calma
+cuánto alcance dedicarles con las sesiones de laboratorio que quedan. Se
+decidió cerrar la sesión de movimiento por hoy tras el segundo golpe, en
+vez de seguir probando el mismo escenario sin haber cambiado nada primero.
+
 ---
 
 ## Julio 2026 (planificado)

@@ -1,6 +1,14 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 5 (próxima): repeticiones de validación para el Capítulo 7
+## OBJETIVO de la Sesión 5 (continuación): repeticiones de validación para el Capítulo 7
+
+**Antes de nada (barato, de escritorio, sin robot):** medir con una cinta
+métrica el offset físico entre el LIDAR y el borde delantero real del
+robot (ver aviso de seguridad más abajo, hallazgo del 2026-07-21) y, con
+ese dato, decidir un nuevo valor de `obstacle_threshold` (0.35m actual)
+que deje margen real hasta el borde del robot, no solo hasta el sensor.
+Esto no requiere el robot encendido — solo el chasis físico y un metro.
+Hacerlo antes de repetir el escenario `obstaculo` en el lab.
 
 Con el ruido de fondo de continuidad ya resuelto y ajustado en la Sesión 4
 (saltos de posición, saturación angular, hueco de detección al girar, sector
@@ -158,7 +166,7 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~2~~ | ~~FSM oscilando + near_gain aislado + recalibrar cámara~~ **✅ hecho 2026-07-13** (parcial — ver estado heredado abajo: fix de CPU sí cerrado, oscilación/near_gain llevaron a un hallazgo mayor sin resolver, cámara aplazada) |
 | ~~3~~ | ~~Corregir desfase de π en tracking_node + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva~~ **✅ hecho 2026-07-15** (el fix de π se sostuvo, pero apareció un fallo mayor no relacionado — signo invertido en el PD angular, causa real de "gira al lado contrario" desde el 13/07 — encontrado y corregido; `near_gain` aislado y sano; cámara evaluada sin necesidad de recalibrar — ver estado heredado abajo) |
 | ~~4~~ | ~~Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + el hueco de detección LIDAR+cámara al girar + resolver reproducibilidad de métricas del Capítulo 7~~ **✅ hecho 2026-07-21** (los cuatro objetivos completados en una sola sesión — ver estado heredado abajo y `docs/decisiones.md`) |
-| **5 (próxima)** | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 |
+| **5 (en curso)** | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 — **iniciada 2026-07-21:** solo se llegó al escenario `obstaculo` (2 tomas, 2 choques reales sin daños, ver aviso de seguridad abajo) antes de parar por precaución. Quedan `recta`/`curva`/`parada`/`corto`/`oclusion` y repetir `obstaculo` tras la mitigación pendiente |
 | 6 | Nav2 — fase A: solo localización AMCL |
 | 7 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
 | 8 | Colchón + grabar vídeo de demostración del TFM |
