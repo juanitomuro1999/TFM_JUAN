@@ -5,6 +5,68 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-21 — Subir continuity_confirm_frames de 1 a 3 tras estresar con mobiliario denso
+
+- **Contexto:** último punto del objetivo de la Sesión 4 — probar
+  deliberadamente con mobiliario denso y un recorrido largo (>2 min),
+  pendiente desde el 13/07. Con el fallback de pierna única ya
+  implementado hoy (ver entrada de arriba), se aprovechó la misma sesión
+  de lab para esta prueba.
+- **Toma 1 (`continuity_confirm_frames=1`, valor por defecto hasta hoy):**
+  145.2s, mobiliario denso cerca de la trayectoria, persona caminando de
+  verdad (robot en TRACKING real, no bypass por servicio). Resultado:
+  100% detección, 0 pérdidas — el fallback de pierna única cubre bien el
+  hueco — pero **12.9% de saltos de posición >0.8m, salto máximo 3.40m**,
+  bastante más que cualquier toma del 08/07 (máx 2.2%). Confirma
+  visualmente en el log en vivo durante la prueba: un candidato saltó de
+  (-1.13,-0.16) a (-0.28,0.79) en 0.072s (~17.6 m/s implícitos,
+  fisicamente imposible) y volvió a la zona anterior poco después —
+  patrón típico de mobiliario colándose un instante.
+- **Causa:** con `continuity_confirm_frames=1`, tanto el fallback de
+  fusión (2026-07-16) como el nuevo de pierna única (arriba) aceptan el
+  primer candidato sin exigir repetición — es el comportamiento
+  documentado como "igual que antes" para ese valor. El camino de pares de
+  piernas (`_gate_by_continuity`) sí tiene un chequeo adicional de salto
+  inmediato respecto a la última posición confirmada; los otros dos
+  caminos solo tienen el filtro de deriva acumulada (`_filter_by_drift`),
+  que acota la deriva respecto al punto más antiguo de la ventana, no
+  frame a frame — insuficiente para un salto puntual grande seguido de
+  vuelta.
+- **Decisión:** subir `continuity_confirm_frames` de 1 a 3 en
+  `config.yaml` (afecta a los tres mecanismos que lo usan: gate de
+  continuidad de pares, confirmación de fusión, confirmación de pierna
+  única).
+- **Toma 2 (`continuity_confirm_frames=3`, mismo mobiliario, ~2 min):**
+  124.8s. Resultado: saltos bajan a **4.6%** (salto máximo similar, 3.49m
+  — subir el parámetro no elimina el peor caso, solo lo hace menos
+  frecuente: un candidato erróneo que se repite 3 scans seguidos en el
+  mismo sitio también queda "confirmado"), saturación baja a **0.0%**
+  (antes 4.9% global / 0.2% estable), pero la detección baja ligeramente
+  (97.8%, 3 pérdidas) y el error de distancia MAE/RMS empeora (0.854m/
+  1.035m frente a 0.633m/0.728m). **No se puede atribuir con seguridad el
+  empeoramiento del error de distancia al parámetro** — son dos caminatas
+  reales distintas (N=1 por condición, misma limitación ya documentada en
+  `docs/07_resultados.md` §7.5), no una repetición controlada del mismo
+  recorrido exacto.
+- **Lectura:** el balance favorece el cambio — saltos y saturación bajan
+  claramente, que es justo el problema que se estaba atacando (mobiliario
+  colándose), a cambio de una pérdida de detección marginal (100%→97.8%)
+  y un MAE peor que podría ser ruido de la muestra. Se mantiene
+  `continuity_confirm_frames=3` como nuevo valor por defecto.
+- **Alternativas descartadas:** ajustar también `continuity_window_s` a
+  la vez — descartado para aislar el efecto de un solo parámetro por
+  cambio, siguiendo la práctica ya establecida en este repo (ver
+  2026-07-13, "Subir continuity_confirm_frames: descartado", donde se
+  cambió un parámetro cada vez).
+- **Pendiente:** repetir con más tomas (2-3 por condición, ver limitación
+  N=1 de `docs/07_resultados.md` §7.5) para separar el efecto del
+  parámetro del ruido de la muestra, en particular para el MAE de
+  distancia que empeoró. Considerar en el futuro un chequeo de salto
+  inmediato (no solo de deriva acumulada) también para los caminos de
+  fusión y pierna única, análogo al que ya tiene `_gate_by_continuity`
+  para pares — no implementado hoy, es una mejora de diseño más profunda
+  que subir un parámetro.
+
 ## 2026-07-21 — Fallback de pierna única (sin par) para el hueco de detección al girar
 
 - **Contexto:** objetivo principal de la Sesión 4 (docs/sesion_siguiente.md),

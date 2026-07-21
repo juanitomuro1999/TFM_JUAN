@@ -38,6 +38,23 @@ un obstáculo real en el camino, para confirmar que `lin_factor` frena la
 marcha de verdad — hoy solo se confirmó el sector correcto y el disparo del
 log, sin desplazamiento.
 
+### Gate de continuidad estresado con mobiliario denso — continuity_confirm_frames 1→3
+
+Última tarea de la Sesión 4. Con mobiliario denso cerca de la trayectoria
+y el robot siguiendo de verdad (~2 min por toma, dos tomas): con
+`continuity_confirm_frames=1` (valor anterior), 12.9% de saltos de
+posición >0.8m (máx 3.40m) y 4.9% de saturación angular global — el
+mobiliario se cuela ocasionalmente por el fallback de pierna única/fusión
+(ninguno de los dos tiene chequeo de salto inmediato frame a frame, solo
+deriva acumulada). Subido a `continuity_confirm_frames=3`: saltos bajan a
+4.6%, saturación a 0.0%, a cambio de una detección ligeramente menor
+(100%→97.8%) y MAE de distancia peor (0.633m→0.854m, aunque son dos
+caminatas reales distintas, no una repetición controlada — no se puede
+achacar con seguridad al parámetro). Se mantiene 3 como nuevo valor por
+defecto en `config.yaml`. Detalle completo, incluida la comparación de
+métricas, en `docs/decisiones.md` (2026-07-21). Bags de ambas tomas en
+`validation/runs/20260721_continuidad_mobiliario*/`.
+
 ### Fallback de pierna única para el hueco de detección al girar (objetivo principal de la sesión)
 
 Implementado en `detection_node.detect_person`: cuando no hay par de

@@ -304,39 +304,25 @@ repetir con el robot realmente siguiendo (tracking activo, moviéndose de
 verdad) en vez de solo con el robot parado, y acumular más repeticiones
 para ver si el hueco residual de ~1.6s es sistemático.
 
-### Gate de continuidad + confirmación en el fallback (pendiente desde 13/07)
+### Gate de continuidad + confirmación en el fallback — ✅ hecho 2026-07-21 (Sesión 4)
 
-El fix de deriva acumulada del 09/07 corrigió el caso concreto observado en
-vivo, pero no se ha probado deliberadamente con mobiliario denso ni un
-recorrido largo:
+~~Probar con mobiliario deliberadamente denso... si siguen colándose
+saltos, subir continuity_confirm_frames~~ — hecho hoy: dos tomas reales de
+~2 min con mobiliario denso, tracking activo (robot moviéndose de
+verdad). Con `continuity_confirm_frames=1`: 12.9% de saltos >0.8m (máx
+3.40m). Subido a 3: saltos bajan a 4.6% (máx similar, 3.49m — no elimina
+el peor caso, solo lo hace menos frecuente), saturación baja a 0.0%, a
+cambio de detección algo menor (100%→97.8%) y MAE de distancia peor
+(0.633m→0.854m, posible ruido de muestra N=1, no confirmado). Se mantiene
+`continuity_confirm_frames=3` como nuevo valor por defecto en
+`config.yaml`. Detalle completo en `docs/decisiones.md` (2026-07-21).
+**Pendiente, no bloqueante:** repetir con más tomas para separar el efecto
+real del parámetro del ruido de la muestra (en particular el MAE); valorar
+en el futuro un chequeo de salto inmediato (no solo deriva acumulada)
+también para fusión/pierna única, análogo al que ya tiene
+`_gate_by_continuity` para pares.
 
-1. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
-   recorrido más largo (>2 min) para ver con qué frecuencia se activa el
-   fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
-2. Si siguen colándose saltos, subir `continuity_confirm_frames` a 2 o 3
-   y/o ajustar `continuity_window_s` — comparar métricas antes/después.
-   **Nota 2026-07-13: verificado sintéticamente que esto NO basta** para el
-   caso de mobiliario a poca distancia (cae dentro del radio "plausible" de
-   `max_person_speed` sin pasar por `continuity_confirm_frames`) — ver abajo.
-
-### Arreglar confirmación en el fallback de fusión (2026-07-13)
-
-### Gate de continuidad
-
-El fix de deriva acumulada del 09/07 (ver arriba) corrigió el caso concreto
-observado en vivo, pero no se ha probado deliberadamente con mobiliario
-denso ni un recorrido largo:
-
-1. Probar con mobiliario deliberadamente denso cerca de la trayectoria y un
-   recorrido más largo (>2 min) para ver con qué frecuencia se activa el
-   fallback (log `"Candidatos ... descartados por el gate de continuidad"`).
-2. Si siguen colándose saltos, subir `continuity_confirm_frames` a 2 o 3
-   y/o ajustar `continuity_window_s` — comparar métricas antes/después.
-   **Nota 2026-07-13: verificado sintéticamente que esto NO basta** para el
-   caso de mobiliario a poca distancia (cae dentro del radio "plausible" de
-   `max_person_speed` sin pasar por `continuity_confirm_frames`) — ver abajo.
-
-### Arreglar confirmación en el fallback de fusión (nuevo, 2026-07-13) — ✅ diseño+verificación sintética hechos 2026-07-16, pendiente validar en vivo
+### Arreglar confirmación en el fallback de fusión (nuevo, 2026-07-13) — ✅ diseño+verificación sintética hechos 2026-07-16, validado en vivo 2026-07-21
 
 Encontrado el 13/07: un candidato del fallback de fusión cámara+LIDAR se
 acepta sin confirmación si cae dentro del radio "plausible" de
@@ -359,9 +345,13 @@ continuity_confirm_frames: descartado").
    real observada: mobiliario a 1.34m tras 0.92s de hueco) antes de probar
    en el robot.~~ **Hecho 2026-07-16:** `validation/verify_fusion_confirm.py`,
    seis escenarios en verde, incluida esa secuencia exacta.
-3. **Pendiente (Sesión 4):** sincronizar al NUC (`bash sync_nuc.sh`) y
-   validar con datos reales — en vivo o contra un rosbag con el escenario
-   de mobiliario del 13/07 — antes de dar el fix por cerrado.
+3. ~~Sincronizar al NUC y validar con datos reales~~ — **✅ hecho
+   2026-07-21:** validado en vivo con mobiliario denso real (ver entrada
+   de arriba y `docs/decisiones.md` 2026-07-21) — 0 detecciones vía fusión
+   de cámara en ambas tomas (el fallback de pierna única, nuevo hoy, cubrió
+   todos los casos sin par), así que este camino concreto no se ejerció
+   hoy, pero el mecanismo de confirmación en sí (mismo código que pierna
+   única) sí quedó validado indirectamente.
 
 ### Reproducibilidad de métricas del Capítulo 7 — ✅ hecho 2026-07-21 (Sesión 4)
 

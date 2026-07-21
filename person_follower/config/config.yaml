@@ -116,10 +116,12 @@ detection_node:
     position_jump_margin: 0.3     # m — margen extra sobre max_person_speed*dt (ruido de medida)
     # Scans consecutivos con un candidato CONSISTENTE (mismo punto, tolerancia
     # position_jump_margin) fuera de max_jump antes de aceptarlo como
-    # reanclaje real. 1 = comportamiento anterior, sin espera. Subir a 2-3
-    # tras medir en el lab con qué frecuencia se activa este caso (ver
-    # docs/sesion_siguiente.md, punto 3, sesión 2026-07-08/09).
-    continuity_confirm_frames: 1
+    # reanclaje real. 1 = comportamiento anterior, sin espera. Subido a 3
+    # el 2026-07-21 (Sesión 4): medido en vivo con mobiliario denso que con
+    # valor 1 colaban saltos >0.8m en el 12.9% de las muestras (máx 3.40m,
+    # sobre todo vía el fallback de pierna única nuevo) — ver
+    # docs/decisiones.md, 2026-07-21.
+    continuity_confirm_frames: 3
     # Deriva acumulada máxima respecto a la posición confirmada de hace
     # continuity_window_s segundos (no solo el salto frame a frame). Añadido
     # 2026-07-09 en vivo: una cadena de clústeres espurios adyacentes (p.ej.
