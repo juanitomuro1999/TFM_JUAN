@@ -394,7 +394,14 @@ class TrackingNode(Node):
         n         = 0
 
         for i, r in enumerate(scan.ranges):
-            ang = scan.angle_min + i * scan.angle_increment
+            raw_ang = scan.angle_min + i * scan.angle_increment
+            # TF base->laser yaw=pi (RPLIDAR montado invertido): "delante" real
+            # esta en raw_ang ~= +-pi, no en raw_ang ~= 0 (mismo desfase que ya
+            # corrige detection_node al publicar /person_position). Verificado
+            # en vivo 2026-07-21: obstaculo a 25cm delante -> raw_ang ~= -174°;
+            # el mismo obstaculo detras -> raw_ang ~= 0°. Sin este ajuste, este
+            # filtro vigilaba el sector trasero en vez del frontal.
+            ang = math.atan2(math.sin(raw_ang - math.pi), math.cos(raw_ang - math.pi))
             if abs(ang) > math.radians(50):
                 continue
             if not (scan.range_min < r < self.obs_threshold):

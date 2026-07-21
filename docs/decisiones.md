@@ -5,6 +5,116 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-21 — Reproducibilidad de la tabla 7.4: saltos de posición sí reproducen, saturación angular no
+
+- **Contexto:** punto 3 del objetivo de la Sesión 4 (reproducibilidad de
+  métricas del Capítulo 7, pendiente desde el 2026-07-09). Requiere una
+  máquina con ROS 2 para leer los bags `.db3` — con conectividad SSH al NUC
+  confirmada hoy, se hizo posible sin esperar a otra sesión.
+- **Procedimiento:** copiados por `scp` los tres bags de
+  `validation/runs/20260708_movimiento_{original,fix1_gating,fix2_kalman_wz}`
+  al NUC (`/tmp/tfm_bags_ch7/`, no versionado); ejecutado
+  `bag_to_csv.py` (sincronizado también por `scp`, no está en
+  `sync_nuc.sh`) en el NUC sobre cada uno; traídos los CSVs resultantes de
+  vuelta al portátil (`analysis_new/` junto a cada `analysis/` original, sin
+  sobreescribir la extracción del 08/07); ejecutado `plot_run.py`
+  localmente (tiene matplotlib) con los umbrales por defecto
+  (`--jump-threshold 0.8 --stable-radius 0.15 --stable-window 1.0
+  --sat-threshold 0.95`).
+- **Resultado (tabla completa):**
+
+  | Toma | Saltos >0.8m: tabla / nuevo | Saturación estable: tabla / nuevo | Saturación global (nuevo) |
+  |---|---|---|---|
+  | Original | 12.1% / **3.5%** | 94.5% / **95.7%** | 96.9% |
+  | + fix1 (gate continuidad) | 2.2% / **2.2%** | 72.2% / **99.3%** | 99.4% |
+  | + fix2/3 (Mahalanobis+rate-limit) | 0.7% / **0.7%** | 12.4% / **86.9%** | 80.6% |
+
+- **Lectura:** el % de saltos de posición reproduce perfectamente en fix1 y
+  fix2 (mismo valor exacto) y razonablemente en la tendencia general, solo
+  diverge en el valor absoluto de la toma "original" (3.5% vs 12.1% —
+  posiblemente el script perdido usaba un umbral o ventana distintos, no
+  documentados). La saturación angular es harina de otro costal: **no solo
+  no coincide en valores, invierte la conclusión** — el script perdido
+  sugería una mejora fuerte y monótona (94.5%→12.4%), pero el pipeline
+  reproducible muestra saturación alta y no monótona en las tres tomas
+  (95.7%→99.3%→86.9%). Se revisó `stable_mask`/`saturation_with_stability`
+  en `plot_run.py` línea a línea buscando un bug antes de aceptar esta
+  divergencia como real — la implementación es coherente, no se encontró
+  ningún error.
+- **Hipótesis de la causa (sin confirmar):** dos factores no excluyentes.
+  (a) El número de muestras "estables" en fix1/fix2 es pequeño (272 y 191,
+  frente a 900 en la toma original) — con tan pocas muestras el % es más
+  ruidoso y sensible a qué momentos concretos caen en la ventana de
+  estabilidad. (b) Los tres fixes de esta tabla (gate de continuidad,
+  Mahalanobis, rate-limit de `wz`) atacan la *continuidad de la detección*,
+  no la *ganancia* del controlador angular — el ajuste que sí ataca la
+  saturación a corta distancia (`near_gain`, zona muerta angular ±8°) se
+  añadió el 2026-07-15, una semana después de estos bags. Es plausible que
+  las muestras "estables" de fix1/fix2 capturen momentos de acercamiento a
+  corta distancia donde, sin `near_gain` todavía, el giro satura casi
+  siempre — pero esto no se ha verificado hoy (requeriría cruzar
+  `position.csv` con `distance` en esos instantes concretos).
+- **Decisión:** actualizada la tabla 7.4 y su párrafo de "Lectura" en
+  `docs/07_resultados.md` con las cifras reproducibles y una conclusión
+  honesta: mejora clara y sostenida en saltos de posición, sin mejora
+  sostenida en saturación angular con estos tres fixes concretos (queda
+  como limitación abierta, no como logro). Actualizada también la entrada
+  de `docs/sesion_siguiente.md` (objetivo 3 de la Sesión 4) y §7.5.
+- **Alternativas descartadas:** dejar la tabla y la lectura antiguas
+  intactas y solo anotar la discrepancia aparte — descartado porque la
+  tabla 7.4 es parte del cuerpo de la memoria y afirmar una mejora que el
+  propio pipeline reproducible del repo contradice sería inconsistente con
+  el resto del documento.
+- **Pendiente:** confirmar o descartar la hipótesis (b) de arriba cruzando
+  `position.csv`/`distance` en los instantes "estables" de fix1/fix2; no
+  bloquea nada, es refinamiento del análisis. Los ficheros CSV nuevos viven
+  en `validation/runs/20260708_movimiento_*/analysis_new/` (no se ha
+  sobreescrito `analysis/` original, que sigue reflejando la extracción del
+  08/07 con el formato antiguo de `metrics.txt`).
+
+## 2026-07-21 — CONFIRMADO Y CORREGIDO: la evasión de obstáculos de `tracking_node` vigilaba el sector trasero, no el frontal
+
+- **Contexto:** primera tarea de la Sesión 4 de lab, priorizada por barata y
+  de seguridad (ver hallazgo sin verificar del 17/07 justo debajo). Con
+  conectividad SSH al NUC confirmada y el robot encendido, se verificó de
+  forma empírica antes de tocar nada.
+- **Verificación (sin mover el robot, solo lectura de `/scan`):** con el
+  robot parado, se colocó una silla de laboratorio a 25cm y se leyó el
+  `/scan` crudo con un script puntual (no forma parte del repo), buscando el
+  ángulo del rango mínimo:
+  - Silla **delante** (pegada a la base) → mínimo a 0.386m, ángulo crudo
+    ≈ **-174°** (cerca de ±180°).
+  - Misma silla **detrás**, misma distancia → mínimo a 0.365-0.375m, ángulo
+    crudo ≈ **0-2°**.
+  - Esto confirma sin ambigüedad la hipótesis del 17/07: "delante" real
+    está en el ángulo crudo ≈ ±π, no en ≈0 — mismo desfase que
+    `detection_node` ya corrige al publicar `/person_position`.
+- **Decisión:** corregido en `tracking_node._obstacle_avoidance` — antes de
+  aplicar el filtro `abs(ang)<=50°`, se normaliza el ángulo crudo restando π
+  y envolviendo a `(-π, π]` con `atan2(sin(x), cos(x))`. El resto de la
+  función (peso `cos(ang)`, `repulsion += w·(-ang)`) no cambia, solo pasa a
+  operar sobre el ángulo ya corregido — coherente con el resto del fichero
+  (`angle_to = atan2(py, px)` ya usa el convenio real, delante=0°).
+- **Validado en vivo tras el fix** (sin movimiento real del robot):
+  sincronizado a NUC, relanzado `person_follower`, con la silla delante y
+  tracking activado manualmente (`ros2 service call /enable_tracking
+  std_srvs/srv/SetBool "{data: true}"`, sin gesto, para no depender de la
+  FSM) se disparó correctamente `"Obstáculo frontal: adj=-0.00
+  lin_factor=0.95"` de forma sostenida. `adj≈0` es coherente con un
+  obstáculo centrado justo delante (sin necesidad de girar para evitarlo).
+  Velocidad en `/commands/velocity` confirmada en cero durante toda la
+  prueba (persona simulada/real a la distancia objetivo, sin desplazamiento
+  real). Desactivado el tracking al terminar
+  (`std_srvs/srv/SetBool "{data: false}"`) y confirmado que el log deja de
+  dispararse.
+- **Alternativas descartadas:** ninguna — es una corrección directa de un
+  bug de convenio de ángulo, no una decisión de diseño con alternativas.
+- **Pendiente:** repetir en algún momento con el robot realmente en
+  movimiento (avanzando hacia una persona) y un obstáculo real en su
+  camino, para confirmar que `lin_factor` frena de verdad la marcha — la
+  prueba de hoy solo confirmó el sector correcto y el disparo del log, no
+  el efecto sobre `vx` con el robot en movimiento real.
+
 ## 2026-07-17 — HALLAZGO SIN VERIFICAR: la evasión de obstáculos de `tracking_node` podría mirar al sector trasero, no al frontal
 
 - **Contexto:** revisión de escritorio del hallazgo del signo invertido del

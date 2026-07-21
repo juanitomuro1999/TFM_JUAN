@@ -71,15 +71,21 @@ inicial reveló saltos de detección y saturación angular casi permanente
 
 | Toma | Duración | % detección | Pérdidas detec. | MAE dist. | RMS dist. | Saltos >0.8m* | Saturación `wz`* |
 |---|---|---|---|---|---|---|---|
-| Original (sin fix) | 759.8 s | 32.3 %†  | 79 | 0.519 m | 0.935 m | 12.1 % | 94.5 % |
-| + fix 1 (gate continuidad) | 249.0 s | 71.7 % | 43 | 0.534 m | 0.725 m | 2.2 % | 72.2 % |
-| + fix 2 y 3 (Mahalanobis + rate-limit `wz`) | 53.1 s | **82.6 %** | **13** | 0.491 m | **0.609 m** | **0.7 %** | **12.4 %** |
+| Original (sin fix) | 759.8 s | 32.3 %†  | 79 | 0.519 m | 0.935 m | 3.5 % | 95.7 % |
+| + fix 1 (gate continuidad) | 249.0 s | 71.7 % | 43 | 0.534 m | 0.725 m | 2.2 % | 99.3 % |
+| + fix 2 y 3 (Mahalanobis + rate-limit `wz`) | 53.1 s | **82.6 %** | **13** | 0.491 m | **0.609 m** | **0.7 %** | 86.9 % |
 
 \* Saltos de posición >0.8m y % de saturación angular con posición
-localmente estable: cifras de `PROGRESO.md` (sesión 2026-07-08), calculadas
-con el script *ad-hoc* `bag_to_csv_direct.py` de esa sesión, **no
-reproducibles todavía** desde el pipeline committeado (`bag_to_csv.py` /
-`plot_run.py`) — ver limitación en 7.5.
+localmente estable (ventana 1.0s, radio 0.15m — ver `validation/plot_run.py`).
+**Reproducido 2026-07-21 (Sesión 4 de lab)** con el pipeline committeado
+(`bag_to_csv.py` ejecutado en el NUC + `plot_run.py` en el portátil) sobre
+los tres bags originales — ver `docs/decisiones.md` (2026-07-21) para el
+detalle completo, incluida la comparación con las cifras *ad-hoc* de
+`PROGRESO.md` (2026-07-08) que se citaban aquí hasta hoy: el % de saltos
+reprodujo con exactitud en las tomas fix1/fix2 (2.2% y 0.7%) pero salió
+bastante más bajo en la toma original (3.5% frente al 12.1% ad-hoc);
+la saturación **no** reprodujo la tendencia decreciente del cálculo
+ad-hoc — se mantiene alta en las tres tomas, ver lectura revisada abajo.
 
 † El 32.3% corresponde al bag completo (759.8s, incluye el tiempo de
 depuración del gesto antes de que empezara el seguimiento real).
@@ -88,13 +94,22 @@ tras filtrar ese tramo inicial — **cifra más representativa del
 comportamiento en TRACKING**, pero no recalculada aquí porque el filtrado se
 hizo a mano, no con un script committeado.
 
-**Lectura:** los tres fixes encadenados redujeron los saltos de posición
-implausibles de 12.1% a 0.7% de las muestras, y la saturación de velocidad
-angular (con la persona en posición estable) de 94.5% a 12.4%. La detección
-subió como efecto colateral (71.7%→82.6%): menos saltos → Kalman más
-estable → la FSM pierde menos el track. Los tres bags decrecen en duración
-porque las pruebas se fueron acotando a medida que el comportamiento se
-estabilizaba, no por una razón experimental — ver 7.5.
+**Lectura (revisada 2026-07-21):** los tres fixes encadenados sí redujeron
+de forma clara los saltos de posición implausibles (3.5%→2.2%→0.7%) y, como
+efecto colateral, subieron la detección (71.7%→82.6%): menos saltos → Kalman
+más estable → la FSM pierde menos el track. **La saturación de velocidad
+angular, en cambio, no mejora de forma sostenida con estos tres fixes** —
+se mantiene muy alta en las tres tomas (95.7%, 99.3%, 86.9% con posición
+estable; 96.9%, 99.4%, 80.6% en global), sin la tendencia decreciente que
+sugerían las cifras *ad-hoc* del 08/07. Los tres fixes de esta tabla atacan
+la *continuidad de la detección* (gate de continuidad, Mahalanobis,
+rate-limit de `wz`), no la *ganancia* del controlador angular — el ajuste
+que sí reduce la saturación a corta distancia (`near_gain`, zona muerta
+angular) se añadió después, el 2026-07-15 (ver `docs/decisiones.md`), y no
+está reflejado en estos tres bags del 08/07. Queda como limitación abierta,
+no como logro de esta serie de fixes — ver 7.5. Los tres bags decrecen en
+duración porque las pruebas se fueron acotando a medida que el
+comportamiento se estabilizaba, no por una razón experimental — ver 7.5.
 
 ![Distancia vs. tiempo — fix 2+3](../validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/dist_vs_t.png)
 ![Velocidad vs. tiempo — fix 2+3](../validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/vel_vs_t.png)
@@ -107,19 +122,25 @@ comparación visual completa cuando se redacte la versión final.)*
 
 ## 7.5 Limitaciones de los resultados actuales
 
-- **Reproducibilidad parcial (en progreso):** las cifras de "saltos >0.8m" y
-  "% saturación `wz`" de la tabla 7.4 se calcularon con un script que no está
-  en el repo (`bag_to_csv_direct.py`, mencionado en `PROGRESO.md` como "en el
-  scratchpad de esta sesión, no en el repo"). **2026-07-09 (preparado sin
-  robot):** ese cálculo ya forma parte del pipeline estándar —
-  `bag_to_csv.py` extrae `/person_position` a `position.csv` y `plot_run.py`
-  añade a `metrics.txt` el % de saltos y el % de saturación con posición
-  estable (ver `docs/decisiones.md`, entrada 2026-07-09). **Pendiente:**
-  re-ejecutar sobre los tres bags de la sesión 08/07
-  (`validation/runs/20260708_movimiento_*`) en una máquina con ROS 2 y
-  comparar contra la tabla 7.4 — la metodología (umbrales de salto/ventana de
-  estabilidad) es una reconstrucción razonada, no una recuperación literal
-  del script perdido, así que las cifras podrían no coincidir exactamente.
+- **Reproducibilidad de "saltos"/"saturación" — resuelta 2026-07-21, con
+  matices:** las cifras originales de la tabla 7.4 se habían calculado con
+  un script que no estaba en el repo (`bag_to_csv_direct.py`, sesión
+  2026-07-08). Desde el 2026-07-09 ese cálculo forma parte del pipeline
+  estándar (`bag_to_csv.py`/`plot_run.py`), y el 2026-07-21 (Sesión 4 de
+  lab) se re-ejecutó sobre los tres bags originales del 08/07 en el NUC
+  (que sí tiene ROS 2). El % de saltos de posición reprodujo con
+  exactitud en dos de las tres tomas y quedó más bajo en la tercera — se
+  considera una limitación menor, esperable de una metodología
+  reconstruida y no una recuperación literal del script perdido. **La
+  saturación angular, en cambio, no reprodujo la tendencia decreciente
+  original en absoluto** — con el pipeline reproducible se mantiene alta
+  (86-99%) en las tres tomas, sin la mejora de 94.5%→12.4% que sugerían
+  las cifras ad-hoc. Tabla y lectura de 7.4 ya actualizadas con las cifras
+  reproducibles. Ver `docs/decisiones.md` (2026-07-21) para el detalle
+  completo de la comparación y la hipótesis de por qué diverge (denominador
+  pequeño de muestras "estables" en las tomas cortas de fix1/fix2, y
+  posible efecto de acercamiento a corta distancia sin `near_gain`, que no
+  existía todavía el 08/07) — hipótesis sin confirmar, no verificada hoy.
 - **N=1 por condición:** cada fila de la tabla 7.4 es una única toma, no una
   media de repeticiones — no hay todavía medida de varianza entre pruebas
   equivalentes. `validation/README.md` recomienda 2-3 repeticiones por

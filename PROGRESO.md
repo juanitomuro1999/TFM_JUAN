@@ -1,5 +1,76 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-21 (lab, Sesión 4) — Bug de seguridad confirmado y corregido: evasión de obstáculos vigilaba el sector trasero
+
+### Arranque de sesión
+
+Conectividad SSH al NUC confirmada al empezar (`ping 10.48.0.1` OK), así que
+sesión de lab real, no de escritorio. Repo local sincronizado con GitHub
+(5 commits nuevos desde el 17/07: capítulos 5-6, fix de confirmación de
+fusión, confirmación del signo angular, calendario de sesiones). Código
+(`tracking_node.py`, `detection_node.py`, `config.yaml`) sincronizado al NUC
+con `sync_nuc.sh` — estaba desactualizado (última sync antes del fix de
+fusión del 16/07). USB de kobuki/rplidar sin reenumerar hoy (`ttyUSB0`
+sigue siendo la Kobuki). Stack completo (kobuki, rplidar, 7 nodos de
+`person_follower`) levantado sin errores.
+
+### Hallazgo del 17/07 verificado y corregido: sector de obstáculos invertido
+
+Primera tarea de la sesión (barata, prioridad de seguridad, ver
+`docs/sesion_siguiente.md` punto 4). Verificado con una silla de
+laboratorio a 25cm del LIDAR, leyendo `/scan` crudo directamente (sin mover
+el robot):
+- Silla delante → mínimo del láser en ángulo crudo ≈ **-174°**.
+- Silla detrás → mínimo del láser en ángulo crudo ≈ **0-2°**.
+
+Confirma que `tracking_node._obstacle_avoidance` (que trataba `ang≈0` como
+"delante") vigilaba en realidad el sector **trasero**. Corregido aplicando
+el mismo desfase de π que `detection_node` ya tiene documentado desde el
+13/07. Sincronizado el fix al NUC, relanzado `person_follower`, y validado
+en vivo (sin movimiento real): con la silla delante y tracking activado
+manualmente por servicio, el log `"Obstáculo frontal"` se dispara de forma
+sostenida con `adj≈0` (coherente, obstáculo centrado). Desactivado el
+tracking al terminar y confirmado que deja de dispararse. Detalle completo
+en `docs/decisiones.md` (2026-07-21).
+
+**Pendiente:** repetir con el robot en movimiento real hacia una persona y
+un obstáculo real en el camino, para confirmar que `lin_factor` frena la
+marcha de verdad — hoy solo se confirmó el sector correcto y el disparo del
+log, sin desplazamiento.
+
+### Reproducibilidad de la tabla 7.4 (Capítulo 7): saltos sí, saturación no
+
+Punto 3 del objetivo de la Sesión 4, pendiente desde el 09/07 (requería una
+máquina con ROS 2 para leer los bags `.db3`, imposible desde este portátil
+— ver `PROGRESO.md` 2026-07-09). Con el NUC accesible hoy, se copiaron los
+tres bags de `validation/runs/20260708_movimiento_*` al NUC, se re-extrajeron
+con `bag_to_csv.py` (sincronizado a mano, no está en `sync_nuc.sh`) y se
+analizaron localmente con `plot_run.py`. Resultado: el % de saltos de
+posición reproduce bien (exacto en fix1/fix2: 2.2% y 0.7%; más bajo de lo
+esperado en la toma original: 3.5% vs 12.1%). La saturación angular **no**
+reproduce la mejora que sugerían las cifras del script perdido — se
+mantiene alta (86-99%) en las tres tomas en vez de bajar a 12.4%, e incluso
+sube tras el primer fix. Revisada la implementación de `plot_run.py` en
+detalle, no hay bug — es una divergencia real, con dos hipótesis sin
+confirmar (pocas muestras "estables" en las tomas cortas; posible efecto de
+acercamiento a corta distancia sin `near_gain`, que no existía todavía el
+08/07). Actualizada la tabla 7.4 y su lectura en `docs/07_resultados.md`
+con las cifras reproducibles y una conclusión honesta: mejora sostenida en
+saltos, sin mejora sostenida en saturación con estos tres fixes concretos.
+Detalle completo en `docs/decisiones.md` (2026-07-21).
+
+### Notas operativas de la sesión
+
+- El primer intento de `ros2 launch ... & disown` por SSH se quedó colgado
+  localmente porque el proceso lanzado no tenía su `stdin` redirigido
+  (heredaba el pty de la sesión SSH) — añadir `< /dev/null` al comando lo
+  resuelve. El proceso remoto en sí arrancaba bien pese al colgado local.
+- Al matar `start_person_follower.launch.py` con `pkill -f`, los nodos hijos
+  quedaron huérfanos (el `ros2 launch` no llegó a reenviarles la señal de
+  parada) — hubo que matarlos uno a uno por PID antes de relanzar.
+
+---
+
 ## Sesión 2026-07-17 (trabajo de escritorio, sin robot) — Capítulo 6 redactado + hallazgo de signo confirmado + nuevo hallazgo (sector de obstáculos) sin verificar
 
 ### Objetivo: redactar el capítulo 6 de la memoria (implementación), pendiente tras el 16/07

@@ -38,23 +38,18 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
    sincronizar (`bash sync_nuc.sh`) y validar en vivo o con un rosbag antes
    de darlo por cerrado — esto solo verifica la lógica aislada, no el nodo
    real con ROS.
-4. **NUEVO (2026-07-17), barato — verificar el sector de la evasión de
-   obstáculos de `tracking_node`.** Hallazgo sin confirmar (ver
-   `docs/decisiones.md`, 2026-07-17): `_obstacle_avoidance` filtra el
-   sector frontal (`abs(ang)<=50°`) sobre el ángulo **crudo** de `/scan`,
-   sin aplicar el desfase de π que `detection_node` sí tiene documentado y
-   corregido desde el 13/07 ("persona de frente ≈ π en el láser", RPLIDAR
-   montado invertido). Si ese desfase aplica igual a todo `/scan`, la
-   evasión podría estar vigilando el sector **trasero**, no el frontal —
-   relevante para seguridad, no solo para precisión de seguimiento.
-   Verificación de segundos: colocar un obstáculo conocido delante del
-   robot (dentro de `obstacle_threshold=0.35m`) y comprobar si se dispara
-   el log `"Obstáculo frontal: adj=... lin_factor=..."`; repetir con el
-   obstáculo detrás. Priorizar esto al principio de la Sesión 4, antes de
-   entrar en el resto del objetivo (es barato y de seguridad) — ver
-   `docs/decisiones.md` para el detalle completo y cómo verificarlo
-   también sin robot si se extiende `bag_to_csv.py` para extraer `/scan`
-   crudo de un bag ya grabado.
+4. ~~**Verificar el sector de la evasión de obstáculos de
+   `tracking_node`**~~ — **✅ CONFIRMADO Y CORREGIDO 2026-07-21 (Sesión 4,
+   en vivo).** Era real: con una silla a 25cm delante, el mínimo del láser
+   caía en ángulo crudo ≈-174° (cerca de ±180°); con la misma silla detrás,
+   ≈0-2°. `_obstacle_avoidance` vigilaba el sector trasero, no el frontal.
+   Corregido aplicando el mismo desfase de π que `detection_node` ya tenía.
+   Validado en vivo (sin movimiento real: tracking activado por servicio,
+   log `"Obstáculo frontal"` disparándose correctamente con la silla
+   delante, y dejando de dispararse al desactivar tracking). Ver
+   `docs/decisiones.md` (2026-07-21). **Pendiente menor:** repetir con el
+   robot en movimiento real para confirmar que `lin_factor` frena la
+   marcha, no solo que el log dispara.
 
 > Repo: `juanitomuro1999/TFM_JUAN` (rama `main`). Robot: NUC **nuc-224**,
 > `ssh user@10.48.0.1` (password `qwerty`), `ROS_DOMAIN_ID=24`, ROS 2 Jazzy,
@@ -287,12 +282,11 @@ pierden a la persona a la vez al girar, ver estado heredado arriba) es el
 mismo tema que ya estaba planeado para esta sesión (confirmación en el
 fallback de fusión) — abordarlos juntos.
 
-**Antes de nada (2026-07-17, barato, prioridad):** verificar el hallazgo
-sin confirmar del sector de `_obstacle_avoidance` en `tracking_node` — ver
-punto 4 de "Tareas de escritorio" más arriba y `docs/decisiones.md`
-(2026-07-17). Es una comprobación de segundos con un obstáculo delante y
-otro detrás, y tiene implicación de seguridad si se confirma — hacerlo al
-llegar, antes de entrar en el resto de esta sesión.
+~~**Antes de nada (2026-07-17, barato, prioridad):** verificar el hallazgo
+sin confirmar del sector de `_obstacle_avoidance` en `tracking_node`~~ —
+**✅ hecho al principio de esta misma sesión (2026-07-21)**, ver punto 4 de
+"Tareas de escritorio" más arriba y `docs/decisiones.md` (2026-07-21).
+Confirmado y corregido. Sigue el resto del objetivo de la Sesión 4 abajo.
 
 ### Arreglar la pérdida de detección conjunta al girar (fusiona el hallazgo de hoy con el de 13/07)
 
@@ -366,20 +360,22 @@ continuity_confirm_frames: descartado").
    validar con datos reales — en vivo o contra un rosbag con el escenario
    de mobiliario del 13/07 — antes de dar el fix por cerrado.
 
-### Reproducibilidad de métricas del Capítulo 7
+### Reproducibilidad de métricas del Capítulo 7 — ✅ hecho 2026-07-21 (Sesión 4)
 
-**Ya incorporado al pipeline (2026-07-09, preparado sin robot — ver
-`docs/decisiones.md`):** `bag_to_csv.py` extrae `/person_position` a
-`position.csv` y `plot_run.py` añade a `metrics.txt` el % de saltos de
-posición (`--jump-threshold`, def. 0.8m) y el % de saturación angular con
-posición estable (`--stable-radius`/`--stable-window`/`--sat-threshold`).
-Verificado solo con CSVs sintéticos (sin ROS ni datos reales) — **pendiente
-de esta sesión:** re-ejecutar `bag_to_csv.py` + `plot_run.py` sobre los tres
-bags de `validation/runs/20260708_movimiento_*` (requiere una máquina con
-ROS 2, no el portátil de escritorio) y comparar las cifras nuevas contra la
-tabla 7.4 de `docs/07_resultados.md` — actualizarla si difieren. Si
-coinciden razonablemente, dar por cerrada esta limitación de 7.5; si no,
-documentar la discrepancia y decidir si ajustar los umbrales por defecto.
+~~Re-ejecutar `bag_to_csv.py` + `plot_run.py` sobre los tres bags de
+`validation/runs/20260708_movimiento_*`~~ — hecho hoy aprovechando la
+conectividad SSH al NUC (tiene ROS 2). Resultado mixto: el % de saltos de
+posición reprodujo bien (exacto en fix1/fix2, algo más bajo en la toma
+original); la saturación angular **no** reprodujo la mejora del script
+perdido — se mantiene alta (86-99%) en las tres tomas, no baja a 12.4%.
+Tabla 7.4 y su lectura ya actualizadas en `docs/07_resultados.md` con las
+cifras reproducibles y una conclusión honesta (mejora en saltos, no en
+saturación, con estos tres fixes concretos). Detalle completo y dos
+hipótesis sin confirmar sobre la causa en `docs/decisiones.md`
+(2026-07-21). **Pendiente menor, no bloqueante:** cruzar `position.csv`
+con `distance` en los instantes "estables" de fix1/fix2 para confirmar o
+descartar el efecto de acercamiento a corta distancia sin `near_gain`
+(que no existía todavía el 08/07) como causa de la saturación alta.
 
 ## OBJETIVO de la Sesión 5: repeticiones de validación para el Capítulo 7
 
