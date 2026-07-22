@@ -1,0 +1,15 @@
+Resumen de la toma: analysis
+  duracion                : 56.8 s (701 muestras telemetria)
+  distancia objetivo      : 1.00 m
+  error distancia MAE     : 1.232 m
+  error distancia RMS     : 1.301 m
+  distancia min / max     : 1.25 / 3.07 m
+  |error angular| medio   : 13.4 deg
+  v lineal max            : 0.180 m/s
+  |v angular| max         : 0.725 rad/s
+  % tiempo persona detect.: 100.0 %
+  nº perdidas deteccion   : 0
+  % saltos posicion >0.80m: 1.7 % (592 pares consecutivos, salto max 1.91 m)
+  % saturacion |vang|>=0.95 (global): 0.0 %
+  % saturacion con posicion estable*: 0.0 % (379 muestras estables de 593 pos.)
+  * 'estable' = posicion cruda con desviacion <=0.15m dentro de los ultimos 1.0s (ver docs/decisiones.md, 2026-07-09, y docs/07_resultados.md §7.5: metodologia propia, no garantiza reproducir de forma identica las cifras de PROGRESO.md calculadas con el script ad-hoc perdido).

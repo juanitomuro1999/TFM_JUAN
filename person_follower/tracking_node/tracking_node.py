@@ -181,6 +181,14 @@ class TrackingNode(Node):
         self.declare_parameter('kalman_q',                  0.02)
         self.declare_parameter('kalman_r',                  0.04)
         self.declare_parameter('obstacle_threshold',         0.55)
+        self.declare_parameter('obstacle_stop_distance',     0.25)
+        self.declare_parameter('detour_enabled',             True)
+        self.declare_parameter('detour_stuck_lin_factor',    0.5)
+        self.declare_parameter('detour_stuck_trigger_s',     1.5)
+        self.declare_parameter('detour_turn_speed',          0.5)
+        self.declare_parameter('detour_turn_s',              1.5)
+        self.declare_parameter('detour_forward_speed',       0.12)
+        self.declare_parameter('detour_forward_s',           2.5)
         self.declare_parameter('startup_ramp_s',             1.5)
         self.declare_parameter('startup_max_wz',             0.5)
         self.declare_parameter('observation_timeout',        2.0)
@@ -204,6 +212,14 @@ class TrackingNode(Node):
         kq                  = self.get_parameter('kalman_q').value
         kr                  = self.get_parameter('kalman_r').value
         self.obs_threshold  = self.get_parameter('obstacle_threshold').value
+        self.obs_stop_dist  = self.get_parameter('obstacle_stop_distance').value
+        self.detour_enabled        = self.get_parameter('detour_enabled').value
+        self.detour_stuck_lf       = self.get_parameter('detour_stuck_lin_factor').value
+        self.detour_stuck_trigger_s = self.get_parameter('detour_stuck_trigger_s').value
+        self.detour_turn_speed     = self.get_parameter('detour_turn_speed').value
+        self.detour_turn_s         = self.get_parameter('detour_turn_s').value
+        self.detour_forward_speed  = self.get_parameter('detour_forward_speed').value
+        self.detour_forward_s      = self.get_parameter('detour_forward_s').value
         self.startup_ramp_s   = self.get_parameter('startup_ramp_s').value
         self.startup_max_wz   = self.get_parameter('startup_max_wz').value
         self.timeout_s        = self.get_parameter('observation_timeout').value
@@ -222,6 +238,12 @@ class TrackingNode(Node):
         self.prev_angle = 0.0
         self.prev_wz    = 0.0
         self._tracking_start_t: float | None = None  # monotonic; para el arranque suave
+
+        # ── Maniobra de rodeo (2026-07-22) ─────────────────────────────────
+        self._stuck_since: float | None = None
+        self._detour_phase: str | None = None   # None | 'turn' | 'forward'
+        self._detour_phase_start: float | None = None
+        self._detour_turn_sign = 1.0
 
         # ── Publishers ───────────────────────────────────────────────────
         self.vel_pub    = self.create_publisher(Twist,  '/tracking/velocity_cmd',    10)
@@ -372,8 +394,61 @@ class TrackingNode(Node):
 
         # ── Evasión de obstáculos ─────────────────────────────────────────
         ang_adj, lin_factor = self._obstacle_avoidance(scan)
-        vx  *= lin_factor
-        wz  += ang_adj
+
+        # ── Maniobra de rodeo (2026-07-22) ────────────────────────────────
+        # La evasión reactiva de arriba solo frena/desvía; con un obstáculo
+        # sostenido en el sector frontal (persona rodeando un mueble o
+        # silla cerca del robot) el robot puede quedarse "arrastrando" sin
+        # progresar durante muchos segundos, aumentando el riesgo de
+        # contacto por desgaste en vez de por choque directo — confirmado en
+        # vivo 2026-07-22 (ver docs/decisiones.md). Si lin_factor se
+        # mantiene por debajo de detour_stuck_lin_factor durante
+        # detour_stuck_trigger_s segundos seguidos, se dispara una maniobra
+        # de dos fases (giro cerrado + avance recto corto) para salir del
+        # punto muerto, con aborto inmediato a parada si aparece un
+        # obstáculo nuevo durante el avance.
+        now = time.monotonic()
+        if self.detour_enabled:
+            if self._detour_phase is None:
+                if lin_factor <= self.detour_stuck_lf:
+                    if self._stuck_since is None:
+                        self._stuck_since = now
+                    elif now - self._stuck_since >= self.detour_stuck_trigger_s:
+                        self._detour_phase = 'turn'
+                        self._detour_phase_start = now
+                        self._detour_turn_sign = math.copysign(1.0, ang_adj) if ang_adj != 0 else 1.0
+                        self.get_logger().warn("Maniobra de rodeo: iniciando giro")
+                else:
+                    self._stuck_since = None
+
+            if self._detour_phase == 'turn':
+                vx = 0.0
+                wz = self._detour_turn_sign * self.detour_turn_speed
+                if now - self._detour_phase_start >= self.detour_turn_s:
+                    self._detour_phase = 'forward'
+                    self._detour_phase_start = now
+            elif self._detour_phase == 'forward':
+                if lin_factor <= self.detour_stuck_lf:
+                    self.get_logger().warn(
+                        "Maniobra de rodeo: abortada (obstáculo durante el avance)")
+                    self._detour_phase = None
+                    self._stuck_since = None
+                    vx = 0.0
+                    wz = 0.0
+                else:
+                    vx = self.detour_forward_speed
+                    wz = 0.0
+                    if now - self._detour_phase_start >= self.detour_forward_s:
+                        self._detour_phase = None
+                        self._stuck_since = None
+                        self.get_logger().warn(
+                            "Maniobra de rodeo: completada, retomando seguimiento normal")
+            else:
+                vx *= lin_factor
+                wz += ang_adj
+        else:
+            vx *= lin_factor
+            wz += ang_adj
 
         # ── Publicar ──────────────────────────────────────────────────────
         cmd = Twist()
@@ -390,7 +465,7 @@ class TrackingNode(Node):
             return 0.0, 1.0
 
         repulsion = 0.0
-        threat    = 0.0
+        r_min     = None
         n         = 0
 
         for i, r in enumerate(scan.ranges):
@@ -408,16 +483,29 @@ class TrackingNode(Node):
                 continue
             w          = (self.obs_threshold - r) * math.cos(ang)
             repulsion += w * (-ang)
-            threat    += w
             n         += 1
+            if r_min is None or r < r_min:
+                r_min = r
 
         if n == 0:
             return 0.0, 1.0
 
-        adj        = max(-1.5, min(1.5, repulsion / n))
-        lin_factor = max(0.3, 1.0 - 0.6 * min(1.0, threat / 0.5))
+        adj = max(-1.5, min(1.5, repulsion / n))
+        # lin_factor en funcion del punto MAS CERCANO del sector (no de una
+        # suma de "amenaza"): 1.0 en obstacle_threshold, decrece linealmente
+        # hasta 0.0 (parada dura) en obstacle_stop_distance. Reemplaza la
+        # formula anterior (max(0.3, 1.0-0.6*min(1.0,threat/0.5))) que en la
+        # practica nunca bajaba de 0.4 (el suelo 0.3 era código muerto,
+        # threat/0.5 satura en 1.0 dando 1.0-0.6=0.4) — verificado en vivo
+        # 2026-07-22: con esa formula el robot "arrastraba" hacia el
+        # obstaculo a velocidad reducida pero nunca nula durante encuentros
+        # sostenidos (persona rodeando un mueble), acabando en contacto leve
+        # dos veces pese a detectar el obstaculo correctamente. Ver
+        # docs/decisiones.md (2026-07-22).
+        span       = max(1e-6, self.obs_threshold - self.obs_stop_dist)
+        lin_factor = max(0.0, min(1.0, (r_min - self.obs_stop_dist) / span))
         self.get_logger().warn(
-            f"Obstáculo frontal: adj={adj:.2f}  lin_factor={lin_factor:.2f}")
+            f"Obstáculo frontal: adj={adj:.2f}  lin_factor={lin_factor:.2f}  r_min={r_min:.2f}")
         return adj, lin_factor
 
     # ─── Telemetría ───────────────────────────────────────────────────────────
@@ -446,6 +534,9 @@ class TrackingNode(Node):
         self.prev_vx    = 0.0
         self.prev_angle = 0.0
         self.prev_wz    = 0.0
+        self._stuck_since = None
+        self._detour_phase = None
+        self._detour_phase_start = None
         self.vel_pub.publish(Twist())
 
     def _on_enable(self, req, resp):

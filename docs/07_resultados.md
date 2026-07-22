@@ -172,6 +172,46 @@ el hallazgo de seguridad del 2026-07-21). Bags en
   objetivo de esta sesión); `parada` y `oclusion` se quedan en N=1 —
   repetirlas en una sesión futura si hay tiempo (no bloquea el Capítulo 7).
 
+## 7.4ter Resultado 4 — Escenario `obstaculo`: de 4 contactos reales a evasión + rodeo sin contacto (2026-07-22)
+
+Con `obstacle_threshold` ya subido a 0.40m (§7.4bis), se reintentó en vivo
+el escenario `obstaculo` (aviso de seguridad del 21/07 — 2 choques
+previos). Cinco tomas en la misma sesión, con dos cambios de código en
+medio. Bags en `validation/runs/20260722_obstaculo_v[3-7]*`.
+
+| Toma | Código en ese momento | Resultado |
+|---|---|---|
+| `obstaculo_v3` (mueble, persona rodeándolo del todo) | umbral 0.40m, `lin_factor` viejo | **Contacto leve.** `lin_factor` fijo en 0.4 durante ~12s, robot "arrastrando" sin parar |
+| `obstaculo_v4` (mueble, pasando cerca sin ocultarse) | igual | **Contacto leve otra vez.** Seguimiento a persona limpio (100% detect.), mismo patrón de arrastre (~10s) |
+| `obstaculo_v5` (mismo mueble) | **`lin_factor` corregido** (rampa 1.0→0.0 entre 0.40m y 0.25m, basada en distancia mínima real) | **Sin contacto.** Encuentro con el obstáculo mucho más corto (~2.5s vs 10-12s) |
+| `obstaculo_v6_dos` (mueble + silla, sin activar la maniobra) | igual | Sin contacto. Solo un episodio de evasión detectado (mueble); la silla no llegó a activar `lin_factor<1.0` en esta toma — sin dato sobre si la superó o simplemente no se acercó lo suficiente |
+| `obstaculo_v7_rodeo` (mueble + silla, 60s) | **+ maniobra de rodeo nueva** (giro cerrado + avance corto si `lin_factor` bajo sostenido) | **Sin contacto.** Maniobra disparada 4 veces: 2 completadas limpio, 1 abortada correctamente por seguridad (nuevo obstáculo durante el avance), 1 en curso al terminar. 100% detección, 0 pérdidas, 0% saturación |
+
+**Hallazgo de código central:** la fórmula original de `lin_factor`
+(`max(0.3, 1.0-0.6*min(1.0,threat/0.5))`) nunca bajaba de 0.4 en la
+práctica — el suelo `max(0.3,...)` era código muerto, ya que
+`threat/0.5` satura en 1.0 dando `1.0-0.6=0.4`. La evasión reactiva nunca
+frenaba del todo, y con un encuentro sostenido (persona rodeando un
+obstáculo cerca del robot) eso se traducía en un "arrastre" a velocidad
+reducida pero no nula, terminando en contacto leve pese a detectar el
+obstáculo correctamente. Corregido basando `lin_factor` en la distancia
+mínima real del sector frontal, con una parada dura real a
+`obstacle_stop_distance` (0.25m). Detalle completo, incluida la nueva
+maniobra de rodeo (giro + avance, con aborto de seguridad), en
+`docs/decisiones.md` (2026-07-22).
+
+**Limitaciones de este resultado:**
+- N=1 por variante de código — el resultado limpio (`v5`, `v7`) es de una
+  sola sesión; repetir en sesiones futuras antes de darlo por definitivo.
+- El 1er tipo de contacto del 21/07 (silla de patas finas, punto ciego de
+  altura del LIDAR a 47cm) **no se ha vuelto a probar** con este fix — ni
+  el nuevo `lin_factor` ni la maniobra de rodeo lo resuelven si el
+  obstáculo real (asiento/reposabrazos) no lo ve el sensor en absoluto.
+  Sigue como limitación documentada, no mitigada.
+- La maniobra de rodeo usa un giro de duración fija (no verificado con
+  odometría) — podría no bastar para obstáculos más anchos que los
+  probados hoy.
+
 ## 7.5 Limitaciones de los resultados actuales
 
 - **Reproducibilidad de "saltos"/"saturación" — resuelta 2026-07-21, con
@@ -228,13 +268,17 @@ el hallazgo de seguridad del 2026-07-21). Bags en
   desde 2026-07-09, todas las tomas de 7.4bis usan el gesto real.
 - [ ] Repetir `parada` y `oclusion` una vez más cada una (N=1 todavía) si
   sobra tiempo en una sesión futura — no bloquea el capítulo.
-- [ ] **Repetir `obstaculo` con `obstacle_threshold=0.40m`** (subido
-  2026-07-22) para confirmar que evita el 2º tipo de contacto del
-  2026-07-21 — pendiente de decidir con el autor cuándo, ver aviso de
-  seguridad en `docs/sesion_siguiente.md`. El 1er tipo de contacto (límite
-  de altura del LIDAR 2D) sigue sin mitigar y probablemente quede como
-  limitación documentada (ver 7.5 y mitigaciones en `docs/decisiones.md`
-  2026-07-21).
+- [x] ~~Repetir `obstaculo` con `obstacle_threshold=0.40m`~~ — hecho
+  2026-07-22 (ver 7.4ter): llevó a corregir `lin_factor` (parada dura real)
+  y a una maniobra de rodeo nueva, ambas sin contacto en la última toma.
+- [ ] **Repetir `obstaculo` con la silla de patas finas del 21/07**
+  (límite de altura del LIDAR, 47cm) — ni el fix de `lin_factor` ni la
+  maniobra de rodeo lo resuelven si el obstáculo real no lo ve el sensor;
+  sigue pendiente decidir si se aborda (conectar `collision_handling_node`,
+  cámara Orbbec RGBD) o se documenta como limitación de arquitectura sin
+  más intentos en vivo.
+- [ ] Repetir `obstaculo_v7_rodeo` (mueble + silla) una vez más para no
+  quedarse en N=1 con la maniobra de rodeo nueva.
 - [ ] Actualizar §7.5 (limitaciones) — varias de las entradas actuales están
   desactualizadas por los fixes de las Sesiones 4-5 (gate de continuidad,
   `near_gain`, gesto real) y necesitan una revisión completa antes de

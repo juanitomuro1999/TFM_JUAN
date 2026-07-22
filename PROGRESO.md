@@ -1,5 +1,58 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-22 (lab, Sesión 5, continuación 4) — reintentos de `obstaculo`: lin_factor corregido para parar de verdad + maniobra de rodeo
+
+Continuación de la misma sesión de lab, tras las 10 tomas de escenarios sin
+riesgo (ver entrada anterior). Con el autor de acuerdo en reintentar
+`obstaculo` con precaución extra (offset y `obstacle_threshold=0.40m` ya
+aplicados).
+
+### Dos contactos leves más → hallazgo de código: lin_factor nunca paraba del todo
+
+Dos intentos (`obstaculo_v3` con un mueble sólido, `obstaculo_v4` pasando
+cerca sin ocultarse del todo) terminaron en contacto leve pese al umbral ya
+subido. Analizando los bags: `lin_factor` se quedaba fijo en exactamente
+0.4 durante 10-12s seguidos mientras el robot "arrastraba" cerca del
+obstáculo sin parar del todo. Causa encontrada en el código: la fórmula
+`max(0.3, 1.0-0.6*min(1.0,threat/0.5))` nunca baja de 0.4 en la práctica —
+el suelo de 0.3 era código muerto. Cuatro contactos reales acumulados en
+total entre el 21/07 y hoy con dos planteamientos distintos.
+
+### Fix: lin_factor basado en distancia mínima real, con parada dura
+
+Reescrita `_obstacle_avoidance` en `tracking_node.py`: en vez de sumar una
+"amenaza" agregada sobre todos los puntos del sector, ahora usa la
+distancia mínima real (`r_min`) y una rampa lineal 1.0→0.0 entre
+`obstacle_threshold` (0.40m) y el nuevo `obstacle_stop_distance` (0.25m).
+Verificado con un cálculo sintético rápido antes de desplegar. Sincronizado
+y stack relanzado limpio en el NUC (sin nodos huérfanos). **Resultado:**
+`obstaculo_v5` con el mismo mueble — primera pasada sin contacto, encuentro
+con el obstáculo mucho más corto (~2.5s vs 10-12s antes).
+
+### Maniobra de rodeo nueva (idea del autor)
+
+El autor propuso, tras ver el arrastre: que el robot, al detectarse
+bloqueado, gire en un "cuadrado" usando la posición conocida de la persona
+para rodear activamente el obstáculo, en vez de solo frenar. Implementada
+como una maniobra de dos fases en `tracking_node.py`: si `lin_factor` se
+mantiene bajo durante 1.5s seguidos, giro cerrado (0.5 rad/s, 1.5s, sentido
+según la repulsión ya calculada) + avance recto corto (0.12 m/s, 2.5s),
+con aborto inmediato a parada si aparece un obstáculo nuevo durante el
+avance. Estado reseteado en `_stop()`. Probada en vivo
+(`obstaculo_v7_rodeo`, mueble + silla, 60s): **4 activaciones — 2
+completadas limpio, 1 abortada correctamente por seguridad, 1 en curso al
+terminar — sin ningún contacto en toda la toma.** 100% detección, 0
+pérdidas, 0% saturación. Detalle completo de las 4 iteraciones (v3→v7) en
+`docs/decisiones.md` (2026-07-22).
+
+**Pendiente:** la maniobra es de una sola sesión (N=1, aunque con varias
+activaciones) — repetir en sesiones futuras con más obstáculos, incluida
+la silla del 21/07 (problema de altura del LIDAR sin resolver, la maniobra
+no ayuda si el obstáculo ni se detecta). El giro es de duración fija, sin
+verificación por odometría de que fue suficiente.
+
+---
+
 ## Sesión 2026-07-22 (lab, Sesión 5, continuación 3) — offset LIDAR medido, obstacle_threshold subido, 10 repeticiones de validación
 
 ### Offset físico LIDAR→borde del robot medido, obstacle_threshold 0.35→0.40m

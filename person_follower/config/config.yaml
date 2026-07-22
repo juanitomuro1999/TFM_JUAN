@@ -30,6 +30,30 @@ tracking_node:
     # no confundir a la propia persona seguida con un obstáculo en seguimiento
     # cercano — ver docs/decisiones.md (2026-07-22).
     obstacle_threshold: 0.40
+    # m — distancia (desde el LIDAR) a la que lin_factor llega a 0.0 (parada
+    # dura). Nuevo 2026-07-22: la fórmula anterior de lin_factor nunca bajaba
+    # de 0.4 en la práctica (código muerto), causando "arrastre" sostenido
+    # sin parada real cerca de un obstáculo — confirmado en vivo (2 contactos
+    # leves con mobiliario pese a detección correcta). 0.25m deja margen real
+    # de 0.10m hasta el borde físico del robot (offset 0.15m) antes del
+    # contacto. Ver docs/decisiones.md (2026-07-22).
+    obstacle_stop_distance: 0.25
+    # Maniobra de rodeo (2026-07-22): si lin_factor se queda por debajo de
+    # detour_stuck_lin_factor durante detour_stuck_trigger_s segundos
+    # seguidos (obstáculo sostenido en el sector frontal, típicamente
+    # persona rodeando mobiliario cerca del robot), se ejecuta un giro
+    # cerrado + avance recto corto para salir del punto muerto en vez de
+    # seguir "arrastrando" a velocidad reducida indefinidamente. Aborta a
+    # parada si aparece un obstáculo nuevo durante el avance. Ver
+    # docs/decisiones.md (2026-07-22) — primera versión, sin validar
+    # todavía en repetidas condiciones.
+    detour_enabled: True
+    detour_stuck_lin_factor: 0.5
+    detour_stuck_trigger_s: 1.5
+    detour_turn_speed: 0.5
+    detour_turn_s: 1.5
+    detour_forward_speed: 0.12
+    detour_forward_s: 2.5
     # Arranque suave: los primeros startup_ramp_s segundos tras activar el
     # seguimiento, el techo de |wz| sube linealmente de startup_max_wz a 1.0
     # en vez de permitir ya el máximo. Añadido 2026-07-09 en vivo: si el

@@ -1,36 +1,61 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 5 (continuación 4): decidir el reintento de `obstaculo` + rematar `parada`/`oclusion`
+## OBJETIVO de la Sesión 6 (inicio, antes de Nav2): confirmar la maniobra de rodeo + probar la silla (altura LIDAR) + rematar `parada`/`oclusion`
 
-**Estado a 2026-07-22:** offset LIDAR→borde medido (0.15m),
-`obstacle_threshold` subido 0.35→0.40m (margen real 0.20→0.25m, confirmado
-con el autor evitando el suelo de `near_gain`=0.49m — ver
-`docs/decisiones.md` 2026-07-22), y grabadas **10 tomas** de los cinco
-escenarios sin riesgo (`recta` ×2, `curva` ×3, `parada` ×1, `corto` ×3,
-`oclusion` ×1 — tabla completa en `docs/07_resultados.md` §7.4bis). Todas
-limpias salvo la primera `recta` (estado TRACKING residual sin
-`stop_tracking` previo — protocolo ya reforzado, no volvió a pasar).
+La Sesión 5 (validación para el Capítulo 7) se da por completada a
+2026-07-22 — ver tabla de sesiones más abajo. Lo que sigue son remates
+cortos de esa sesión que conviene cerrar **al principio** de la Sesión 6,
+antes de pasar al objetivo propio de esa sesión (Nav2 — fase A,
+localización AMCL, ver más abajo). Si algo de esto se alarga, no debe
+comerse el tiempo de Nav2 — son confirmaciones rápidas, no un nuevo bloque
+de trabajo grande.
 
-**Antes de nada, con el autor (decisión de seguridad, no técnica):**
-decidir si se reintenta `obstaculo` esta sesión con el nuevo umbral
-(0.40m) — con precaución manual reforzada, el 1er tipo de contacto del
-2026-07-21 (límite de altura del LIDAR 2D, silla vista a 0.75m) **sigue sin
-mitigar** y ese umbral no lo cubre. Alternativa: documentarlo directamente
-como limitación conocida en el Capítulo 7/de conclusiones sin más
-reintentos en vivo. Ver aviso de seguridad completo abajo antes de decidir.
+**Estado a 2026-07-22 (cierre de Sesión 5):** offset LIDAR→borde medido
+(0.15m), `obstacle_threshold` 0.35→0.40m, y **10 tomas de escenarios sin
+riesgo** grabadas (`recta`×2, `curva`×3, `parada`×1, `corto`×3,
+`oclusion`×1 — tabla en `docs/07_resultados.md` §7.4bis). Además, en la
+misma sesión se reintentó `obstaculo` en vivo (§7.4ter): 2 contactos leves
+más (4 en total contando el 21/07) llevaron a un fix real de código
+(`lin_factor` con parada dura de verdad, ver abajo) y a una **maniobra de
+rodeo nueva** (giro + avance corto cuando el robot se queda bloqueado) —
+las dos últimas tomas de la sesión (`obstaculo_v5`, `obstaculo_v7_rodeo`)
+salieron **sin contacto**.
 
-**Si se decide reintentar `obstaculo`:**
-1. Recrear el mismo escenario del 21/07 (silla en la trayectoria) con
-   distancia de seguridad manual y alguien listo para intervenir.
-2. Repetir primero el caso del 1er choque (robot ya parado cerca,
-   persona rodeando) — **se espera que siga sin detectarse** (problema de
-   altura, no de umbral) — para confirmar que la limitación sigue
-   documentada correctamente, no para "arreglarla" hoy.
-3. Repetir el caso del 2º choque (persona rodeando en movimiento) — este sí
-   debería mejorar con el margen ampliado; comprobar si el contacto
-   desaparece o solo se reduce.
-4. Si hay un 3er contacto real, parar la validación de este escenario y
-   documentar como limitación conocida sin seguir insistiendo en vivo.
+**Cambios de código de hoy (2026-07-22), ya sincronizados y relanzados en
+el NUC:**
+- `tracking_node._obstacle_avoidance`: `lin_factor` ahora se calcula con la
+  distancia mínima real del sector frontal (`r_min`), rampa lineal
+  1.0→0.0 entre `obstacle_threshold` (0.40m) y el nuevo
+  `obstacle_stop_distance` (0.25m) — reemplaza la fórmula anterior que
+  nunca bajaba de 0.4 en la práctica (código muerto, causa real de los
+  últimos contactos).
+- Maniobra de rodeo nueva en `tracking_node._on_scan`: si `lin_factor` se
+  mantiene ≤`detour_stuck_lin_factor` (0.5) durante `detour_stuck_trigger_s`
+  (1.5s), dispara giro cerrado (`detour_turn_speed`=0.5 rad/s,
+  `detour_turn_s`=1.5s) + avance recto corto (`detour_forward_speed`=0.12
+  m/s, `detour_forward_s`=2.5s), con aborto a parada si aparece un
+  obstáculo nuevo durante el avance. Parámetros en `config.yaml`, detalle
+  completo y las 5 iteraciones de prueba (v3→v7) en `docs/decisiones.md`
+  (2026-07-22).
+
+**Objetivo principal de la Sesión 6:**
+1. **Repetir `obstaculo_v7_rodeo` (mueble + silla) una vez más** — el
+   resultado limpio de hoy es N=1, confirmar que se sostiene antes de
+   darlo por cerrado.
+2. **Probar la silla de patas finas del 21/07 específicamente** (el 1er
+   tipo de contacto, punto ciego de altura del LIDAR a 47cm) con el código
+   de hoy — **se espera que siga sin detectarse correctamente** (ni el fix
+   de `lin_factor` ni la maniobra de rodeo resuelven un obstáculo que el
+   sensor no ve en absoluto). Si vuelve a fallar, dar por confirmado que es
+   limitación de arquitectura (altura del sensor 2D) y documentar como tal
+   sin más reintentos en vivo con ese tipo de mobiliario — no insistir.
+3. Si el tiempo aprieta, priorizar el punto 1 (confirmar lo que ya
+   funciona) sobre el punto 2 (confirmar una limitación ya bastante clara).
+
+**Precaución:** la maniobra de rodeo es código nuevo probado en una sola
+sesión (aunque con 4 activaciones dentro de ella) — mantener distancia de
+seguridad manual igual que en cualquier prueba de `obstaculo`, y estar
+listo para `stop_tracking` si el giro/avance no se ve seguro.
 
 **Rematar N=1 si sobra tiempo (no bloqueante):** una repetición más de
 `parada` y de `oclusion` (`bash validation/record_run.sh <etiqueta>
@@ -42,42 +67,21 @@ inicio inmediato al empezar a grabar para no perder ventana).
 fixes de las Sesiones 4-5 (gate de continuidad, `near_gain`, gesto real ya
 resueltos, pero la sección todavía los lista como limitaciones abiertas).
 
-> **⚠️ AVISO DE SEGURIDAD (2026-07-21, sigue vigente):** las dos primeras
-> repeticiones del escenario `obstaculo` en la Sesión 5 terminaron en
-> colisión real (sin daños en ningún caso), por **dos causas distintas** —
-> ver `docs/decisiones.md` (2026-07-21 y 2026-07-22) para el detalle
-> completo:
-> 1. **1er choque** (robot parado cerca, persona rodeándolo): `lin_factor`
->    nunca bajó de 1.0 en toda la toma — el objeto real estaba a 0.75m del
->    LIDAR (por encima del umbral de entonces, 0.35m), porque el LIDAR 2D
->    veía las patas de la silla pero no el asiento/reposabrazos, que
->    sobresale más hacia el robot a otra altura. **Límite físico del
->    sensor — el nuevo umbral de 0.40m tampoco lo cubre.**
-> 2. **2º choque** (persona rodeando el obstáculo en movimiento, a la
->    vuelta): la evasión **sí funcionó** — detectó dentro del sector
->    correcto, frenó `vx` de 0.18 a 0.0 m/s en ~0.3s al cruzar el umbral —
->    y aun así hubo contacto leve, por margen insuficiente entre el umbral
->    (medido desde el LIDAR) y el borde físico del robot. **Mitigado
->    2026-07-22** subiendo `obstacle_threshold` a 0.40m (margen real
->    0.20→0.25m) — sin confirmar todavía en vivo.
->
-> Mantener distancia de seguridad manual con mobiliario real durante el
-> reintento. El 1er tipo de contacto seguirá sin protección real salvo que
-> se decida conectar `collision_handling_node`, integrar la cámara Orbbec
-> RGBD, o aceptar como limitación documentada (ver mitigaciones completas
-> en `docs/decisiones.md`).
-
 **Antes de repetir cualquier escenario, comprobar que sigue vigente:**
 - `continuity_confirm_frames=3` (Sesión 4) — no bajarlo sin repetir la
   prueba de mobiliario denso que motivó el cambio.
 - El fallback de pierna única (`_confirm_single_leg_candidate`) sigue en
   `detection_node.py`.
-- `obstacle_threshold=0.40m` (2026-07-22) — no subirlo por encima de
-  ~0.45m sin volver a verificar que no interfiere con `near_gain` (suelo
-  0.49m).
+- `obstacle_threshold=0.40m` / `obstacle_stop_distance=0.25m`
+  (2026-07-22) — no subir el primero por encima de ~0.45m sin revalidar
+  contra el suelo de `near_gain` (0.49m).
+- Maniobra de rodeo (`detour_*` en `config.yaml`) — el giro es de duración
+  fija, sin verificación por odometría; con obstáculos más anchos que los
+  de hoy podría no bastar para despejarlos.
 
 **Al terminar cada toma:** `bag_to_csv.py` (en el NUC) + `plot_run.py` (en
-el portátil), añadir la fila a la tabla de `docs/07_resultados.md` §7.4bis.
+el portátil), añadir la fila a la tabla de `docs/07_resultados.md` §7.4ter
+(obstaculo) o §7.4bis (resto de escenarios).
 
 **Pendientes menores heredados de la Sesión 4** (hacer si sobra tiempo,
 ninguno bloquea el objetivo principal — ver `docs/decisiones.md`
@@ -180,16 +184,16 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~2~~ | ~~FSM oscilando + near_gain aislado + recalibrar cámara~~ **✅ hecho 2026-07-13** (parcial — ver estado heredado abajo: fix de CPU sí cerrado, oscilación/near_gain llevaron a un hallazgo mayor sin resolver, cámara aplazada) |
 | ~~3~~ | ~~Corregir desfase de π en tracking_node + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva~~ **✅ hecho 2026-07-15** (el fix de π se sostuvo, pero apareció un fallo mayor no relacionado — signo invertido en el PD angular, causa real de "gira al lado contrario" desde el 13/07 — encontrado y corregido; `near_gain` aislado y sano; cámara evaluada sin necesidad de recalibrar — ver estado heredado abajo) |
 | ~~4~~ | ~~Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + el hueco de detección LIDAR+cámara al girar + resolver reproducibilidad de métricas del Capítulo 7~~ **✅ hecho 2026-07-21** (los cuatro objetivos completados en una sola sesión — ver estado heredado abajo y `docs/decisiones.md`) |
-| **5 (en curso)** | Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7 — **21/07:** solo `obstaculo` (2 tomas, 2 choques reales sin daños). **22/07:** offset LIDAR medido, `obstacle_threshold`→0.40m, 10 tomas de `recta`/`curva`/`parada`/`corto`/`oclusion` grabadas y analizadas (ver §7.4bis). Queda decidir con el autor si se reintenta `obstaculo` con el nuevo umbral o se documenta como limitación |
-| 6 | Nav2 — fase A: solo localización AMCL |
+| ~~5~~ | ~~Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7~~ **✅ hecho 2026-07-22** — **21/07:** solo `obstaculo` (2 tomas, 2 choques reales). **22/07:** offset LIDAR medido, `obstacle_threshold`→0.40m, 10 tomas de `recta`/`curva`/`parada`/`corto`/`oclusion` (§7.4bis); reintentado `obstaculo` — 2 contactos leves más llevaron a corregir `lin_factor` (parada dura real) y a una maniobra de rodeo nueva, últimas 2 tomas sin contacto (§7.4ter). Quedan remates menores (ver objetivo de la Sesión 6, arriba) |
+| 6 | Remates de la Sesión 5 (ver arriba) + Nav2 — fase A: solo localización AMCL |
 | 7 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
 | 8 | Colchón + grabar vídeo de demostración del TFM |
 | 9 | **Última sesión de lab del TFM.** |
 
 **Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
 presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
-como la nº1). Tras completar la Sesión 4 (2026-07-21) — **quedan 5 sesiones
-(5 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
+como la nº1). Tras completar la Sesión 5 (2026-07-22) — **quedan 4 sesiones
+(6 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
 era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
 en sesiones futuras.
 

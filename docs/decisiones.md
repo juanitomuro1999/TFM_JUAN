@@ -5,6 +5,81 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-22 — Reintentos en vivo de `obstaculo`: lin_factor corregido para parar de verdad + maniobra de rodeo nueva
+
+- **Contexto:** con `obstacle_threshold` ya subido a 0.40m (entrada de
+  abajo), se reintentó el escenario `obstaculo` en vivo, con precaución
+  manual reforzada tras los 2 choques del 21/07.
+- **Intento 1 (`obstaculo_v3`, mueble sólido 1m×40cm, persona rodeándolo
+  hasta quedar detrás):** **contacto leve.** Analizado el bag: `lin_factor`
+  se quedó fijo en exactamente **0.4** durante ~12s seguidos (t=221.7-233.7)
+  mientras el robot giraba sobre sí mismo (`vang` saturado a -1.0) sin
+  apenas avanzar, intentando seguir un ángulo a la persona que divergía
+  rápido (-8°→-147°, persona rodeando el mueble). **Hallazgo de código:** la
+  fórmula de `lin_factor` (`max(0.3, 1.0-0.6*min(1.0,threat/0.5))`) **nunca
+  baja de 0.4 en la práctica** — el suelo `max(0.3,...)` es código muerto,
+  porque `threat/0.5` satura en 1.0 dando `1.0-0.6=0.4`, siempre mayor que
+  0.3. Es decir, la evasión reactiva nunca detiene el avance del todo por sí
+  sola; con un encuentro sostenido (persona rodeando un obstáculo cerca del
+  robot) esto se traduce en un "arrastre lento" que puede acabar en contacto
+  aunque el sistema sí detecte el obstáculo correctamente.
+- **Intento 2 (`obstaculo_v4`, mismo mueble, pasando cerca sin ocultarse del
+  todo):** seguimiento a la persona mucho más limpio (100% detección, 0%
+  saturación) pero **contacto leve otra vez** — mismo patrón, `lin_factor`
+  fijo en 0.4 durante ~10s (t=682-692) con `vx`≈0.04-0.09 m/s sostenido cerca
+  del mueble.
+- **Fix de código (antes de un 3er intento):** reescrita `_obstacle_avoidance`
+  en `tracking_node.py` — en vez de una suma agregada de "amenaza" sobre
+  todos los puntos del sector, ahora usa la **distancia mínima real** `r_min`
+  del sector frontal y calcula `lin_factor` con una rampa lineal: 1.0 en
+  `obstacle_threshold` (0.40m) → **0.0 (parada dura)** en el nuevo parámetro
+  `obstacle_stop_distance` (0.25m, dejando ~0.10m de margen real hasta el
+  borde físico del robot antes del contacto, con el offset de 0.15m ya
+  medido). Verificado con un cálculo sintético rápido (sin robot) antes de
+  desplegar: `lin_factor(0.75)=1.0`, `lin_factor(0.35)=0.67`,
+  `lin_factor(0.30)=0.33`, `lin_factor(0.25)=0.0`, `lin_factor(0.20)=0.0` —
+  comportamiento monótono y con parada real, a diferencia de la fórmula
+  anterior. Sincronizado y relanzado el stack completo en el NUC (kill +
+  relanzamiento limpio, sin nodos huérfanos).
+- **Intento 3 (`obstaculo_v5`, mismo mueble, con el fix):** **sin contacto.**
+  El encuentro con el obstáculo duró ~2.5s (t=70.0-72.5, frente a los
+  ~10-12s de antes), `lin_factor` bajó hasta 0.25 sin llegar a 0.0 (el
+  objeto más cercano no bajó de ~0.29m) — primera pasada limpia.
+- **Nueva maniobra de rodeo (idea del autor, implementada la misma
+  sesión):** aunque el fix de `lin_factor` evita el "arrastre", sigue sin
+  haber una forma activa de rodear un obstáculo sostenido (solo frena/
+  desvía ligeramente) — relevante sobre todo para obstáculos difíciles de
+  superar sin rozar (p.ej. un taburete con ruedas y patas finas, comentado
+  por el autor). Añadida una maniobra de dos fases en `tracking_node.py`
+  (`_on_scan`, tras `_obstacle_avoidance`): si `lin_factor` se mantiene
+  ≤`detour_stuck_lin_factor` (0.5) durante `detour_stuck_trigger_s` (1.5s)
+  seguidos, se dispara un **giro cerrado** (`detour_turn_speed`=0.5 rad/s,
+  `detour_turn_s`=1.5s, sentido = signo de la repulsión ya calculada) seguido
+  de un **avance recto corto** (`detour_forward_speed`=0.12 m/s,
+  `detour_forward_s`=2.5s) para salir del punto muerto, y luego devuelve el
+  control al seguimiento normal (que reorienta solo hacia la persona). El
+  avance se **aborta a parada inmediata** si `lin_factor` vuelve a caer
+  durante esa fase (nuevo obstáculo, o el mismo sin espacio real) — no
+  insiste. Estado de la maniobra reseteado en `_stop()` para no quedar
+  colgado entre activaciones/desactivaciones de tracking.
+- **Intento 4 (`obstaculo_v7_rodeo`, mueble + silla, 60s):** maniobra
+  disparada 4 veces — 2 completadas limpio (giro+avance+retoma seguimiento),
+  1 **abortada correctamente** por el chequeo de seguridad (obstáculo nuevo
+  durante el avance), 1 en curso al terminar la grabación. **Sin contacto**
+  en toda la toma. 100% detección, 0 pérdidas, 0% saturación.
+- **Alternativas descartadas:** ninguna todavía para la maniobra de rodeo en
+  sí — es una primera versión funcional, no la única forma posible de
+  resolverlo (alternativas más sofisticadas como DWA real o path-planning
+  quedan como trabajo futuro de mayor alcance).
+- **Pendiente:** la maniobra es nueva y solo se ha probado en una sesión
+  (N=1 en escenarios reales, aunque con 4 activaciones dentro de esa
+  sesión) — repetir en sesiones futuras con más variedad de obstáculos
+  (incluida la silla de patas finas del 21/07, que sigue teniendo el
+  problema de altura del LIDAR sin resolver — la maniobra de rodeo no lo
+  arregla si el obstáculo ni siquiera se detecta). El giro fijo (`detour_turn_s`)
+  no verifica que el ángulo girado sea realmente suficiente para despejar el
+  obstáculo (no usa odometría) — podría no bastar con obstáculos más anchos.
+
 ## 2026-07-22 — obstacle_threshold subido a 0.40m tras medir el offset físico LIDAR→borde del robot
 
 - **Contexto:** pendiente directo del 2º choque del 2026-07-21 (evasión
@@ -37,6 +112,16 @@
   confirmar que evita el 2º tipo de contacto sin frenar de más en
   seguimiento normal — y seguir con precaución manual mientras tanto (el
   hallazgo de altura sigue sin mitigar).
+- **Altura de montaje del LIDAR medida (2026-07-22):** ~47cm sobre el
+  suelo. Dato relevante para el 1er tipo de contacto (entrada de abajo,
+  límite de altura del sensor) — el plano que barre el LIDAR está fijo a
+  esa altura; cualquier obstáculo cuyo punto más saliente hacia el robot
+  esté por debajo o por encima de ~47cm (patas altas, asientos/reposabrazos
+  que vuelan hacia dentro, mesas con tablero alto) queda fuera de su plano
+  de detección con independencia del valor de `obstacle_threshold`. No
+  cambia la mitigación de ese hallazgo (sigue necesitando sensor 3D o un
+  segundo plano de barrido), pero deja el dato físico documentado para el
+  capítulo de limitaciones.
 
 ## 2026-07-21 — Segundo hallazgo de seguridad, distinto del primero: la evasión frena a tiempo pero el margen hasta el borde físico del robot es insuficiente
 
