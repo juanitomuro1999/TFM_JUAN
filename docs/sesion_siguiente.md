@@ -1,6 +1,6 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 6 (inicio, antes de Nav2): confirmar la maniobra de rodeo + probar la silla (altura LIDAR) + rematar `parada`/`oclusion`
+## OBJETIVO de la Sesión 6 (inicio, antes de Nav2): confirmar la maniobra de rodeo con mobiliario sólido + rematar `parada`/`oclusion`
 
 La Sesión 5 (validación para el Capítulo 7) se da por completada a
 2026-07-22 — ver tabla de sesiones más abajo. Lo que sigue son remates
@@ -14,12 +14,14 @@ de trabajo grande.
 (0.15m), `obstacle_threshold` 0.35→0.40m, y **10 tomas de escenarios sin
 riesgo** grabadas (`recta`×2, `curva`×3, `parada`×1, `corto`×3,
 `oclusion`×1 — tabla en `docs/07_resultados.md` §7.4bis). Además, en la
-misma sesión se reintentó `obstaculo` en vivo (§7.4ter): 2 contactos leves
-más (4 en total contando el 21/07) llevaron a un fix real de código
-(`lin_factor` con parada dura de verdad, ver abajo) y a una **maniobra de
-rodeo nueva** (giro + avance corto cuando el robot se queda bloqueado) —
-las dos últimas tomas de la sesión (`obstaculo_v5`, `obstaculo_v7_rodeo`)
-salieron **sin contacto**.
+misma sesión se reintentó `obstaculo` en vivo (§7.4ter): varios contactos
+leves con un mueble sólido llevaron a un fix real de código (`lin_factor`
+con parada dura de verdad) y a una **maniobra de rodeo nueva** (giro +
+avance corto cuando el robot se queda bloqueado) — con mobiliario sólido,
+las últimas tomas salieron **sin contacto**. Con la silla de patas finas
+del 21/07, en cambio, hubo un **5º contacto real** (choque directo, la
+silla no se detectó en absoluto) — ver más abajo, **este punto ya se dio
+por cerrado como limitación confirmada, no repetir**.
 
 **Cambios de código de hoy (2026-07-22), ya sincronizados y relanzados en
 el NUC:**
@@ -28,32 +30,35 @@ el NUC:**
   1.0→0.0 entre `obstacle_threshold` (0.40m) y el nuevo
   `obstacle_stop_distance` (0.25m) — reemplaza la fórmula anterior que
   nunca bajaba de 0.4 en la práctica (código muerto, causa real de los
-  últimos contactos).
+  contactos con el mueble).
 - Maniobra de rodeo nueva en `tracking_node._on_scan`: si `lin_factor` se
   mantiene ≤`detour_stuck_lin_factor` (0.5) durante `detour_stuck_trigger_s`
   (1.5s), dispara giro cerrado (`detour_turn_speed`=0.5 rad/s,
   `detour_turn_s`=1.5s) + avance recto corto (`detour_forward_speed`=0.12
   m/s, `detour_forward_s`=2.5s), con aborto a parada si aparece un
   obstáculo nuevo durante el avance. Parámetros en `config.yaml`, detalle
-  completo y las 5 iteraciones de prueba (v3→v7) en `docs/decisiones.md`
+  completo y las 8 iteraciones de prueba (v3→v8) en `docs/decisiones.md`
   (2026-07-22).
 
-**Objetivo principal de la Sesión 6:**
-1. **Repetir `obstaculo_v7_rodeo` (mueble + silla) una vez más** — el
-   resultado limpio de hoy es N=1, confirmar que se sostiene antes de
-   darlo por cerrado.
-2. **Probar la silla de patas finas del 21/07 específicamente** (el 1er
-   tipo de contacto, punto ciego de altura del LIDAR a 47cm) con el código
-   de hoy — **se espera que siga sin detectarse correctamente** (ni el fix
-   de `lin_factor` ni la maniobra de rodeo resuelven un obstáculo que el
-   sensor no ve en absoluto). Si vuelve a fallar, dar por confirmado que es
-   limitación de arquitectura (altura del sensor 2D) y documentar como tal
-   sin más reintentos en vivo con ese tipo de mobiliario — no insistir.
-3. Si el tiempo aprieta, priorizar el punto 1 (confirmar lo que ya
-   funciona) sobre el punto 2 (confirmar una limitación ya bastante clara).
+**CERRADO, no reintentar — límite de altura del LIDAR con la silla de
+patas finas:** confirmado el 2026-07-22 (`obstaculo_v8`) con un 5º contacto
+real (choque directo, sin detección alguna del obstáculo) que este tipo de
+mobiliario está fuera del plano de barrido del LIDAR 2D (~47cm) sin
+importar el software de evasión. Decisión tomada: no repetir en vivo con
+este tipo de objeto sin antes mitigar por hardware/sensor (integrar la
+cámara Orbbec RGBD, ya presente sin compilar en `ros2_ws/src`; o un
+segundo LIDAR/otra altura de montaje). Queda como limitación de
+arquitectura documentada en `docs/decisiones.md` y `docs/07_resultados.md`
+§7.4ter — si se quiere abordar de verdad, es un objetivo de diseño mayor
+para una sesión futura, no un ajuste de parámetro.
+
+**Objetivo principal de la Sesión 6:** repetir `obstaculo` con **mobiliario
+sólido** (el mueble de hoy, u otro similar — nunca la silla fina) una vez
+más, para no quedarse en N=1 con el fix de `lin_factor` + la maniobra de
+rodeo antes de darlos por cerrados en el Capítulo 7.
 
 **Precaución:** la maniobra de rodeo es código nuevo probado en una sola
-sesión (aunque con 4 activaciones dentro de ella) — mantener distancia de
+sesión (con varias activaciones dentro de ella) — mantener distancia de
 seguridad manual igual que en cualquier prueba de `obstaculo`, y estar
 listo para `stop_tracking` si el giro/avance no se ve seguro.
 

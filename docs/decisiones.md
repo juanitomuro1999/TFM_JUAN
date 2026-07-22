@@ -5,6 +5,46 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-22 — CONFIRMADO (5º contacto real): la silla fina sigue sin detectarse, límite físico del LIDAR 2D, no mitigable por software de evasión
+
+- **Contexto:** tras el resultado limpio de `obstaculo_v7_rodeo` (mueble +
+  silla, sin contacto — ver entrada de abajo), se repitió una vez más
+  (`obstaculo_v8_mueble_silla`) pasando primero por el mueble y después por
+  la silla de patas finas del 21/07, con el fix de `lin_factor` y la
+  maniobra de rodeo ya activos.
+- **Mueble:** la maniobra de rodeo se activó y completó correctamente
+  (giro + avance + retoma de seguimiento normal, `vx` vuelve a 0.18 y `vang`
+  responde con normalidad justo después) — capturado parcialmente en el bag
+  (`validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/`,
+  la fase de giro no quedó grabada por el retraso normal de suscripción de
+  `ros2 bag record` a los topics al arrancar).
+- **Silla: contacto directo, confirmado por el autor ("no detectó la silla
+  directamente, se chocó, pero es muy complicado de detectar al ser muy
+  fina").** La maniobra de rodeo sí se disparó (log `tracking_node`,
+  t≈377-381) pero **después de que la grabación ya hubiera terminado**
+  (parada en t≈369.6) — no hay bag/telemetría de este encuentro concreto,
+  solo el reporte verbal del autor y el log de texto de `tracking_node`.
+- **Conclusión — límite de arquitectura confirmado, no un bug de
+  parámetros:** con el offset físico ya medido, `obstacle_threshold` y
+  `obstacle_stop_distance` corregidos, y la maniobra de rodeo activa, la
+  silla de patas finas **sigue sin detectarse en absoluto** — ni el fix de
+  `lin_factor` ni la maniobra de rodeo pueden actuar sobre un obstáculo que
+  el LIDAR 2D (montado a ~47cm, ver entrada del offset más abajo) no ve.
+  Esto cierra la pregunta abierta desde el 21/07: **confirmado, con un 5º
+  contacto real, que este tipo de mobiliario requiere una mitigación de
+  sensor (3D o segundo plano), no de software de evasión reactiva.**
+- **Decisión:** no reintentar en vivo con esta silla (u objetos de
+  geometría similarmente fina) sin antes implementar una de las
+  mitigaciones de sensor ya listadas (conectar `collision_handling_node`
+  no ayuda por sí solo, mismo problema de altura; integrar la cámara
+  Orbbec RGBD; segundo LIDAR o cambio de altura de montaje). Documentar
+  como limitación confirmada del sistema en el capítulo de limitaciones/
+  conclusiones de la memoria.
+- **Alternativas descartadas:** seguir intentando con ajustes de parámetros
+  (umbral, `lin_factor`, maniobra de rodeo) — ya descartado explícitamente
+  por este mismo hallazgo, es un problema de qué ve el sensor, no de cómo
+  reacciona el software a lo que ve.
+
 ## 2026-07-22 — Reintentos en vivo de `obstaculo`: lin_factor corregido para parar de verdad + maniobra de rodeo nueva
 
 - **Contexto:** con `obstacle_threshold` ya subido a 0.40m (entrada de

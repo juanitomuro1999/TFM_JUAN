@@ -1,5 +1,28 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-22 (lab, Sesión 5, continuación 5) — CONFIRMADO: la silla fina sigue sin detectarse (5º contacto real), límite de sensor cerrado
+
+Tras el commit del fix de `lin_factor` + maniobra de rodeo, el autor pidió
+seguir avanzando y repetir una vez más el escenario `obstaculo` (mueble +
+silla). Resultado: **mueble, rodeo correcto** (giro + avance + retoma
+seguimiento, capturado parcialmente en el bag
+`validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/`).
+**Silla: contacto directo** — la maniobra sí se disparó (log de
+`tracking_node`, sin bag porque ocurrió después de que la grabación
+terminara) pero no evitó el choque porque **la silla no se detectó en
+absoluto** (confirmado por el autor: "muy complicado de detectar al ser
+muy fina"). Con esto, el hallazgo del 21/07 (límite de altura del LIDAR
+2D, ~47cm) queda **confirmado con un 5º contacto real** — ni el fix de
+`lin_factor` ni la maniobra de rodeo pueden ayudar contra un obstáculo que
+el sensor no ve. Decisión: no reintentar en vivo con este tipo de
+mobiliario sin antes mitigar por hardware/sensor (Orbbec RGBD, segundo
+LIDAR); queda documentado como limitación confirmada, no como pendiente de
+retest. Detalle completo en `docs/decisiones.md` (2026-07-22).
+
+Con esto se cierra la parte de robot de la Sesión 5.
+
+---
+
 ## Sesión 2026-07-22 (lab, Sesión 5, continuación 4) — reintentos de `obstaculo`: lin_factor corregido para parar de verdad + maniobra de rodeo
 
 Continuación de la misma sesión de lab, tras las 10 tomas de escenarios sin
