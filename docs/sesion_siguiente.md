@@ -202,6 +202,24 @@ como la nº1). Tras completar la Sesión 5 (2026-07-22) — **quedan 4 sesiones
 era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
 en sesiones futuras.
 
+**Planteamiento en discusión 2026-07-22 (sin decidir todavía, revisar
+mañana):** el autor se plantea comprimir las 4 sesiones que quedan a solo
+3 la semana que viene, en vez de una por sesión hasta la 9. Análisis dado
+ese mismo día: las 9 sesiones deben caer dentro de julio (sin lab en
+agosto, confirmado desde el 09/07); septiembre sí tiene lab reservado,
+pero **solo para el cierre** (demo final, comprobación del sistema, ver
+Fase 5 en `README.md`/`01_introduccion.md`), no para validación nueva —
+ese hueco de septiembre no se gana ni se pierde por comprimir julio, ya
+existe de por sí. Comprimiendo a 3 sesiones recortando/aplazando Nav2
+(sesiones 6-7, ya marcado como el bloque más prescindible del reparto —
+ver tabla de sesiones más abajo) parece viable sin necesitar día extra en
+septiembre, dado que la parte que más sostiene la memoria (seguimiento +
+seguridad) ya quedó bien cubierta en la Sesión 5. Si en cambio se quiere
+mantener Nav2 completo, el margen sería más ajustado. **Pendiente:**
+disponibilidad real de días del autor la semana que viene (no lo sabe
+Claude) — decidir el reparto concreto de qué entra en esas 3 sesiones
+antes de la próxima sesión.
+
 ### Calendario estimado (añadido 2026-07-17)
 
 Con 14 días de julio restantes (17→31) para las 6 sesiones que quedan (4-9),
