@@ -5,6 +5,39 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-22 — obstacle_threshold subido a 0.40m tras medir el offset físico LIDAR→borde del robot
+
+- **Contexto:** pendiente directo del 2º choque del 2026-07-21 (evasión
+  activada a tiempo, contacto igual — ver entrada de abajo). El plan
+  (`docs/sesion_siguiente.md`) pedía medir con un metro el offset físico
+  LIDAR→borde delantero antes de repetir el escenario `obstaculo`.
+- **Medida (autor, chasis real):** offset LIDAR→borde delantero ≈ **0.15m**
+  (Kobuki, diámetro ~30-32cm, LIDAR montado en el centro — coherente con el
+  radio del chasis). Con `obstacle_threshold=0.35m` el margen real hasta el
+  borde físico era solo 0.35-0.15 = **0.20m**.
+- **Cruce con `near_gain` detectado antes de decidir el valor nuevo:**
+  `tracking_node._obstacle_avoidance` escanea el sector frontal ±50° del
+  `/scan` completo **sin excluir a la persona seguida** — y el 2026-07-15 se
+  midió que en la zona de `near_gain` la persona seguida llega
+  legítimamente a 0.49m del LIDAR en seguimiento normal. Subir
+  `obstacle_threshold` por encima o muy cerca de ese suelo arriesga que el
+  robot trate a la propia persona seguida como un obstáculo en seguimiento
+  cercano — un efecto secundario nuevo, no solo una mejora de seguridad.
+- **Decisión (confirmada con el autor):** `obstacle_threshold: 0.35 → 0.40m`
+  (margen real 0.20→0.25m, +25%), dejando 0.09m de colchón por debajo del
+  suelo de `near_gain` (0.49m). Alternativa descartada: 0.45m (margen real
+  0.30m, +50%) — mejora más el margen pero deja solo 0.04m de colchón antes
+  del suelo de `near_gain`, más riesgo de falso positivo con la persona
+  seguida. Ver `person_follower/config/config.yaml`.
+- **No resuelve:** el 1er choque del 2026-07-21 (silla vista a 0.75m por el
+  LIDAR pero el punto de contacto real, más alto, invisible al sensor 2D) —
+  ese es un límite físico de altura del sensor, no de margen de distancia;
+  subir el umbral no lo cubre (ver entrada de abajo, mitigaciones 1-3).
+- **Pendiente:** repetir el escenario `obstaculo` con este nuevo umbral para
+  confirmar que evita el 2º tipo de contacto sin frenar de más en
+  seguimiento normal — y seguir con precaución manual mientras tanto (el
+  hallazgo de altura sigue sin mitigar).
+
 ## 2026-07-21 — Segundo hallazgo de seguridad, distinto del primero: la evasión frena a tiempo pero el margen hasta el borde físico del robot es insuficiente
 
 - **Contexto:** repetición del escenario `obstaculo`, esta vez con la

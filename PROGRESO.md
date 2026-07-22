@@ -1,5 +1,65 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-22 (lab, Sesión 5, continuación 3) — offset LIDAR medido, obstacle_threshold subido, 10 repeticiones de validación
+
+### Offset físico LIDAR→borde del robot medido, obstacle_threshold 0.35→0.40m
+
+Primera tarea de la sesión (ver aviso de seguridad de la entrada anterior).
+El autor midió con un metro el offset entre el centro del LIDAR y el borde
+delantero real del Kobuki: **0.15m** (coherente con el diámetro del chasis,
+~30-32cm, LIDAR montado en el centro). Con `obstacle_threshold=0.35m` el
+margen real hasta el borde físico era solo 0.20m — causa del 2º choque del
+21/07. Antes de subirlo, se detectó un cruce con `near_gain`:
+`_obstacle_avoidance` escanea el `/scan` completo sin excluir a la persona
+seguida, y esta llega legítimamente a 0.49m del LIDAR en seguimiento
+cercano (medido 15/07) — subir el umbral demasiado cerca de ese suelo
+arriesga que el robot trate a la propia persona como obstáculo. Confirmado
+con el autor: `obstacle_threshold=0.40m` (margen real 0.25m, +25%), no
+0.45m (habría dejado solo 0.04m de colchón antes de 0.49m). Sincronizado al
+NUC. Detalle completo en `docs/decisiones.md` (2026-07-22). **No resuelve**
+el 1er choque del 21/07 (límite de altura del LIDAR 2D) — sigue pendiente.
+
+### Sesión de lab: 10 tomas grabadas (recta ×2, curva ×3, parada ×1, corto ×3, oclusión ×1)
+
+Conectividad SSH confirmada, stack completo (kobuki, rplidar, 7 nodos)
+levantado sin incidencias (sin reenumeración de puertos hoy). Repetidos los
+cinco escenarios sin riesgo de `validation/README.md` (se dejó `obstaculo`
+fuera, pendiente del aviso de seguridad). Tabla completa de métricas en
+`docs/07_resultados.md` §7.4bis.
+
+Hallazgos operativos, no de código:
+
+- **La primera toma (`recta`) salió contaminada** por un estado de TRACKING
+  residual de antes de empezar a grabar — reprodujo la oscilación FSM
+  documentada desde el 17/06 (error angular 62°, saturación 39.7%, 7
+  pérdidas). Diagnosticado con el autor: no se había enviado
+  `stop_tracking` explícito antes de arrancar. A partir de ahí se envió
+  `stop_tracking` antes de cada toma siguiente (protocolo ya establecido el
+  09/07) y no volvió a repetirse en las 9 tomas restantes.
+- **Dos repeticiones (`curva` #2, `corto` #2) salieron cortas** (12.2s y
+  8.4s de seguimiento real dentro de ventanas de 40-45s) porque el gesto de
+  activación tardó 30-36s en llegar. Repetidas una vez más cada una con el
+  gesto inmediato → tomas limpias de 14-19s.
+- **`corto` #3 llegó a 0.02m de distancia mínima** (contacto casi literal) —
+  saturación angular 27-29%, coherente con la dificultad física ya
+  documentada el 15/07 a corta distancia, no un bug nuevo.
+- **`oclusion` con 100% detección** — el hueco de ocultación no produjo
+  pérdida real (recuperación vía Kalman/pierna única), igual que el
+  15/07.
+
+Sin tocar código en esta parte de la sesión (solo grabación + análisis).
+Bags y CSVs/figuras en `validation/runs/20260722_*`.
+
+### Pendiente para la próxima sesión
+
+Ver `docs/sesion_siguiente.md`: decidir con el autor cuándo reintentar
+`obstaculo` con el nuevo umbral (con precaución manual, el hallazgo de
+altura del LIDAR sigue sin mitigar); opcionalmente una repetición más de
+`parada`/`oclusion` (N=1 todavía); revisar §7.5 de
+`docs/07_resultados.md` (desactualizada por los fixes de las Sesiones 4-5).
+
+---
+
 ## Sesión 2026-07-21 (lab, Sesión 5, continuación 2) — Segundo golpe, distinto del primero: la evasión frenó a tiempo pero el margen fue insuficiente
 
 Repetido el escenario `obstaculo`, esta vez con la persona rodeando el

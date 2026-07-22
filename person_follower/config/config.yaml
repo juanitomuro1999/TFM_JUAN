@@ -20,7 +20,16 @@ tracking_node:
     kalman_q: 0.01          # reducido: estimación de velocidad más suave
     kalman_r: 0.15          # aumentado: posición medida con más filtrado → menos oscilación
     obstacle_avoidance_enabled: True
-    obstacle_threshold: 0.35  # m — obstáculos más cercanos que esto activan evasión (0.35 excluye cuerpo del robot)
+    # m — obstáculos más cercanos que esto activan evasión. Medido desde el
+    # LIDAR, no desde el borde físico del robot: offset LIDAR→borde delantero
+    # medido en el chasis real el 2026-07-22 = 0.15m (Kobuki, LIDAR montado en
+    # el centro, diámetro ~30-32cm). Con 0.35m el margen real hasta el borde
+    # era solo 0.20m — causa del 2º choque del 2026-07-21 (evasión activada a
+    # tiempo, contacto igual). Subido a 0.40m (margen real 0.25m) manteniendo
+    # colchón por debajo de los 0.49m del suelo de near_gain (2026-07-15) para
+    # no confundir a la propia persona seguida con un obstáculo en seguimiento
+    # cercano — ver docs/decisiones.md (2026-07-22).
+    obstacle_threshold: 0.40
     # Arranque suave: los primeros startup_ramp_s segundos tras activar el
     # seguimiento, el techo de |wz| sube linealmente de startup_max_wz a 1.0
     # en vez de permitir ya el máximo. Añadido 2026-07-09 en vivo: si el
