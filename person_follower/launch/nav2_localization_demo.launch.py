@@ -31,6 +31,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -43,6 +44,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     map_yaml = LaunchConfiguration('map', default=map_yaml_default)
     params_file = LaunchConfiguration('params_file', default=nav2_params_default)
+    launch_navigation = LaunchConfiguration('launch_navigation', default='false')
 
     lifecycle_nodes_localization = ['map_server', 'amcl']
     lifecycle_nodes_navigation = [
@@ -59,6 +61,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'params_file', default_value=nav2_params_default,
             description='Ruta a nav2_params.yaml'),
+        DeclareLaunchArgument(
+            'launch_navigation', default_value='false',
+            description='Si es "true", además de localización lanza planner/'
+                        'controller/BT (Sesión 7 — fase B). Por defecto solo '
+                        'localización (Sesión 6 — fase A).'),
 
         # ── LOCALIZACION: map_server + AMCL ──────────────────────────────
         Node(
@@ -92,6 +99,8 @@ def generate_launch_description():
         ),
 
         # ── NAVEGACION: planificador + controlador + comportamientos + BT ──
+        # Solo si launch_navigation:=true (Sesión 7 — fase B). Por defecto
+        # apagado: la Sesión 6 valida únicamente el bloque de localización.
         Node(
             package='nav2_controller',
             executable='controller_server',
@@ -99,6 +108,7 @@ def generate_launch_description():
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
             remappings=[('cmd_vel', '/commands/velocity')],
+            condition=IfCondition(launch_navigation),
         ),
         Node(
             package='nav2_planner',
@@ -106,6 +116,7 @@ def generate_launch_description():
             name='planner_server',
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
+            condition=IfCondition(launch_navigation),
         ),
         Node(
             package='nav2_behaviors',
@@ -113,6 +124,7 @@ def generate_launch_description():
             name='behavior_server',
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
+            condition=IfCondition(launch_navigation),
         ),
         Node(
             package='nav2_bt_navigator',
@@ -120,6 +132,7 @@ def generate_launch_description():
             name='bt_navigator',
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
+            condition=IfCondition(launch_navigation),
         ),
         Node(
             package='nav2_lifecycle_manager',
@@ -132,5 +145,6 @@ def generate_launch_description():
                 'node_names': lifecycle_nodes_navigation,
                 'bond_timeout': 0.0,
             }],
+            condition=IfCondition(launch_navigation),
         ),
     ])

@@ -226,3 +226,97 @@ person_follower
 ├── [Python] numpy, scipy (DBSCAN propio, ver 2.3.1), mediapipe, opencv
 └── [externo] kobuki_ros, rplidar_ros, slam_toolbox, nav2_bringup
 ```
+
+---
+
+## 2.8 Arquitectura de Nav2 (Fase 3, en desarrollo)
+
+Primera prueba en el laboratorio 2026-07-23 (Sesión 6). El pipeline se
+organiza en cuatro capas, de sensores a salida:
+
+```
+CAPA 1 — SENSORES (materia prima; sin esto no funciona nada de lo de abajo)
+[RPLIDAR A2M8]──/scan──┐
+[Base Kobuki]──/odom───┼──/tf (odom→base_footprint, dinámica)
+                        └──/tf_static (base_footprint→laser, rotación π)
+
+CAPA 2 — LOCALIZACIÓN
+[maps/mapa_laboratorio.yaml]──►[map_server]──/map─────────────────►┐
+                                                                     │
+[/scan]+[/odom]+[/map]────────────────►[amcl]──/particle_cloud────►│
+                                            │                       │
+                                            └──TF: map→odom────────►│
+                                                                     ▼
+                                          (Fixed Frame "map" de RViz
+                                           solo resuelve si esta TF existe)
+
+CAPA 3 — NÚCLEO NAV2 (lifecycle nodes; lifecycle_manager_navigation
+          los pasa a "active" — apagado por defecto en nuestro launch,
+          activar con launch_navigation:=true)
+                    ┌─────────────────────┬─────────────────────┐
+                    ▼                     ▼                     ▼
+          [planner_server]      [controller_server]    [behavior_server]
+           /plan (ruta global)   /commands/velocity      recuperaciones
+           (NavFn)                (DWB local planner)    (girar, retroceder,
+                    │                     │                esperar)
+                    └────────►[bt_navigator]◄──────────────────┘
+                               (árbol de comportamiento; recibe el
+                                objetivo al pulsar "Nav2 Goal" en RViz
+                                o vía scripts/nav2_send_goal.py)
+
+CAPA 4 — SALIDA
+[controller_server]──/commands/velocity──►[Kobuki] (ruedas)
+[RViz2] ── solo lectura: se suscribe a /map, /scan, /particle_cloud,
+           /plan, costmaps... nunca controla nada, solo dibuja.
+```
+
+**Por capas:**
+
+1. **Sensores.** El RPLIDAR publica `/scan` y la base Kobuki publica
+   `/odom` y las TF del robot. Sin `/scan` y sin la TF
+   `base_footprint→laser` correcta, nada de las capas siguientes funciona
+   — ver 2.5 para la TF estática (existe documentada aquí desde el
+   diseño inicial, pero **el 23/07 se descubrió que ningún launch file la
+   lanzaba realmente** — solo existía como paso manual en
+   `scripts/launch_robot.bash`; AMCL descartaba todos los `/scan` hasta
+   corregirlo, ver `docs/decisiones.md` 2026-07-23).
+2. **Localización.** `map_server` carga y publica el mapa guardado en
+   `/map`. `amcl` (Adaptive Monte Carlo Localization) combina `/scan` +
+   `/odom` + `/map` para estimar dónde está el robot: publica la nube de
+   partículas en `/particle_cloud` y, sobre todo, genera la TF `map→odom`
+   — esa TF es la que hace que el Fixed Frame `map` de RViz resuelva
+   correctamente. Partículas agrupadas = AMCL ha convergido.
+3. **Núcleo Nav2.** Son *lifecycle nodes*: `lifecycle_manager_navigation`
+   los pasa a `active` (con `autostart: true`). `bt_navigator` es el
+   cerebro (ejecuta el árbol de comportamiento, recibe el objetivo).
+   `planner_server` calcula la ruta global (`/plan`). `controller_server`
+   es el planificador local: sigue esa ruta esquivando obstáculos en
+   tiempo real y publica el `cmd_vel` final (remapeado a
+   `/commands/velocity`, igual que el resto del sistema). `behavior_server`
+   ejecuta recuperaciones cuando el robot se atasca. En
+   `nav2_localization_demo.launch.py` esta capa está apagada por defecto
+   (`launch_navigation:=false`) — la Sesión 6 solo validó las capas 1-2.
+4. **Salida.** `/commands/velocity` mueve las ruedas. RViz2 nunca
+   controla nada, solo lee y dibuja lo que los demás nodos publican.
+
+**Nota sobre el panel "Navigation 2" de RViz:** ese panel no lee un topic
+normal — pregunta el estado directamente a `lifecycle_manager` y
+`bt_navigator`. Si la capa 3 no está lanzada (como en el demo de
+localización sola), el panel muestra `unknown` en vez de `active` — es el
+comportamiento esperado, no un fallo.
+
+**Hallazgo abierto (Sesión 6, 2026-07-23):** con las capas 1-2 ya
+correctas (TF completa, mapa cargado, `amcl` activo), la localización
+genera una primera pose válida (`/particle_cloud` + TF `map→odom`) al
+dársela — por servicio de localización global o por "2D Pose Estimate" en
+RViz, indistintamente — pero **no vuelve a actualizar tras ese primer
+ciclo**, pese a mover el robot muy por encima de los umbrales configurados
+(`update_min_d=0.25m`, `update_min_a=0.2rad`). Visualmente en RViz: el
+`LaserScan` pasa de rojo (`frame [map] does not exist`) a verde al fijar la
+pose, pero se va desalineando del mapa de fondo al moverse — la TF
+`map→odom` se queda congelada mientras `odom→base_footprint` sí seguía
+actualizándose con el movimiento real. Log de `amcl` confirmado hasta
+`Setting pose: ...` y silencio después, sin ningún error explícito. Mismo
+patrón reproducido en un reinicio limpio del stack completo — no es un
+efecto de sesión desordenada. Diagnóstico y fix pendientes para la Sesión
+7. Ver `docs/decisiones.md` (2026-07-23) para el detalle completo.

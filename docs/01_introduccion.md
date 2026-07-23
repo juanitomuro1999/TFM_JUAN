@@ -30,10 +30,14 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
    - Planificación de rutas con NavFn o Smac Planner.
    - Navegación a objetivos predefinidos (salas, puntos de interés).
    *(Alcance decidido 2026-07-09: demo mínima completa — AMCL + navegación a
-   un punto — ver `docs/decisiones.md`. Preparado sin robot:
-   `person_follower/launch/nav2_localization_demo.launch.py` y
-   `scripts/nav2_send_goal.py`, ninguno probado todavía. Pendiente de
-   ejecutar y validar en el lab.)*
+   un punto — ver `docs/decisiones.md`. Primera prueba en el lab
+   2026-07-23: mapa carga, AMCL activo, cadena de TF corregida y
+   completa, localización global genera una primera pose válida
+   (`map`→`odom` publicada) — pero AMCL no converge/actualiza tras el
+   primer ciclo, pendiente de diagnosticar con RViz (no disponible esa
+   sesión). Navegación (planificación de rutas + `nav2_send_goal.py`)
+   todavía sin probar, depende de resolver la localización primero. Ver
+   `docs/decisiones.md` 2026-07-23 y `docs/sesion_siguiente.md`.)*
 
 4. ✅ **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual). *(Completado 2026-06-25: `visual_detection_node` publica el rumbo de la persona (`/person_bearing`) desde MediaPipe; cuando el LiDAR no encuentra un par de piernas válido, `detection_node` usa ese rumbo para elegir el clúster correcto y seguir publicando posición. Validado sin movimiento: 100% detección, 0 pérdidas, en `validation/runs/fusion_track_20260625/`; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. 2026-07-08: validado también con movimiento — la primera toma reveló saltos de detección y saturación angular (causa raíz identificada y corregida: filtro de continuidad + gate de Mahalanobis + rate-limit angular, ver `docs/decisiones.md`). 2026-07-15: corregido un signo invertido en el PD angular de `tracking_node` (causa raíz real del "gira al lado contrario" reportado desde el 13/07) y validado `near_gain` de forma aislada (0.49-0.86m): comportamiento acotado y con el signo correcto, con saturación puntual esperable a corta distancia — ver `docs/decisiones.md` y `PROGRESO.md`. 2026-07-21 (Sesión 4): corregido un sector invertido en la evasión de obstáculos de `tracking_node` (vigilaba la parte trasera del robot, no la delantera — mismo desfase de π que ya se corregía en la fusión); añadido un fallback de pierna única (sin par) en `detection_node` para el hueco de detección al girar (~2-4s → ~1.6s, validado en vivo); subido `continuity_confirm_frames` de 1 a 3 tras estresar con mobiliario denso real (saltos de posición 12.9%→4.6%, saturación 4.9%→0.0%) — ver `docs/decisiones.md` y `PROGRESO.md`. 2026-07-22 (Sesión 5): tras 4 contactos leves reales con mobiliario en dos sesiones, corregido `lin_factor` de la evasión de obstáculos para que llegue a 0.0 de verdad (antes nunca bajaba de 0.4, código muerto) y añadida una maniobra de rodeo (giro + avance corto) para obstáculos sostenidos — dos tomas siguientes en vivo sin contacto; sigue sin resolver el punto ciego de altura del LIDAR 2D (silla de patas finas) — ver `docs/decisiones.md` y `PROGRESO.md`.)*
 

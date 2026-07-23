@@ -5,6 +5,137 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-23 — Nav2 fase A: localización arranca (mapa + AMCL activo + TF corregida) pero no converge tras el primer ciclo, sin RViz para diagnosticar más
+
+- **Contexto:** objetivo principal de la Sesión 6 (ver `docs/sesion_siguiente.md`)
+  — verificar plugins Nav2 contra la versión instalada y lanzar solo el
+  bloque de localización (AMCL sobre `maps/mapa_laboratorio.yaml`).
+- **Preparación:** `nav2_params.yaml` nunca se había sincronizado al NUC
+  (repo `person_follower` del NUC es un checkout independiente de
+  `RobInLabUJI/person_follower`, no de `TFM_JUAN`) — sincronizados
+  `setup.py` (entrada `maps` en `data_files`), `nav2_params.yaml`,
+  `nav2_localization_demo.launch.py`, `scripts/nav2_send_goal.py`, y
+  `colcon build --symlink-install` para registrarlos (los ficheros nuevos
+  no aparecen en el share solo con symlink-install si no ha habido un build
+  desde que se añadieron).
+- **Verificación de plugins:** todos los strings de `nav2_params.yaml`
+  (`nav2_amcl::DifferentialMotionModel`, `dwb_core::DWBLocalPlanner`,
+  `nav2_navfn_planner::NavfnPlanner`, `nav2_behaviors::*`,
+  `nav2_costmap_2d::*`) coinciden exactamente con los del
+  `nav2_bringup/params/nav2_params.yaml` de Nav2 Jazzy instalado — sin
+  cambios necesarios. La única diferencia con el default de Jazyy es que
+  el default ahora usa `nav2_mppi_controller::MPPIController` en vez de
+  DWB — DWB se mantiene porque `nav2_dwb_controller` sigue instalado y es
+  perfectamente válido, solo ya no es el ejemplo por defecto.
+- **Bug real encontrado:** faltaba la TF estática `base_footprint→laser`.
+  Existía como paso manual en `scripts/launch_robot.bash` (`ros2 run
+  tf2_ros static_transform_publisher 0 0 0 3.141592 0 0 base_footprint
+  laser` — rotación de 180°, coherente con el convenio bruto del láser ya
+  documentado en `detection_node`) pero nunca se integró en ningún launch
+  file ni se lanzó hoy al arrancar los nodos a mano — se pasó por alto.
+  Sin ella, AMCL descartaba **todos** los `/scan` (log: `Message Filter
+  dropping message: frame 'laser' ... discarding message because the queue
+  is full`, en bucle) y nunca inicializaba el modelo de láser
+  (`createLaserObject` no se ejecutaba). Lanzada como nodo persistente
+  aparte tras diagnosticarlo — con ella, la cadena de TF completa
+  (`map`→`odom`→`base_footprint`→`laser`) queda operativa por primera vez
+  en el proyecto.
+- **Sin RViz:** el portátil llevado al laboratorio hoy no tiene ROS 2
+  instalado (`ls /opt/ros/` vacío) — no se pudo usar "2D Pose Estimate"
+  visual. Alternativa usada: servicio `/reinitialize_global_localization`
+  (localización global, sin necesitar saber la pose aproximada) +
+  movimiento comandado directamente por `/commands/velocity` (avances y
+  giros cortos a 0.12 m/s / 0.5 rad/s) para dar observaciones a AMCL.
+- **Resultado:** con la TF corregida, `map_server` y `amcl` llegan a
+  `active` vía el `lifecycle_manager` (autostart), el mapa carga
+  correctamente (261×338 celdas @ 0.05m, origen (-8.32,-11.35), coincide
+  con los metadatos históricos del 21/05). La localización global sí
+  genera un primer `/amcl_pose` y la TF `map→odom` empieza a publicarse —
+  la cadena de TF y el pipeline de AMCL quedan confirmados funcionales de
+  extremo a extremo. **Pero tras ese primer ciclo, ni `/amcl_pose` ni
+  `/particle_cloud` se vuelven a actualizar** pese a mover el robot bastante
+  más allá de los umbrales configurados (`update_min_d=0.25m`,
+  `update_min_a=0.2rad`, verificados con `ros2 param get` que están
+  cargados tal cual). **Reproducido igual en un reinicio limpio completo
+  del stack** (parar todo con SIGINT y relanzar con la TF ya activa desde
+  el principio, para descartar que fuera un efecto de sesión desordenada)
+  — mismo patrón: una `/amcl_pose` válida al inicializar, silencio después.
+- **Diagnóstico parcial, sin cerrar:** el proceso de `amcl` sigue vivo y
+  con CPU estable (~1.8%, no colgado ni en bucle de error), la TF
+  `map→odom` sigue viva (se sigue rebroadcasteando aunque sea con el último
+  valor calculado). No se descarta que sea comportamiento normal de AMCL
+  esperando una condición concreta (p.ej. algo relacionado con cómo se
+  calcula el delta de movimiento tras una inicialización global, en vez de
+  una inicialización por pose única) — sin poder ver la nube de partículas
+  en RViz en directo, no fue posible ir más allá por SSH a ciegas sin
+  arriesgar gastar todo el tiempo de robot restante de la sesión en
+  depuración remota.
+- **Decisión:** cerrar aquí el bloque de Nav2 por hoy en vez de seguir
+  intentando a ciegas — coherente con el margen que la propia
+  planificación (`docs/sesion_siguiente.md`) ya daba a Nav2 ("si el tiempo
+  aprieta, quedarse en localización validada"). Queda como pendiente
+  concreto y bien acotado para la Sesión 7: repetir esta prueba con RViz
+  disponible (llevar un portátil con ROS 2, o instalarlo en el que se use)
+  para ver la nube de partículas en vivo y diagnosticar si es un problema
+  de configuración, de la propia inicialización global, o simplemente hace
+  falta más tiempo/movimiento del que se probó hoy.
+
+## 2026-07-23 — Hallazgo operativo: `nohup ... & disown` no basta en el NUC (systemd-logind mata la sesión al cerrar SSH)
+
+- **Contexto:** al lanzar kobuki+rplidar+person_follower con el patrón
+  habitual (`nohup ... > log 2>&1 & disown` dentro de una única sesión SSH
+  que se cierra al terminar el comando), los tres procesos murieron solos
+  ~16s después, sin ningún error en sus logs — coincidiendo exactamente con
+  el cierre de esa sesión SSH (`session-8.scope`, ver
+  `journalctl`). `loginctl show-user user` confirma `Linger=no`; no hay
+  password de `sudo` disponible para activar lingering de forma permanente
+  (`loginctl enable-linger` habría sido el fix limpio).
+- **Fix aplicado esta sesión:** lanzar cada nodo de larga duración con la
+  conexión SSH **mantenida abierta** en segundo plano (en vez de backgroundear
+  el proceso remoto y cerrar la sesión) — así el PAM/logind session scope
+  sigue vivo mientras el nodo lo necesite. Funcionó de forma consistente el
+  resto de la sesión (nodos sobrevivieron una toma completa de 60s sin
+  caerse).
+- **Pendiente para sesiones futuras:** si se consigue la password de `sudo`
+  del NUC, ejecutar `sudo loginctl enable-linger user` una vez y volver al
+  patrón `nohup+disown` simple, más robusto que depender de mantener
+  conexiones SSH abiertas manualmente.
+- **Nota aparte:** el stdout de los nodos ROS2 cuando no hay tty (pipe/fichero)
+  queda en buffering por bloques — los ficheros de log (`/tmp/*.log`,
+  ficheros de captura de esta sesión) se quedan "congelados" en apariencia
+  aunque el proceso siga vivo y funcionando. Para comprobar estado real usar
+  `ros2 topic echo --once` / `ros2 node list`, no `tail` sobre el log.
+
+## 2026-07-23 — `obstaculo` N=2 confirmado: fix de `lin_factor` + maniobra de rodeo sin contacto en una segunda sesión
+
+- **Contexto:** remate pendiente de la Sesión 5 (ver `docs/sesion_siguiente.md`)
+  — repetir `obstaculo` con mobiliario sólido una vez más antes de dar por
+  cerrados el fix de `lin_factor` y la maniobra de rodeo del 2026-07-22 en el
+  Capítulo 7.
+- **Resultado (`obstaculo_v9_mueble`, mismo mueble sólido, persona
+  rodeándolo):** **sin contacto**, confirmado por el autor. Único encuentro
+  con el obstáculo en 43s de toma, secuencia completa visible en la
+  telemetría: parada dura (`lin_factor` 1.0→0.0), dos fases de giro
+  (0.5 rad/s, ~1.5s cada una — la maniobra de rodeo se disparó dos veces
+  seguidas, probablemente porque el primer giro no despejó del todo el
+  obstáculo al no usar odometría, hallazgo ya documentado como pendiente
+  menor el 22/07), avance corto (0.12 m/s, ~2s), pérdida y reenganche breve
+  de la posición de la persona durante el giro (esperable), y vuelta limpia
+  al seguimiento normal. Sin código nuevo — mismo `config.yaml` que el
+  22/07. Ver `docs/07_resultados.md` §7.4ter y
+  `validation/runs/20260723_obstaculo_v9_mueble/`.
+- **Conclusión:** N=2 para el fix de `lin_factor` + maniobra de rodeo con
+  mobiliario sólido — se puede dar por cerrado para el Capítulo 7 (la silla
+  de patas finas sigue aparte, cerrada como limitación de arquitectura desde
+  el 22/07, no mitigable por software).
+- **Confirma un detalle pendiente del 22/07:** el giro de duración fija
+  (`detour_turn_s`, sin verificación por odometría) a veces no basta a la
+  primera y dispara una segunda fase de giro — visto aquí, no solo
+  hipotetizado. No bloquea (el sistema de seguridad se re-dispara
+  correctamente si el primer giro no fue suficiente), pero es un candidato
+  concreto de mejora futura (girar hasta confirmar por odometría en vez de
+  un tiempo fijo).
+
 ## 2026-07-22 — CONFIRMADO (5º contacto real): la silla fina sigue sin detectarse, límite físico del LIDAR 2D, no mitigable por software de evasión
 
 - **Contexto:** tras el resultado limpio de `obstaculo_v7_rodeo` (mueble +

@@ -1,71 +1,83 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 6 (inicio, antes de Nav2): confirmar la maniobra de rodeo con mobiliario sólido + rematar `parada`/`oclusion`
+## OBJETIVO de la Sesión 7: diagnosticar con RViz por qué AMCL no converge tras el primer ciclo + fase B si da tiempo
 
-La Sesión 5 (validación para el Capítulo 7) se da por completada a
-2026-07-22 — ver tabla de sesiones más abajo. Lo que sigue son remates
-cortos de esa sesión que conviene cerrar **al principio** de la Sesión 6,
-antes de pasar al objetivo propio de esa sesión (Nav2 — fase A,
-localización AMCL, ver más abajo). Si algo de esto se alarga, no debe
-comerse el tiempo de Nav2 — son confirmaciones rápidas, no un nuevo bloque
-de trabajo grande.
+La Sesión 6 (2026-07-23) se da por completada — ver tabla de sesiones más
+abajo. Remate de la Sesión 5 cerrado (`obstaculo` N=2 sin contacto,
+confirmado). El objetivo de Nav2 — fase A quedó **a medias**: la
+localización arranca (mapa carga, AMCL activo, TF completa, primer
+`/amcl_pose` + `map→odom` válidos) pero **no converge/actualiza tras el
+primer ciclo**, y sin RViz no se pudo diagnosticar más — ver
+`docs/decisiones.md` (2026-07-23) para el detalle completo.
 
-**Estado a 2026-07-22 (cierre de Sesión 5):** offset LIDAR→borde medido
-(0.15m), `obstacle_threshold` 0.35→0.40m, y **10 tomas de escenarios sin
-riesgo** grabadas (`recta`×2, `curva`×3, `parada`×1, `corto`×3,
-`oclusion`×1 — tabla en `docs/07_resultados.md` §7.4bis). Además, en la
-misma sesión se reintentó `obstaculo` en vivo (§7.4ter): varios contactos
-leves con un mueble sólido llevaron a un fix real de código (`lin_factor`
-con parada dura de verdad) y a una **maniobra de rodeo nueva** (giro +
-avance corto cuando el robot se queda bloqueado) — con mobiliario sólido,
-las últimas tomas salieron **sin contacto**. Con la silla de patas finas
-del 21/07, en cambio, hubo un **5º contacto real** (choque directo, la
-silla no se detectó en absoluto) — ver más abajo, **este punto ya se dio
-por cerrado como limitación confirmada, no repetir**.
+**Antes de nada — imprescindible esta vez: llevar un portátil con ROS 2
+Jazzy instalado** (o instalarlo en el que se lleve) para poder abrir RViz2
+y ver la nube de partículas de AMCL en directo. La Sesión 6 se quedó ciega
+en este punto exacto porque el portátil de esa sesión no tenía ROS 2.
+Comando (con `ROS_DOMAIN_ID=24`, misma red que el NUC):
+```bash
+export ROS_DOMAIN_ID=24
+ros2 run rviz2 rviz2 -d /opt/ros/jazzy/share/nav2_bringup/rviz/nav2_default_view.rviz
+```
 
-**Cambios de código de hoy (2026-07-22), ya sincronizados y relanzados en
-el NUC:**
-- `tracking_node._obstacle_avoidance`: `lin_factor` ahora se calcula con la
-  distancia mínima real del sector frontal (`r_min`), rampa lineal
-  1.0→0.0 entre `obstacle_threshold` (0.40m) y el nuevo
-  `obstacle_stop_distance` (0.25m) — reemplaza la fórmula anterior que
-  nunca bajaba de 0.4 en la práctica (código muerto, causa real de los
-  contactos con el mueble).
-- Maniobra de rodeo nueva en `tracking_node._on_scan`: si `lin_factor` se
-  mantiene ≤`detour_stuck_lin_factor` (0.5) durante `detour_stuck_trigger_s`
-  (1.5s), dispara giro cerrado (`detour_turn_speed`=0.5 rad/s,
-  `detour_turn_s`=1.5s) + avance recto corto (`detour_forward_speed`=0.12
-  m/s, `detour_forward_s`=2.5s), con aborto a parada si aparece un
-  obstáculo nuevo durante el avance. Parámetros en `config.yaml`, detalle
-  completo y las 8 iteraciones de prueba (v3→v8) en `docs/decisiones.md`
-  (2026-07-22).
+**Pasos:**
+1. Lanzar kobuki + rplidar + la TF estática `base_footprint→laser` (ver
+   "Pasos para empezar" más abajo — ya incluye el paso `tf` que faltaba el
+   23/07) + `nav2_localization_demo.launch.py` (localización sola, es el
+   default: `launch_navigation:=false` no hace falta pasarlo explícito).
+2. Abrir RViz, cargar el mapa, dar pose inicial con "2D Pose Estimate" (más
+   fiable que la localización global usada a ciegas el 23/07) y mover el
+   robot un poco.
+3. **Observar en vivo si la nube de partículas converge y se actualiza con
+   el movimiento**, o si se queda congelada igual que se vio (a ciegas) el
+   23/07. Si se congela, mirar el log de `amcl` en la propia terminal de
+   RViz/lanzamiento (esta vez con salida visible, no bufereada por SSH) por
+   si hay algún warning/error que no se vio el 23/07.
+4. Si converge bien: pasar a fase B (activar `launch_navigation:=true`,
+   mandar un objetivo con `scripts/nav2_send_goal.py <x> <y>` leído sobre
+   el mapa en RViz). **No lanzar este launch a la vez que
+   `start_person_follower.launch.py` con `launch_navigation:=true`** —
+   ambos publican en `/commands/velocity`.
+5. Si no converge y no se identifica la causa rápido: Nav2 es el bloque
+   más prescindible del reparto de sesiones (ver tabla más abajo) — no
+   merece la pena gastar mucho más tiempo de robot en depurarlo a fondo;
+   mejor documentarlo como limitación/trabajo futuro y usar el tiempo
+   restante en el colchón de la Sesión 8 (grabar demo, rematar memoria).
 
-**CERRADO, no reintentar — límite de altura del LIDAR con la silla de
-patas finas:** confirmado el 2026-07-22 (`obstaculo_v8`) con un 5º contacto
-real (choque directo, sin detección alguna del obstáculo) que este tipo de
-mobiliario está fuera del plano de barrido del LIDAR 2D (~47cm) sin
-importar el software de evasión. Decisión tomada: no repetir en vivo con
-este tipo de objeto sin antes mitigar por hardware/sensor (integrar la
-cámara Orbbec RGBD, ya presente sin compilar en `ros2_ws/src`; o un
-segundo LIDAR/otra altura de montaje). Queda como limitación de
-arquitectura documentada en `docs/decisiones.md` y `docs/07_resultados.md`
-§7.4ter — si se quiere abordar de verdad, es un objetivo de diseño mayor
-para una sesión futura, no un ajuste de parámetro.
+**Recordatorio operativo importante de la Sesión 6 (leer antes de lanzar
+nada):**
+- `nohup ... & disown` **no basta** en este NUC — `systemd-logind` mata los
+  procesos al cerrar la sesión SSH que los lanzó (sin password de `sudo`
+  para arreglarlo con `loginctl enable-linger`). Lanzar cada nodo de larga
+  duración manteniendo la conexión SSH abierta en segundo plano, no
+  backgroundeando el proceso remoto y cerrando la sesión.
+- El stdout de los nodos ROS2 sin tty (pipe/fichero) queda bufereado por
+  bloques — un log que no crece no significa que el proceso esté muerto.
+  Comprobar estado real con `ros2 topic echo --once` / `ros2 node list`.
+- No olvidar la TF estática del láser (`scripts/launch_robot.bash`, paso
+  `tf`) al lanzar Nav2 — es fácil que se quede fuera si se lanzan los
+  nodos a mano en vez de con ese script.
 
-**Objetivo principal de la Sesión 6:** repetir `obstaculo` con **mobiliario
-sólido** (el mueble de hoy, u otro similar — nunca la silla fina) una vez
-más, para no quedarse en N=1 con el fix de `lin_factor` + la maniobra de
-rodeo antes de darlos por cerrados en el Capítulo 7.
+**Estado heredado de la Sesión 6 (2026-07-23, no repetir, solo verificar):**
+- ✅ `obstaculo` N=2 confirmado sin contacto con mobiliario sólido
+  (`obstaculo_v9_mueble`) — fix de `lin_factor` + maniobra de rodeo dados
+  por cerrados para el Capítulo 7. Ver `docs/07_resultados.md` §7.4ter.
+- ✅ **Confirma un pendiente heredado de la Sesión 4:** `lin_factor` sí
+  frena de verdad la marcha con el robot en movimiento real (visto en la
+  telemetría de `obstaculo_v9`: `vlin` rampa de 0.18→0.000 según
+  `lin_factor` cae 1.0→0.0, con tracking activo de verdad, no parado).
+- Nav2 fase A preparado (plugins verificados, ficheros sincronizados al
+  NUC, TF del láser corregida) pero localización sin converger tras el
+  primer ciclo — ver objetivo de arriba y `docs/decisiones.md` (2026-07-23).
+- La silla de patas finas del 21/07 sigue **cerrada, no reintentar** (límite
+  de altura del LIDAR 2D, confirmado con 5 contactos reales) — ver
+  `docs/decisiones.md` (2026-07-22).
 
-**Precaución:** la maniobra de rodeo es código nuevo probado en una sola
-sesión (con varias activaciones dentro de ella) — mantener distancia de
-seguridad manual igual que en cualquier prueba de `obstaculo`, y estar
-listo para `stop_tracking` si el giro/avance no se ve seguro.
-
-**Rematar N=1 si sobra tiempo (no bloqueante):** una repetición más de
-`parada` y de `oclusion` (`bash validation/record_run.sh <etiqueta>
-[duración_s]`, protocolo: `stop_tracking` antes de cada toma, gesto de
-inicio inmediato al empezar a grabar para no perder ventana).
+**Rematar N=1 si sobra tiempo (no bloqueante, heredado de Sesiones
+anteriores):** una repetición más de `parada` y de `oclusion` (`bash
+validation/record_run.sh <etiqueta> [duración_s]`, protocolo:
+`stop_tracking` antes de cada toma, gesto de inicio inmediato al empezar a
+grabar para no perder ventana).
 
 **Pendiente de escritorio (sin robot):** revisar y actualizar §7.5 de
 `docs/07_resultados.md` — varias entradas están desactualizadas por los
@@ -81,8 +93,9 @@ resueltos, pero la sección todavía los lista como limitaciones abiertas).
   (2026-07-22) — no subir el primero por encima de ~0.45m sin revalidar
   contra el suelo de `near_gain` (0.49m).
 - Maniobra de rodeo (`detour_*` en `config.yaml`) — el giro es de duración
-  fija, sin verificación por odometría; con obstáculos más anchos que los
-  de hoy podría no bastar para despejarlos.
+  fija, sin verificación por odometría; con obstáculos más anchos podría no
+  bastar para despejarlos (visto en `obstaculo_v9`: dos fases de giro
+  seguidas cuando la primera no bastó — ver `docs/decisiones.md` 2026-07-23).
 
 **Al terminar cada toma:** `bag_to_csv.py` (en el NUC) + `plot_run.py` (en
 el portátil), añadir la fila a la tabla de `docs/07_resultados.md` §7.4ter
@@ -91,9 +104,6 @@ el portátil), añadir la fila a la tabla de `docs/07_resultados.md` §7.4ter
 **Pendientes menores heredados de la Sesión 4** (hacer si sobra tiempo,
 ninguno bloquea el objetivo principal — ver `docs/decisiones.md`
 2026-07-21 para el detalle completo de cada uno):
-- Confirmar que `lin_factor` de la evasión de obstáculos frena de verdad
-  la marcha con el robot en movimiento real (hoy solo se confirmó el
-  sector correcto y el disparo del log, sin movimiento).
 - Repetir el giro con tracking activo (robot moviéndose de verdad tras la
   persona), no solo con el robot parado, para el fallback de pierna única.
 - Cruzar `position.csv` con `distance` en los instantes "estables" de los
@@ -190,35 +200,28 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~3~~ | ~~Corregir desfase de π en tracking_node + retest limpio de `near_gain`/oscilación + recalibrar cámara nueva~~ **✅ hecho 2026-07-15** (el fix de π se sostuvo, pero apareció un fallo mayor no relacionado — signo invertido en el PD angular, causa real de "gira al lado contrario" desde el 13/07 — encontrado y corregido; `near_gain` aislado y sano; cámara evaluada sin necesidad de recalibrar — ver estado heredado abajo) |
 | ~~4~~ | ~~Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + el hueco de detección LIDAR+cámara al girar + resolver reproducibilidad de métricas del Capítulo 7~~ **✅ hecho 2026-07-21** (los cuatro objetivos completados en una sola sesión — ver estado heredado abajo y `docs/decisiones.md`) |
 | ~~5~~ | ~~Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7~~ **✅ hecho 2026-07-22** — **21/07:** solo `obstaculo` (2 tomas, 2 choques reales). **22/07:** offset LIDAR medido, `obstacle_threshold`→0.40m, 10 tomas de `recta`/`curva`/`parada`/`corto`/`oclusion` (§7.4bis); reintentado `obstaculo` — 2 contactos leves más llevaron a corregir `lin_factor` (parada dura real) y a una maniobra de rodeo nueva, últimas 2 tomas sin contacto (§7.4ter). Quedan remates menores (ver objetivo de la Sesión 6, arriba) |
-| 6 | Remates de la Sesión 5 (ver arriba) + Nav2 — fase A: solo localización AMCL |
-| 7 | Nav2 — fase B: navegación a un punto (si la fase A salió bien) |
+| ~~6~~ | ~~Remates de la Sesión 5 + Nav2 — fase A: solo localización AMCL~~ **✅ hecho 2026-07-23** (parcial — `obstaculo` N=2 sin contacto cerrado; Nav2 fase A preparado y arrancando pero AMCL no converge tras el primer ciclo, sin RViz para diagnosticar más — ver estado heredado arriba y `docs/decisiones.md`) |
+| 7 | Nav2 — fase A remate (diagnóstico con RViz) + fase B si da tiempo |
 | 8 | Colchón + grabar vídeo de demostración del TFM |
 | 9 | **Última sesión de lab del TFM.** |
 
 **Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
 presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
-como la nº1). Tras completar la Sesión 5 (2026-07-22) — **quedan 4 sesiones
-(6 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
+como la nº1). Tras completar la Sesión 6 (2026-07-23) — **quedan 3 sesiones
+(7 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
 era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
 en sesiones futuras.
 
-**Planteamiento en discusión 2026-07-22 (sin decidir todavía, revisar
-mañana):** el autor se plantea comprimir las 4 sesiones que quedan a solo
-3 la semana que viene, en vez de una por sesión hasta la 9. Análisis dado
-ese mismo día: las 9 sesiones deben caer dentro de julio (sin lab en
-agosto, confirmado desde el 09/07); septiembre sí tiene lab reservado,
-pero **solo para el cierre** (demo final, comprobación del sistema, ver
-Fase 5 en `README.md`/`01_introduccion.md`), no para validación nueva —
-ese hueco de septiembre no se gana ni se pierde por comprimir julio, ya
-existe de por sí. Comprimiendo a 3 sesiones recortando/aplazando Nav2
-(sesiones 6-7, ya marcado como el bloque más prescindible del reparto —
-ver tabla de sesiones más abajo) parece viable sin necesitar día extra en
-septiembre, dado que la parte que más sostiene la memoria (seguimiento +
-seguridad) ya quedó bien cubierta en la Sesión 5. Si en cambio se quiere
-mantener Nav2 completo, el margen sería más ajustado. **Pendiente:**
-disponibilidad real de días del autor la semana que viene (no lo sabe
-Claude) — decidir el reparto concreto de qué entra en esas 3 sesiones
-antes de la próxima sesión.
+**Planteamiento del 2026-07-22 sobre comprimir 4→3 sesiones — resuelto de
+forma natural:** el autor se planteaba comprimir las entonces 4 sesiones
+restantes (6-9) a 3, recortando/aplazando Nav2. Al completar la Sesión 6
+como estaba planeada (aunque Nav2 fase A quedara a medias), el recuento ya
+ha bajado solo a 3 sesiones (7-9) sin necesidad de decidir explícitamente
+qué recortar — mismo resultado que se buscaba con la compresión. Si la
+Sesión 7 tampoco cierra Nav2 del todo, sigue vigente la nota de abajo:
+es el bloque más prescindible del reparto, y recortarlo a "solo
+localización documentada" (o directamente a trabajo futuro) es preferible
+a robar tiempo a las Sesiones 8-9.
 
 ### Calendario estimado (añadido 2026-07-17)
 
@@ -528,19 +531,27 @@ tratar como si fuera código nuevo sin probar, no como algo ya validado.
 # 1. Sincronizar si hubo cambios locales
 cd ~/ros2_ws/src/TFM_JUAN && git pull
 
-# 2. Lanzar el robot (cada bloque con nohup+disown, sin tmux)
+# 2. Lanzar el robot
 sshpass -p 'qwerty' ssh user@10.48.0.1
 source /opt/ros/jazzy/setup.bash && source ~/kobuki_ws/install/setup.bash && source ~/ros2_ws/install/setup.bash
 export ROS_DOMAIN_ID=24
 
-nohup ros2 launch kobuki_node kobuki_node-launch.py > /tmp/kobuki.log 2>&1 & disown
-nohup ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/rplidar > /tmp/lidar.log 2>&1 & disown
-nohup ros2 launch person_follower start_person_follower.launch.py > /tmp/follower.log 2>&1 & disown
+# ⚠️ IMPORTANTE (hallazgo Sesión 6, 2026-07-23): "nohup ... & disown" NO
+# basta en este NUC — systemd-logind mata los procesos en cuanto se cierra
+# la sesión SSH que los lanzó (Linger=no, sin password de sudo para
+# arreglarlo con "loginctl enable-linger"). Cada uno de estos comandos debe
+# ir en su PROPIA sesión/pestaña SSH que se deje ABIERTA mientras el nodo
+# tenga que seguir vivo (no cerrar la conexión después de lanzar).
+ros2 launch kobuki_node kobuki_node-launch.py                                    # terminal 1, dejar abierta
+ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/rplidar          # terminal 2, dejar abierta
+ros2 run tf2_ros static_transform_publisher 0 0 0 3.141592 0 0 base_footprint laser  # terminal 3 — necesaria para Nav2/AMCL, se olvidó el 23/07
+ros2 launch person_follower start_person_follower.launch.py                      # terminal 4, dejar abierta
 
-# 3. Verificar
+# 3. Verificar (desde OTRA terminal/sesión, no una de las de arriba)
 ros2 node list
 timeout 5 ros2 topic hz /scan
-grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levantar el brazo
+# El stdout de los nodos sin tty queda bufereado por bloques — si un log no
+# crece no significa que el proceso esté muerto; usar topic echo/node list.
 ```
 
 > **Si `rplidar_node` muere con "operation time out":** el puerto USB se ha
@@ -548,6 +559,11 @@ grep GESTO-DBG /tmp/follower.log | tail -5   # visibilidad de muñeca al levanta
 > `ls -la /dev/serial/by-id/` y relanzar `kobuki_ros_node` apuntando
 > explícitamente a la ruta `by-id` de la Kobuki en vez de depender del
 > `/dev/ttyUSB0` por defecto del launch file.
+
+> **Para Nav2 (fase A/B):** además de lo de arriba, `ros2 launch
+> person_follower nav2_localization_demo.launch.py` (localización sola por
+> defecto; añadir `launch_navigation:=true` para la fase B) en su propia
+> terminal dejada abierta.
 
 ## Checklist de cierre de sesión
 

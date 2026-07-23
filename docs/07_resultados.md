@@ -187,6 +187,12 @@ medio. Bags en `validation/runs/20260722_obstaculo_v[3-7]*`.
 | `obstaculo_v6_dos` (mueble + silla, sin activar la maniobra) | igual | Sin contacto. Solo un episodio de evasión detectado (mueble); la silla no llegó a activar `lin_factor<1.0` en esta toma — sin dato sobre si la superó o simplemente no se acercó lo suficiente |
 | `obstaculo_v7_rodeo` (mueble + silla, 60s) | **+ maniobra de rodeo nueva** (giro cerrado + avance corto si `lin_factor` bajo sostenido) | **Sin contacto.** Maniobra disparada 4 veces: 2 completadas limpio, 1 abortada correctamente por seguridad (nuevo obstáculo durante el avance), 1 en curso al terminar. 100% detección, 0 pérdidas, 0% saturación |
 | `obstaculo_v8_mueble_silla` (mueble + silla otra vez) | igual | **Mueble: rodeo correcto** (giro+avance+retoma seguimiento). **Silla: CONTACTO DIRECTO** — confirmado por el autor que la silla "no se detectó en absoluto" (geometría demasiado fina). La maniobra se disparó pero no pudo evitar el choque de un obstáculo no detectado |
+| `obstaculo_v9_mueble` (2026-07-23, mismo mueble sólido, persona rodeándolo) | igual (sin cambios de código desde el 22/07) | **Sin contacto.** Único encuentro en 43s de toma: parada dura completa (`lin_factor` 1.0→0.0 en ~1.5s), maniobra de rodeo completa (dos fases de giro a 0.5 rad/s ~1.5s cada una + avance a 0.12 m/s ~2s), pérdida y reenganche breve de la posición de la persona durante el giro (esperable, no es un fallo nuevo), vuelta limpia al seguimiento normal después. Confirmado sin contacto por el autor |
+
+**Segunda repetición limpia (N=2) confirmada 2026-07-23** para el fix de
+`lin_factor` + maniobra de rodeo con mobiliario sólido — ver
+`validation/runs/20260723_obstaculo_v9_mueble/` y `docs/decisiones.md`
+(2026-07-23).
 
 **Hallazgo de código central:** la fórmula original de `lin_factor`
 (`max(0.3, 1.0-0.6*min(1.0,threat/0.5))`) nunca bajaba de 0.4 en la
@@ -202,9 +208,10 @@ maniobra de rodeo (giro + avance, con aborto de seguridad), en
 `docs/decisiones.md` (2026-07-22).
 
 **Limitaciones de este resultado:**
-- N=1 por variante de código — el resultado limpio con mobiliario sólido
-  (`v5`, `v7`, mueble en `v8`) es de una sola sesión; repetir en sesiones
-  futuras antes de darlo por definitivo.
+- ~~N=1 por variante de código~~ — **N=2 confirmado 2026-07-23** (`v9`,
+  ver fila de arriba): el resultado limpio con mobiliario sólido se
+  sostiene en una segunda sesión distinta, no solo dentro de la sesión
+  donde se implementó el fix.
 - **CONFIRMADO (`v8`), no ya solo sospechado:** el punto ciego de altura
   del LIDAR 2D (~47cm) con obstáculos de geometría fina (la silla del
   21/07) provoca contacto directo porque el obstáculo **no se detecta en
@@ -284,8 +291,9 @@ maniobra de rodeo (giro + avance, con aborto de seguridad), en
   que la silla no se detecta en absoluto (límite de altura del LIDAR,
   47cm) — cerrado como limitación de arquitectura, no se reintenta en vivo
   sin mitigación de sensor (Orbbec RGBD, segundo LIDAR).
-- [ ] Repetir `obstaculo_v7`/`v8` con mobiliario sólido (sin la silla fina)
-  una vez más para no quedarse en N=1 con la maniobra de rodeo.
+- [x] ~~Repetir `obstaculo_v7`/`v8` con mobiliario sólido (sin la silla
+  fina) una vez más para no quedarse en N=1 con la maniobra de rodeo~~ —
+  hecho 2026-07-23 (`obstaculo_v9_mueble`): sin contacto, N=2 confirmado.
 - [ ] Actualizar §7.5 (limitaciones) — varias de las entradas actuales están
   desactualizadas por los fixes de las Sesiones 4-5 (gate de continuidad,
   `near_gain`, gesto real) y necesitan una revisión completa antes de

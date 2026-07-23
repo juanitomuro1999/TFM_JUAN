@@ -1,5 +1,78 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-23 (lab, Sesión 6) — `obstaculo` N=2 confirmado sin contacto + Nav2 fase A: localización arranca pero no converge tras el primer ciclo
+
+**Remate de la Sesión 5:** repetida `obstaculo_v9_mueble` (mismo mueble
+sólido del 22/07, persona rodeándolo) — **sin contacto**, confirmado por el
+autor. Único encuentro en 43s de toma: parada dura completa, maniobra de
+rodeo completa (dos fases de giro + avance corto), pérdida y reenganche
+breve de la persona durante el giro, vuelta limpia al seguimiento. N=2 para
+el fix de `lin_factor` + maniobra de rodeo con mobiliario sólido — se da por
+cerrado para el Capítulo 7. Ver `docs/07_resultados.md` §7.4ter y
+`docs/decisiones.md` (2026-07-23).
+
+**Hallazgo operativo importante (afecta a todas las sesiones futuras):** el
+patrón habitual `nohup ... & disown` **no basta** en el NUC — al lanzar los
+tres nodos y cerrar la sesión SSH, `systemd-logind` mató los tres procesos
+~16s después sin ningún error (el robot se paró solo por el fail-safe de
+0.6s de kobuki, sin incidente). Causa: `Linger=no` y sin password de `sudo`
+disponible para arreglarlo de forma permanente. **Fix de esta sesión:**
+mantener la conexión SSH abierta en segundo plano en vez de backgroundear el
+proceso remoto y cerrar la sesión — funcionó de forma consistente el resto
+del día. Ver `docs/decisiones.md` (2026-07-23) para el detalle y el pendiente
+de arreglarlo de raíz (`loginctl enable-linger`) si se consigue la password.
+También: el stdout de los nodos ROS2 sin tty queda buffereado por bloques —
+los ficheros de log parecen "congelados" aunque el proceso siga vivo; usar
+`ros2 topic echo`/`ros2 node list` para comprobar estado real, no `tail`.
+
+**Nav2 — fase A (objetivo principal de hoy):**
+- Verificados los strings de plugin de `nav2_params.yaml` contra Nav2 Jazzy
+  instalado en el NUC (`nav2_amcl`, `dwb_core`, `nav2_navfn_planner`,
+  `nav2_behaviors`, costmap layers) — **todos coinciden**, sin cambios
+  necesarios.
+- Sincronizados al NUC (nunca estaban ahí): `setup.py` (entrada de `maps` en
+  `data_files`), `nav2_params.yaml`, `nav2_localization_demo.launch.py`,
+  `scripts/nav2_send_goal.py`. `colcon build --symlink-install` para
+  registrar los ficheros nuevos (solo warnings de deprecación de
+  setuptools, sin errores).
+- Editado `nav2_localization_demo.launch.py`: bloque de navegación ahora
+  tras un argumento `launch_navigation` (default `false`) con `IfCondition`,
+  en vez de tener que comentar/descomentar código a mano entre la fase A y
+  la B (Sesión 7).
+- **Bug encontrado y corregido:** faltaba la TF estática
+  `base_footprint→laser` (existía como paso manual documentado en
+  `scripts/launch_robot.bash`, nunca integrada a un launch — se me pasó al
+  lanzar los nodos a mano). Sin ella AMCL descartaba todos los `/scan`
+  ("Message Filter dropping message ... queue is full") y nunca inicializaba
+  el modelo de láser. Lanzada como nodo persistente aparte
+  (`ros2 run tf2_ros static_transform_publisher 0 0 0 3.141592 0 0
+  base_footprint laser`).
+- Sin RViz disponible (el portátil llevado al lab hoy no tiene ROS 2
+  instalado), se usó localización global por servicio
+  (`/reinitialize_global_localization`) + movimiento comandado por
+  `/commands/velocity` en vez de "2D Pose Estimate" visual.
+- **Resultado: localización arranca pero no converge tras el primer
+  ciclo.** Con la TF corregida, `map_server`+`amcl` llegan a `active`, el
+  mapa carga bien (261×338 @ 0.05m), la localización global genera un
+  primer `/amcl_pose` + `map→odom` válidos. Pero tras eso, **ni `/amcl_pose`
+  ni `/particle_cloud` se vuelven a actualizar pese a mover el robot bastante
+  más de los umbrales configurados** (`update_min_d=0.25m`,
+  `update_min_a=0.2rad`) — comportamiento reproducido igual en un reinicio
+  limpio del stack completo (no fue un efecto de sesión previa desordenada).
+  Parámetros de AMCL verificados correctos (`ros2 param get`). Sin RViz para
+  ver la nube de partículas en directo, no se pudo diagnosticar más a fondo
+  por SSH — queda como pendiente concreto de la Sesión 7 (ver
+  `docs/sesion_siguiente.md`).
+- **Decisión de tiempo:** dado que no había forma de seguir diagnosticando
+  a ciegas sin RViz, se cerró aquí el bloque de Nav2 en vez de seguir
+  gastando tiempo de robot — coherente con el margen que la propia
+  planificación de sesiones daba a Nav2 ("si el tiempo aprieta, quedarse en
+  localización validada").
+
+**Cierre de sesión:** `stop_tracking` enviado, todo el stack (kobuki,
+rplidar, person_follower, nav2, TF estática) parado limpio por SIGINT.
+Robot en reposo.
+
 ## Sesión 2026-07-22 (lab, Sesión 5, continuación 5) — CONFIRMADO: la silla fina sigue sin detectarse (5º contacto real), límite de sensor cerrado
 
 Tras el commit del fix de `lin_factor` + maniobra de rodeo, el autor pidió
