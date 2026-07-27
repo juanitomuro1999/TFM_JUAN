@@ -21,7 +21,13 @@ en su plan original sin presión de tiempo:**
    gesto real, evasión de obstáculos (`lin_factor` + maniobra de rodeo), y
    navegación autónoma con Nav2 (incluida evasión de un obstáculo no
    mapeado). Decidir con el autor qué escenas incluir antes de grabar — no
-   intentar meterlo todo en una sola toma continua.
+   intentar meterlo todo en una sola toma continua. **Grabación física
+   (cámara/móvil) a cargo del autor** — Claude puede preparar y lanzar cada
+   escenario por el lado de ROS mientras se graba, pero no puede operar una
+   cámara. Una vez grabado, subir el vídeo resultante al repositorio (o a
+   `docs/` con un enlace, según el tamaño — un vídeo pesado puede no ser
+   apropiado para un `git push` normal sin Git LFS; decidir en el momento
+   según el tamaño real del fichero).
 2. **Rematar N=1 si sobra tiempo (no bloqueante):** una repetición más de
    `parada` y de `oclusión` (`bash validation/record_run.sh <etiqueta>
    [duración_s]`, protocolo: `stop_tracking` antes de cada toma, gesto de
