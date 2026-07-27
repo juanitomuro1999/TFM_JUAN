@@ -1,0 +1,1352 @@
+{
+  ".claude/hooks/session_start_context.sh": {
+    "mtime": 1784702030.5427935,
+    "ast_hash": "efc13f01dbaab7e82ce497e84130faa9",
+    "semantic_hash": "efc13f01dbaab7e82ce497e84130faa9"
+  },
+  ".claude/settings.json": {
+    "mtime": 1784702030.5427935,
+    "ast_hash": "fb629d3fd26a36a374af3c7e530e81c5",
+    "semantic_hash": "fb629d3fd26a36a374af3c7e530e81c5"
+  },
+  "legacy_previo/person_follower.py": {
+    "mtime": 1784702030.5903566,
+    "ast_hash": "29b21864880b07e344dc5212a6edca6c",
+    "semantic_hash": "29b21864880b07e344dc5212a6edca6c"
+  },
+  "person_follower/SLAM_node/SLAM_node.py": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "b9fa21abb877952467d9c47fdcb18ad5",
+    "semantic_hash": "b9fa21abb877952467d9c47fdcb18ad5"
+  },
+  "person_follower/SLAM_node/__init__.py": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/__init__.py": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/collision_handling_node/__init__.py": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/collision_handling_node/collision_handling_node.py": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "c576d947f43cea1455fb0db6c62b5d2b",
+    "semantic_hash": "c576d947f43cea1455fb0db6c62b5d2b"
+  },
+  "person_follower/control_node/C_man.py": {
+    "mtime": 1784702030.6239395,
+    "ast_hash": "662927c4252f6c10ab90a66a9047df5f",
+    "semantic_hash": "662927c4252f6c10ab90a66a9047df5f"
+  },
+  "person_follower/control_node/__init__.py": {
+    "mtime": 1784702030.6239395,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/control_node/cierre_seguro.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "913be17406a393d0a90b4fe8f52f9d53",
+    "semantic_hash": "913be17406a393d0a90b4fe8f52f9d53"
+  },
+  "person_follower/control_node/control_node.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "51aa119bf5bab61408f80994f0506150",
+    "semantic_hash": "51aa119bf5bab61408f80994f0506150"
+  },
+  "person_follower/detection_node/__init__.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/detection_node/detection_node.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "9f43dc886aad6c5853e7b4540f64cee0",
+    "semantic_hash": "9f43dc886aad6c5853e7b4540f64cee0"
+  },
+  "person_follower/launch/bringup_full.launch.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "d0968a794a339f26d1eaa32eb83e93d7",
+    "semantic_hash": "d0968a794a339f26d1eaa32eb83e93d7"
+  },
+  "person_follower/launch/nav2_localization_demo.launch.py": {
+    "mtime": 1785134589.425284,
+    "ast_hash": "a0de8077d0a2c4dce225111e33c6b7a8",
+    "semantic_hash": ""
+  },
+  "person_follower/launch/slam_toolbox.launch.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "72ef7b15abb06b9c40b683785c5e944a",
+    "semantic_hash": "72ef7b15abb06b9c40b683785c5e944a"
+  },
+  "person_follower/launch/start_person_follower.launch.py": {
+    "mtime": 1784702030.6403608,
+    "ast_hash": "d8aac0b7f03bdcbc4313fb3b2e8deb91",
+    "semantic_hash": "d8aac0b7f03bdcbc4313fb3b2e8deb91"
+  },
+  "person_follower/tracking_node/DWA.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "04239333c4c58fdc755415d477493eea",
+    "semantic_hash": "04239333c4c58fdc755415d477493eea"
+  },
+  "person_follower/tracking_node/__init__.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/tracking_node/tracking_node.py": {
+    "mtime": 1785134589.4300115,
+    "ast_hash": "866cfc660341966154c399374c4d8575",
+    "semantic_hash": ""
+  },
+  "person_follower/user_interface_node/UI_man.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "86e34e7c114f44f1167b08ba21afeec3",
+    "semantic_hash": "86e34e7c114f44f1167b08ba21afeec3"
+  },
+  "person_follower/user_interface_node/__init__.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/user_interface_node/user_interface_node.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "1a59429c6522302b04271c3e770239c9",
+    "semantic_hash": "1a59429c6522302b04271c3e770239c9"
+  },
+  "person_follower/visual_detection_node/__init__.py": {
+    "mtime": 1784702030.6572466,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "person_follower/visual_detection_node/visual_detection_node.py": {
+    "mtime": 1784702030.6719348,
+    "ast_hash": "990ba0b2d147cf936dd92813bbf7670f",
+    "semantic_hash": "990ba0b2d147cf936dd92813bbf7670f"
+  },
+  "scripts/continue_session.sh": {
+    "mtime": 1784702030.6749644,
+    "ast_hash": "e4e5047313d4cd253a5fb4f2fe4966d0",
+    "semantic_hash": "e4e5047313d4cd253a5fb4f2fe4966d0"
+  },
+  "scripts/launch_robot.bash": {
+    "mtime": 1784702030.6749644,
+    "ast_hash": "5089a594d768a22d4abdf2f6bfa2b2f6",
+    "semantic_hash": "5089a594d768a22d4abdf2f6bfa2b2f6"
+  },
+  "scripts/nav2_send_goal.py": {
+    "mtime": 1784702030.6749644,
+    "ast_hash": "6e706fa075c0c92d7842b35b1241ad85",
+    "semantic_hash": "6e706fa075c0c92d7842b35b1241ad85"
+  },
+  "setup.py": {
+    "mtime": 1784702030.6749644,
+    "ast_hash": "c3c86ed942dbfd70c99cd2b2aee115c5",
+    "semantic_hash": "c3c86ed942dbfd70c99cd2b2aee115c5"
+  },
+  "sync_nuc.sh": {
+    "mtime": 1784702030.6865928,
+    "ast_hash": "5379949c2c46283da3047dfcfa5a24cd",
+    "semantic_hash": "5379949c2c46283da3047dfcfa5a24cd"
+  },
+  "test/test_copyright.py": {
+    "mtime": 1784702030.6893945,
+    "ast_hash": "5c379f2b31a79cb89bdab2097b2e10e2",
+    "semantic_hash": "5c379f2b31a79cb89bdab2097b2e10e2"
+  },
+  "test/test_flake8.py": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "f93a32affccb2ff3b68a0b99eded21b6",
+    "semantic_hash": "f93a32affccb2ff3b68a0b99eded21b6"
+  },
+  "test/test_pep257.py": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "1cc78f8da91b5cf1ae2d6886630213a6",
+    "semantic_hash": "1cc78f8da91b5cf1ae2d6886630213a6"
+  },
+  "validation/bag_to_csv.py": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "ad47fd59db45e1fad3be5ecf6b6d5913",
+    "semantic_hash": "ad47fd59db45e1fad3be5ecf6b6d5913"
+  },
+  "validation/plot_run.py": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "79c9a7f735869cabe02d24fb8860bcf9",
+    "semantic_hash": "79c9a7f735869cabe02d24fb8860bcf9"
+  },
+  "validation/record_run.sh": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "7f0d15a3476457684e2000d44f67c772",
+    "semantic_hash": "7f0d15a3476457684e2000d44f67c772"
+  },
+  "validation/test_nomotion.launch.py": {
+    "mtime": 1784702031.877395,
+    "ast_hash": "c07c2db75d7fc64f2b83d91b1e26bfd6",
+    "semantic_hash": "c07c2db75d7fc64f2b83d91b1e26bfd6"
+  },
+  "validation/verify_fusion_confirm.py": {
+    "mtime": 1784702031.877395,
+    "ast_hash": "dad476b6d956514b7e60eb26e4296c76",
+    "semantic_hash": "dad476b6d956514b7e60eb26e4296c76"
+  },
+  "validation/verify_single_leg_fallback.py": {
+    "mtime": 1784702031.877395,
+    "ast_hash": "e80b6e8e1102bf1f1888a9b39210a108",
+    "semantic_hash": "e80b6e8e1102bf1f1888a9b39210a108"
+  },
+  "webots/launch_robot_pedestrian.bash": {
+    "mtime": 1784702031.877395,
+    "ast_hash": "5e724ecf07f837b8dc7618f7c7af6600",
+    "semantic_hash": "5e724ecf07f837b8dc7618f7c7af6600"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784702030.5427935,
+    "ast_hash": "ca7789b0d0a07e4b05efcef2f8163adf",
+    "semantic_hash": ""
+  },
+  "PROGRESO.md": {
+    "mtime": 1785134589.4134376,
+    "ast_hash": "38cc0c95d7564c3abcfd0b6d8ab02460",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1784702030.5632846,
+    "ast_hash": "fb3ecc75b96bea585f4eab1897720c1d",
+    "semantic_hash": ""
+  },
+  "docs/01_introduccion.md": {
+    "mtime": 1785134589.4134376,
+    "ast_hash": "98a3e946dcb6581da17b996e5482c89a",
+    "semantic_hash": ""
+  },
+  "docs/02_arquitectura.md": {
+    "mtime": 1785134589.4134376,
+    "ast_hash": "a001735299b9a7128a69c2a7a27ae98d",
+    "semantic_hash": ""
+  },
+  "docs/03_herramientas_ia.md": {
+    "mtime": 1784702030.5728934,
+    "ast_hash": "01563fe0183d89e4feebd681b664ef2b",
+    "semantic_hash": ""
+  },
+  "docs/04_diario_desarrollo.md": {
+    "mtime": 1784702030.575415,
+    "ast_hash": "1906ae604dc3140cb529e427fbd2513f",
+    "semantic_hash": ""
+  },
+  "docs/05_estado_del_arte.md": {
+    "mtime": 1784702030.575415,
+    "ast_hash": "4532769b91c58adb82c0b80b5ee40be5",
+    "semantic_hash": ""
+  },
+  "docs/06_implementacion.md": {
+    "mtime": 1784702030.575415,
+    "ast_hash": "577361314653aef6a1a474dc17777450",
+    "semantic_hash": ""
+  },
+  "docs/07_resultados.md": {
+    "mtime": 1785134589.4134376,
+    "ast_hash": "bf41fd600bef7caae785b10196fbd1b9",
+    "semantic_hash": ""
+  },
+  "docs/decisiones.md": {
+    "mtime": 1785134589.4134376,
+    "ast_hash": "d30bd6a69d71b326e53e5d3c90c929ab",
+    "semantic_hash": ""
+  },
+  "docs/sesion_siguiente.md": {
+    "mtime": 1785134589.425284,
+    "ast_hash": "ea12ef9e2481aeb788cd3435838803ea",
+    "semantic_hash": ""
+  },
+  "legacy_previo/README.md": {
+    "mtime": 1784702030.5903566,
+    "ast_hash": "93dcf3539bb8827e6c40138ef41943fa",
+    "semantic_hash": ""
+  },
+  "maps/mapa_laboratorio.yaml": {
+    "mtime": 1784702030.6095102,
+    "ast_hash": "ee48517cb43446c05ca3be1cdd7c90eb",
+    "semantic_hash": ""
+  },
+  "person_follower/config/config.yaml": {
+    "mtime": 1785134589.425284,
+    "ast_hash": "676299082310ac0a3defe61a0ff7a8e0",
+    "semantic_hash": ""
+  },
+  "person_follower/config/kobuki_params.yaml": {
+    "mtime": 1784702030.6239395,
+    "ast_hash": "16697cb91cd09ebbd2bddf69a0ae7d7f",
+    "semantic_hash": ""
+  },
+  "person_follower/config/nav2_params.yaml": {
+    "mtime": 1784702030.6239395,
+    "ast_hash": "dcac692e6008548159530f8ab03ffc92",
+    "semantic_hash": ""
+  },
+  "person_follower/config/slam_toolbox_params.yaml": {
+    "mtime": 1784702030.6239395,
+    "ast_hash": "0da83a4f1514a3a4be3ff15e424cb22b",
+    "semantic_hash": ""
+  },
+  "validation/README.md": {
+    "mtime": 1784702030.6902497,
+    "ast_hash": "b4ee0ac87bb5d0f3b76dbfbcb77d9c4e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis/metrics.txt": {
+    "mtime": 1784702030.7253706,
+    "ast_hash": "a9a795114b37e300795af728e9798b7b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis_new/metrics.txt": {
+    "mtime": 1784702030.790437,
+    "ast_hash": "e71ed149752dd38aa6ec856ed1e77f16",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/metrics.txt": {
+    "mtime": 1784702030.8402932,
+    "ast_hash": "57a62d46a5bd86d0b491e0a90a72e1f8",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis_new/metrics.txt": {
+    "mtime": 1784702030.8755565,
+    "ast_hash": "e8ae3d73f6c1387993438bf09d83a948",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis/metrics.txt": {
+    "mtime": 1784702030.9229221,
+    "ast_hash": "20e912d8970d03b0dc5bb94818f6aa0c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis_new/metrics.txt": {
+    "mtime": 1784702031.0236807,
+    "ast_hash": "9e47a9a9762824d450331fd0457daf07",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_analysis/metrics.txt": {
+    "mtime": 1784702031.107861,
+    "ast_hash": "55b21b6dd115d73f1531c342b8fea485",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_v2_analysis/metrics.txt": {
+    "mtime": 1784702031.1402917,
+    "ast_hash": "6b5ab60669b21f6b683c86b99c4f0816",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_pifix_movimiento_analysis/metrics.txt": {
+    "mtime": 1784702031.1908903,
+    "ast_hash": "90156d739db93d44ff96b9f987df983d",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_corto_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.2239273,
+    "ast_hash": "d464e800e86466209ac36a68d9287295",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_curva_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.2593791,
+    "ast_hash": "93e94aca21cea9be6cf0fa4530e77ce1",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v4_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.2905052,
+    "ast_hash": "77274a37da85b22ffd9c2491d9071744",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v5_close/analysis/metrics.txt": {
+    "mtime": 1784702031.323753,
+    "ast_hash": "d5c9bc35603508b9553540140b695fdf",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.3762898,
+    "ast_hash": "aa89d997f3182291cd139696e34be79c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_v2/analysis/metrics.txt": {
+    "mtime": 1784702031.4070075,
+    "ast_hash": "0d3d00b69b9f02ed808dbed249376d60",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.4431722,
+    "ast_hash": "4e2eccff12a3515393bd878583d205d6",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_v2_breve/analysis/metrics.txt": {
+    "mtime": 1784702031.4764793,
+    "ast_hash": "32f5246bdcfd296574b3ad97db09c65f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_parada_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.5089033,
+    "ast_hash": "d9805a66118f5790ed0b2a74e4b61abd",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_recta_signo_fix/analysis/metrics.txt": {
+    "mtime": 1784702031.5405343,
+    "ast_hash": "49a439e58868eb14bd5c9fe1b560b88a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_sesion3_pi_movimiento/analysis/metrics.txt": {
+    "mtime": 1784702031.576567,
+    "ast_hash": "d52febdbf6b0509c99980018b5559c41",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_fix_extrapolacion/analysis/metrics.txt": {
+    "mtime": 1784702031.623516,
+    "ast_hash": "6c159e655e5b6a38309b53cd0cb2e74f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_signo/analysis/metrics.txt": {
+    "mtime": 1784702031.6561496,
+    "ast_hash": "5022d4eee2dc170bc2b510882fd9be7a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario/analysis/metrics.txt": {
+    "mtime": 1784702031.6903605,
+    "ast_hash": "911a8ea7bdb03a9507d145c12bf77688",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario_frames3/analysis/metrics.txt": {
+    "mtime": 1784702031.7234669,
+    "ast_hash": "3cd6b966dbb02a5ebb2d2599e6be82db",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_obstaculo_rodeo/analysis/metrics.txt": {
+    "mtime": 1784702031.816786,
+    "ast_hash": "8803931ee572dda18de040cdf44f5782",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155202_recta_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.4465973,
+    "ast_hash": "0bff5f3464b72eb316c909591fae5b81",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155613_recta_v2_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.4631875,
+    "ast_hash": "5a16960509ffa5b4db98b5ffab11e227",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155810_curva_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.4926867,
+    "ast_hash": "f1640ccd6bf46bee032e95023b462efa",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155947_parada_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.5180707,
+    "ast_hash": "8753cd7b58322860c95e23775ac435e9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160117_corto_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.5413349,
+    "ast_hash": "094218f00036bbdb062024f5a9ba42f5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160317_oclusion_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.5642712,
+    "ast_hash": "e0d80899e427a9a400e79fa5219c124a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160444_curva_v2_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.5832782,
+    "ast_hash": "d68c7cc879f6bb3ddb3b4be4c7e51563",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160620_corto_v2_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.6064036,
+    "ast_hash": "c0327d8107254e072af2bbbbcd437223",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161002_corto_v3_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.6284702,
+    "ast_hash": "78e3adbb277636fcf7adff14bc31c6a7",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161114_curva_v3_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.649352,
+    "ast_hash": "40ea091893421b23ddef956cf1e20dce",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_162306_obstaculo_v3_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.6701648,
+    "ast_hash": "274ce39b8ebd898442e8262804002af4",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163059_obstaculo_v4_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.6931572,
+    "ast_hash": "36c54751deb249deb578f57276f268db",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163730_obstaculo_v5_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.7132182,
+    "ast_hash": "8df1ac0d19170235b0d04c221f5d04d5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164056_obstaculo_v6_dos_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.7341115,
+    "ast_hash": "fa4aa55263c1da75b1d7e36f71722c67",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164931_obstaculo_v7_rodeo_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.7583632,
+    "ast_hash": "ea3eca76ed116a0efd44e537cc207491",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/analysis/metrics.txt": {
+    "mtime": 1785134589.7829254,
+    "ast_hash": "ebe0e96f3718522e50e550bf1618b24c",
+    "semantic_hash": ""
+  },
+  "validation/runs/fusion_track_20260625/metrics.txt": {
+    "mtime": 1784702031.8575816,
+    "ast_hash": "6496ea07f75c56bf1abcfc02a7a69182",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702030.7129304,
+    "ast_hash": "e2abcba50279289b1fcb2433aa66c8cc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702030.7129304,
+    "ast_hash": "ad104d5772745d3f892724e84f0bfcd5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis/figs/trayectoria.png": {
+    "mtime": 1784702030.7233531,
+    "ast_hash": "d43253613247ec382fc62f15165ac4d3",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702030.7253706,
+    "ast_hash": "e78d74180d51801ce8d6a81b2cc843ee",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis_new/figs/angle_vs_t.png": {
+    "mtime": 1784702030.775203,
+    "ast_hash": "e2abcba50279289b1fcb2433aa66c8cc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis_new/figs/dist_vs_t.png": {
+    "mtime": 1784702030.7799194,
+    "ast_hash": "ad104d5772745d3f892724e84f0bfcd5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis_new/figs/trayectoria.png": {
+    "mtime": 1784702030.781925,
+    "ast_hash": "d43253613247ec382fc62f15165ac4d3",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix1_gating/analysis_new/figs/vel_vs_t.png": {
+    "mtime": 1784702030.781925,
+    "ast_hash": "e78d74180d51801ce8d6a81b2cc843ee",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702030.8235123,
+    "ast_hash": "51faccfdfc2335b7c57bb460accabfb8",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702030.8235123,
+    "ast_hash": "5d42ef79b74001d1a2513b780c5ff039",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/trayectoria.png": {
+    "mtime": 1784702030.8235123,
+    "ast_hash": "33a8faaf204bf5d28d79a80f61b9e6b9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702030.8235123,
+    "ast_hash": "7645b7d945b35e530abaa929b760e3fc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis_new/figs/angle_vs_t.png": {
+    "mtime": 1784702030.8570983,
+    "ast_hash": "51faccfdfc2335b7c57bb460accabfb8",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis_new/figs/dist_vs_t.png": {
+    "mtime": 1784702030.8570983,
+    "ast_hash": "5d42ef79b74001d1a2513b780c5ff039",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis_new/figs/trayectoria.png": {
+    "mtime": 1784702030.8570983,
+    "ast_hash": "33a8faaf204bf5d28d79a80f61b9e6b9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_fix2_kalman_wz/analysis_new/figs/vel_vs_t.png": {
+    "mtime": 1784702030.8728757,
+    "ast_hash": "7645b7d945b35e530abaa929b760e3fc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702030.9066496,
+    "ast_hash": "0f44fb7d31f2f78482600f2ac206b623",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702030.908992,
+    "ast_hash": "78c33fb6fc267e49a17dd7e1814fe1ee",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis/figs/trayectoria.png": {
+    "mtime": 1784702030.908992,
+    "ast_hash": "018ceb9caa91684f64bbb16491c8b686",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702030.908992,
+    "ast_hash": "9ce3f476fb85bd9f67a16034ffabb466",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis_new/figs/angle_vs_t.png": {
+    "mtime": 1784702031.0097988,
+    "ast_hash": "0f44fb7d31f2f78482600f2ac206b623",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis_new/figs/dist_vs_t.png": {
+    "mtime": 1784702031.0135267,
+    "ast_hash": "78c33fb6fc267e49a17dd7e1814fe1ee",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis_new/figs/trayectoria.png": {
+    "mtime": 1784702031.0135267,
+    "ast_hash": "018ceb9caa91684f64bbb16491c8b686",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260708_movimiento_original/analysis_new/figs/vel_vs_t.png": {
+    "mtime": 1784702031.0192482,
+    "ast_hash": "9ce3f476fb85bd9f67a16034ffabb466",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.0925422,
+    "ast_hash": "fdc880b5249c54a2e5f385668dd83585",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.0925422,
+    "ast_hash": "181cc6661501c17bd9b391f0882fb9e9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.105645,
+    "ast_hash": "a6d51e8e51f22039428f58e0dfdc050e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.107861,
+    "ast_hash": "c2ea75587b45630fdc1d345b5762c1e4",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_v2_analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.1392744,
+    "ast_hash": "fa6910a84bb2bdfa5a54c735273daaa4",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_v2_analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.1402917,
+    "ast_hash": "1a44f38a8e06339598a152b78a5a1201",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_v2_analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.1402917,
+    "ast_hash": "4a66978dd5c83ce2f06ebcf3a3c3d455",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_near_gain_v2_analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.1402917,
+    "ast_hash": "c45832477480da48b1df643a5a17e513",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_pifix_movimiento_analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.1758325,
+    "ast_hash": "141af6c6e6628fe58b6fb37381384428",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_pifix_movimiento_analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.1758325,
+    "ast_hash": "19d331613d501ddec37c00297a6732c9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_pifix_movimiento_analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.1758325,
+    "ast_hash": "689f48c02101a3164cae16579a77df34",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260713_pifix_movimiento_analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.1758325,
+    "ast_hash": "ad15c47f8e29334f95ad0d6897ad3853",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_corto_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.2070308,
+    "ast_hash": "742fe22472ea6ea2c1a3981238f6d101",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_corto_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.2070308,
+    "ast_hash": "bb7245e54043a395508e382869d87900",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_corto_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.2070308,
+    "ast_hash": "ac66f51fa4544f4e45322ebbe795a080",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_corto_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.222846,
+    "ast_hash": "293a41c6a20839cd728c3b18a68963bc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_curva_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.2424984,
+    "ast_hash": "75cf26908656dedef069ec57a45b8f38",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_curva_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.2424984,
+    "ast_hash": "57704b5e932afdb3c4ca861a28b0e675",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_curva_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.2424984,
+    "ast_hash": "6fdc6105d65ce7a8afb886bf2b105960",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_curva_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.257351,
+    "ast_hash": "c4193b617d78f9a1a50b49e9997e6d12",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v4_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.2760367,
+    "ast_hash": "512f84078cc5818828daf7a8891f0b5d",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v4_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.2760367,
+    "ast_hash": "2fb959d7dc70de69c00c691dd80b18b8",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v4_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.289502,
+    "ast_hash": "39bb95a945bf21f384c775cc6423a01c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v4_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.2905052,
+    "ast_hash": "26c59e6890ac450e23891d367ca01b0c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v5_close/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.3219626,
+    "ast_hash": "692348aaec0acda1764c4a75471ebad9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v5_close/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.323753,
+    "ast_hash": "710901b192353e1f5c50a93f8e93240f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v5_close/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.323753,
+    "ast_hash": "73ee284aff4e3649f4768ab608f4299a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_near_gain_v5_close/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.323753,
+    "ast_hash": "280663136437beaeca9f158c9fddba8a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.3590965,
+    "ast_hash": "64375378f35f79586974a4aab157bc72",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.3590965,
+    "ast_hash": "0571c92c9a58e00954e28f70f5f89b8a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.3590965,
+    "ast_hash": "ffe7aed24e58af612ff31a3cbbfa5bf9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.3590965,
+    "ast_hash": "6125a5b27caf371debc4faab60dfa706",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_v2/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.390424,
+    "ast_hash": "b556fcaeae7338d969b20cb8ca253042",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_v2/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.390424,
+    "ast_hash": "1f6ff07eba0e0bbe9fccf14935062af7",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_v2/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.390424,
+    "ast_hash": "660f5f5cecea549b02481375370fac5e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_obstaculo_v2/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.390424,
+    "ast_hash": "7f5036629a0a70316753f130023b0818",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.4236987,
+    "ast_hash": "50bbf5065e3274d33015d884b83f2d73",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.4236987,
+    "ast_hash": "5b3341a087fcb5086ca7baf824e4575b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.4236987,
+    "ast_hash": "3149e1008aeb03aff1e114f51b3cdce9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.4236987,
+    "ast_hash": "ac910d31464c14d43f51857235a94cce",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_v2_breve/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.4589756,
+    "ast_hash": "3fd019113c3c0e20c1b6d0be14d5a13c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_v2_breve/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.4589756,
+    "ast_hash": "dbbf8b6b8251a52e91df59561f22fc93",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_v2_breve/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.4589756,
+    "ast_hash": "1873720418cf1d21b320003f096ac89c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_oclusion_v2_breve/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.4729362,
+    "ast_hash": "373d5df67f22d1d7e505c673518e06e4",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_parada_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.4903789,
+    "ast_hash": "5fc770cdf2c415c3efbfb8310117eb84",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_parada_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.4903789,
+    "ast_hash": "7d8e58a0aaee8dced76aea4aaab1cf42",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_parada_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.4903789,
+    "ast_hash": "b196244d834df65ba0e10ae7ac061006",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_parada_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.5054653,
+    "ast_hash": "3b2f02775ed4284db643059aa1e03f2a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_recta_signo_fix/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.5236614,
+    "ast_hash": "dc15d8d8466919cdbb7602c35f20b73b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_recta_signo_fix/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.5236614,
+    "ast_hash": "f734e958e9af5afc5e84ae9c97539341",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_recta_signo_fix/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.5236614,
+    "ast_hash": "7c7fbfc1c783351cb0305a163ff9e236",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_recta_signo_fix/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.539519,
+    "ast_hash": "02a108b6ac4465f6e7aad5ecbf0b86ed",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_sesion3_pi_movimiento/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.5567625,
+    "ast_hash": "e5e177f6dfa36f0ccb2cb7fb72096b9c",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_sesion3_pi_movimiento/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.5567625,
+    "ast_hash": "01b443b2464d7ed5d4a1d76510e06acb",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_sesion3_pi_movimiento/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.5728407,
+    "ast_hash": "e74d936cdc2da4d03570af40fda9f2a6",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_sesion3_pi_movimiento/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.576567,
+    "ast_hash": "0bc1ccbaa363b27dff1510f21f71f863",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_fix_extrapolacion/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.6089933,
+    "ast_hash": "f756f78a03419c5636c2d5a58657545b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_fix_extrapolacion/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.6089933,
+    "ast_hash": "0795ab79d1d65319288130b0055ebe27",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_fix_extrapolacion/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.6089933,
+    "ast_hash": "2e2532adbfe516259327a943ef08a145",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_fix_extrapolacion/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.6089933,
+    "ast_hash": "9133b3b1ffa050fdd9db929e78e65338",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_signo/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.640167,
+    "ast_hash": "95922d1b3d30885b20aea65a4f03e21e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_signo/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.640167,
+    "ast_hash": "81408043eb61ce6f769f284c4a17c85d",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_signo/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.640167,
+    "ast_hash": "324c2bc9bfce7c8d1fa0bd4d658d13ad",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260715_verif_signo/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.640167,
+    "ast_hash": "8ee04e4ed0951b0d181b3aacb6d9d36e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.67651,
+    "ast_hash": "11e49c8ee4595f17b903c954a704f5c1",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.67651,
+    "ast_hash": "2e9f1bed3e1223036374cf86ecb19e90",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.67651,
+    "ast_hash": "73fb48c5d4d84a1732dadff6c2c1eff1",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.6848638,
+    "ast_hash": "b92491d9a59ab4def6aca0b8ff66c778",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario_frames3/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.7071643,
+    "ast_hash": "98660e029f5f45776c3c3e3a6fd1d7c2",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario_frames3/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.7071643,
+    "ast_hash": "377b4ffc1d02600903c6c4e7a70aef21",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario_frames3/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.7234669,
+    "ast_hash": "88db282d7868d27ae609ddbece3e48cc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_continuidad_mobiliario_frames3/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.7234669,
+    "ast_hash": "d5ec2618a87c5790c2cbfd825db90679",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_obstaculo_rodeo/analysis/figs/angle_vs_t.png": {
+    "mtime": 1784702031.7903895,
+    "ast_hash": "087420c1f6d4f8ca8d324d25e943d514",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_obstaculo_rodeo/analysis/figs/dist_vs_t.png": {
+    "mtime": 1784702031.7942162,
+    "ast_hash": "91e8cf7050db06184b88c201531afb51",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_obstaculo_rodeo/analysis/figs/trayectoria.png": {
+    "mtime": 1784702031.7990634,
+    "ast_hash": "d6a19b623d1c60b8b80dfb3b49914691",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260721_obstaculo_rodeo/analysis/figs/vel_vs_t.png": {
+    "mtime": 1784702031.8060448,
+    "ast_hash": "16756c48331a2e14138533e5cc5279aa",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155202_recta_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.4300115,
+    "ast_hash": "9e5a18607c6b28e61109b4fd20201209",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155202_recta_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.4300115,
+    "ast_hash": "e8b58dc9e09f28fe3d0c13f4b84a1c26",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155202_recta_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.4411442,
+    "ast_hash": "4ce6d8fae238c77eac07f6943f5b5131",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155202_recta_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.4427848,
+    "ast_hash": "05b12447c2d78c9392798e1918ee205f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155613_recta_v2_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.4631875,
+    "ast_hash": "b1b862087230a8cab6bcd4e7ebff52dd",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155613_recta_v2_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.4631875,
+    "ast_hash": "ec7712eecba93ba9db5c975f487e5a7b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155613_recta_v2_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.4631875,
+    "ast_hash": "10c86688b18e9fc7f46265d29063f402",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155613_recta_v2_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.4631875,
+    "ast_hash": "dde35ddff050cb528034dd6cbc5b4f5a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155810_curva_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.4802315,
+    "ast_hash": "bb003e8fb17966d8c01cef6f198b8dd6",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155810_curva_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.4802315,
+    "ast_hash": "d9401f3a26b4afeb5a380476fb84ccdd",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155810_curva_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.4802315,
+    "ast_hash": "b2f2880b543d8ebb68b3233092c2bcbf",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155810_curva_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.491302,
+    "ast_hash": "e875f33dba6e4af1a35bc129399e433a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155947_parada_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.5095277,
+    "ast_hash": "e0ca8e5d1c2551e0d635d2f36e569b78",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155947_parada_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.5115278,
+    "ast_hash": "5b8765857f3e7f2d28f517d83910dcd4",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155947_parada_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.512526,
+    "ast_hash": "6bccd4a8ede83f09991d1730973292f6",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_155947_parada_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.5150678,
+    "ast_hash": "090ead92010542484ec180aefd15c6fe",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160117_corto_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.5313294,
+    "ast_hash": "afd05aab02d4512b0c3fb36d08677da0",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160117_corto_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.5333323,
+    "ast_hash": "d4d31c9c496760f5119b959da1d1d83f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160117_corto_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.5343492,
+    "ast_hash": "129fddd3eb16788abfabe21a09f3aceb",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160117_corto_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.5363326,
+    "ast_hash": "2e3d5905d13f0b7710b56fc222f7e7b5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160317_oclusion_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.5533805,
+    "ast_hash": "0bcb9394bf6df6e339efd2ac6ada0428",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160317_oclusion_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.5543642,
+    "ast_hash": "92abe5007c384edb92d43bcea4f91660",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160317_oclusion_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.5573502,
+    "ast_hash": "47565a7e382dea714bee65b329454b14",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160317_oclusion_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.5607564,
+    "ast_hash": "64ea4fc0f8183f3399b938f95d47ef62",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160444_curva_v2_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.5754063,
+    "ast_hash": "c762d66b9a0870287ff4690666034b89",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160444_curva_v2_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.5776966,
+    "ast_hash": "9eefeda326bfe352f26b9b92b0cf7cda",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160444_curva_v2_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.578712,
+    "ast_hash": "7f2498b147f7ff9f2306f1e5358bec1b",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160444_curva_v2_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.5812685,
+    "ast_hash": "85527815d9cfbf11b3f712e2a5769f09",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160620_corto_v2_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.596563,
+    "ast_hash": "2a44e333eff4ec00c6211ee956029156",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160620_corto_v2_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.5980682,
+    "ast_hash": "fd858b669666629064efd6499261d368",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160620_corto_v2_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.600073,
+    "ast_hash": "02b237da9a461980fd53906800c8fcf5",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_160620_corto_v2_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.602402,
+    "ast_hash": "1bf326000ad16d7fadcc3a84d9835804",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161002_corto_v3_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.6184616,
+    "ast_hash": "1a9b285050adb24ac3bfdec9d4696de7",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161002_corto_v3_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.6204612,
+    "ast_hash": "10ab6323673e61792eaffa1c5aef6494",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161002_corto_v3_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.6214607,
+    "ast_hash": "a8ca51a2b3bc147f40564ea36483b4cb",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161002_corto_v3_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.624472,
+    "ast_hash": "e3676f69bf00366aa30f382c10adedb2",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161114_curva_v3_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.638235,
+    "ast_hash": "ce3d17d6c0a94c2b130776a3d999cf57",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161114_curva_v3_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.6412373,
+    "ast_hash": "2765fb1746880f4827e711a3a7c67125",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161114_curva_v3_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.6432366,
+    "ast_hash": "bf07a0add5088a0a5d8a0f4229838539",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_161114_curva_v3_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.645235,
+    "ast_hash": "4bc4cdf744a5d4e42b5538d1f2e48b37",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_162306_obstaculo_v3_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.6623356,
+    "ast_hash": "06b5f96093d464744f60108719cba2df",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_162306_obstaculo_v3_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.6641388,
+    "ast_hash": "3f5c3351ae37187ae1c3d982f70059c3",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_162306_obstaculo_v3_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.665162,
+    "ast_hash": "278e4b74d4923ec4567d54db1032a5ed",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_162306_obstaculo_v3_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.6671653,
+    "ast_hash": "7f813fcac7a0c95d3625507597ae8490",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163059_obstaculo_v4_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.6823914,
+    "ast_hash": "dc0db4e6890c7f48a19e50de071b76c3",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163059_obstaculo_v4_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.6843905,
+    "ast_hash": "2443e7a89a4c1315d16a7e8ef52004ac",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163059_obstaculo_v4_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.6853905,
+    "ast_hash": "7336cbf4a5e0ddea199e4156e11a2a91",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163059_obstaculo_v4_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.6873925,
+    "ast_hash": "6c39cda3bb0291c915035d93a2bc1f3f",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163730_obstaculo_v5_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.7043183,
+    "ast_hash": "9346fa7e0c200ede5fe0c7a49dd205e2",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163730_obstaculo_v5_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.706378,
+    "ast_hash": "3f099c180b643ee20b45f1ba54fc394a",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163730_obstaculo_v5_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.708375,
+    "ast_hash": "569031234abdd6f11e4af1115ee4c4b3",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_163730_obstaculo_v5_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.7103734,
+    "ast_hash": "eaacbae107ac98a79e29b058f1610aaa",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164056_obstaculo_v6_dos_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.7255979,
+    "ast_hash": "3c45a503dc94f6b50d296f5aaa2f41bc",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164056_obstaculo_v6_dos_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.7285426,
+    "ast_hash": "6f90a084ac2b9d733670547af2f1865e",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164056_obstaculo_v6_dos_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.7300773,
+    "ast_hash": "c4a48b76c25fd18bfb457bfce8ab4a89",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164056_obstaculo_v6_dos_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.7321122,
+    "ast_hash": "52d1ceb05760fc2b819ee81746e26fc6",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164931_obstaculo_v7_rodeo_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.7498128,
+    "ast_hash": "6b57a9159d193241d9412d1f023742e9",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164931_obstaculo_v7_rodeo_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.7508142,
+    "ast_hash": "19a9cbf63e5aa711b022203f382737a1",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164931_obstaculo_v7_rodeo_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.7522998,
+    "ast_hash": "51fcc8a2bfbc850b080c5ed28fcd0e92",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_164931_obstaculo_v7_rodeo_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.7543602,
+    "ast_hash": "a78cd42b92b1c4d9b59409d506e98e01",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/analysis/figs/angle_vs_t.png": {
+    "mtime": 1785134589.7724252,
+    "ast_hash": "c38d667413e3e8bc0be5e3e27b9e5f85",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/analysis/figs/dist_vs_t.png": {
+    "mtime": 1785134589.7754273,
+    "ast_hash": "86941ae7ba5b501c594aaa2e8f97fe8d",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/analysis/figs/trayectoria.png": {
+    "mtime": 1785134589.7773705,
+    "ast_hash": "9d09eafc1e40d45d96a7140180794b79",
+    "semantic_hash": ""
+  },
+  "validation/runs/20260722_165813_obstaculo_v8_mueble_silla_20260722/analysis/figs/vel_vs_t.png": {
+    "mtime": 1785134589.7798886,
+    "ast_hash": "a24db46c05e9b2266e50223291f377b5",
+    "semantic_hash": ""
+  },
+  "validation/runs/fusion_track_20260625/figs/angle_vs_t.png": {
+    "mtime": 1784702031.8404405,
+    "ast_hash": "4d4f89cbbafebe0408e011278d8e05c8",
+    "semantic_hash": ""
+  },
+  "validation/runs/fusion_track_20260625/figs/dist_vs_t.png": {
+    "mtime": 1784702031.8404405,
+    "ast_hash": "a2933d9c210e33a53ad458fbcc46e7b3",
+    "semantic_hash": ""
+  },
+  "validation/runs/fusion_track_20260625/figs/trayectoria.png": {
+    "mtime": 1784702031.8404405,
+    "ast_hash": "f571dab094b66010552c9fa09ab3df92",
+    "semantic_hash": ""
+  },
+  "validation/runs/fusion_track_20260625/figs/vel_vs_t.png": {
+    "mtime": 1784702031.856371,
+    "ast_hash": "b3d5a1a0d6ab8b625956565274b9323f",
+    "semantic_hash": ""
+  }
+}
