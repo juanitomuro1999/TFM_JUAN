@@ -1,6 +1,6 @@
 # TFM — Desarrollo e implementación de un sistema de seguimiento de personas sobre un robot móvil (Parte 2 – Extensión)
 
-**Autor:** Juan Muriel Rovira  
+**Autor:** Juan Muñoz Rovira  
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  

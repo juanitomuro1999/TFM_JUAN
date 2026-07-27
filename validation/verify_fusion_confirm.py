@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 Juan Muriel Rovira
+# Copyright 2026 Juan Muñoz Rovira
 # SPDX-License-Identifier: Apache-2.0
 #
 # verify_fusion_confirm.py — Verificación sintética, sin ROS, del fix de

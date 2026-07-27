@@ -6,7 +6,7 @@
 
 ## Qué es este proyecto
 
-TFM de Juan Muriel Rovira (UJI, 2025–2026): sistema de seguimiento de
+TFM de Juan Muñoz Rovira (UJI, 2025–2026): sistema de seguimiento de
 personas sobre un TurtleBot 2 / base Kobuki, con ROS 2 Jazzy. Visión general,
 hardware, software y estado de fases: [`README.md`](README.md).
 

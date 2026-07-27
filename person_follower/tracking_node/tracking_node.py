@@ -1,4 +1,4 @@
-# Copyright 2026 Juan Muriel Rovira
+# Copyright 2026 Juan Muñoz Rovira
 # SPDX-License-Identifier: Apache-2.0
 #
 # tracking_node.py — v3

@@ -1,4 +1,4 @@
-# Copyright 2026 Juan Muriel Rovira
+# Copyright 2026 Juan Muñoz Rovira
 # SPDX-License-Identifier: Apache-2.0
 #
 # test_nomotion.launch.py — Lanza el stack seguidor IGUAL que

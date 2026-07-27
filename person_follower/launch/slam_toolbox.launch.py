@@ -1,4 +1,4 @@
-# Copyright 2026 Juan Muriel Rovira
+# Copyright 2026 Juan Muñoz Rovira
 # SPDX-License-Identifier: Apache-2.0
 #
 # Launch: SLAM Toolbox online_async para TurtleBot2/Kobuki — ROS 2 Jazzy (slam_toolbox 2.8.x)

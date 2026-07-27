@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2026 Juan Muriel Rovira
+# Copyright 2026 Juan Muñoz Rovira
 # SPDX-License-Identifier: Apache-2.0
 #
 # record_run.sh — Graba una toma de validación experimental (rosbag2).

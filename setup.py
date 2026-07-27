@@ -24,7 +24,7 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Juan Muriel Rovira',
+    maintainer='Juan Muñoz Rovira',
     maintainer_email='juanitomuro1999@gmail.com',
     description='TFM: Person-following and autonomous navigation system for TurtleBot2/Kobuki (ROS 2)',
     license='Apache-2.0',
