@@ -1,0 +1,555 @@
+{
+  "communities": {
+    "0": [
+      "ndarray",
+      "person_follower_detection_node_detection_node",
+      "person_follower_detection_node_detection_node_dbscan_labels",
+      "person_follower_detection_node_detection_node_detectionnode",
+      "person_follower_detection_node_detection_node_detectionnode_apply_median_filter",
+      "person_follower_detection_node_detection_node_detectionnode_bearing_callback",
+      "person_follower_detection_node_detection_node_detectionnode_cluster_features",
+      "person_follower_detection_node_detection_node_detectionnode_confirm_fusion_candidate",
+      "person_follower_detection_node_detection_node_detectionnode_confirm_single_leg_candidate",
+      "person_follower_detection_node_detection_node_detectionnode_detect_leg_clusters",
+      "person_follower_detection_node_detection_node_detectionnode_detect_person",
+      "person_follower_detection_node_detection_node_detectionnode_filter_by_drift",
+      "person_follower_detection_node_detection_node_detectionnode_gate_by_continuity",
+      "person_follower_detection_node_detection_node_detectionnode_init",
+      "person_follower_detection_node_detection_node_detectionnode_initialize_shutdown_listener",
+      "person_follower_detection_node_detection_node_detectionnode_interpolate_lidar_points",
+      "person_follower_detection_node_detection_node_detectionnode_is_leg_cluster",
+      "person_follower_detection_node_detection_node_detectionnode_lidar_callback",
+      "person_follower_detection_node_detection_node_detectionnode_log_info",
+      "person_follower_detection_node_detection_node_detectionnode_publish_general_clusters",
+      "person_follower_detection_node_detection_node_detectionnode_publish_leg_clusters",
+      "person_follower_detection_node_detection_node_detectionnode_publish_person_position",
+      "person_follower_detection_node_detection_node_detectionnode_publish_status",
+      "person_follower_detection_node_detection_node_detectionnode_shutdown_callback",
+      "person_follower_detection_node_detection_node_detectionnode_visual_detected_callback",
+      "person_follower_detection_node_detection_node_main",
+      "person_follower_detection_node_detection_node_py_node",
+      "person_follower_detection_node_detection_node_rationale_18",
+      "person_follower_detection_node_detection_node_rationale_276",
+      "person_follower_detection_node_detection_node_rationale_300",
+      "person_follower_detection_node_detection_node_rationale_389",
+      "person_follower_detection_node_detection_node_rationale_627",
+      "person_follower_detection_node_detection_node_rationale_665"
+    ],
+    "1": [
+      "person_follower_user_interface_node_ui_man",
+      "person_follower_user_interface_node_ui_man_main",
+      "person_follower_user_interface_node_ui_man_py_bool",
+      "person_follower_user_interface_node_ui_man_py_float32multiarray",
+      "person_follower_user_interface_node_ui_man_py_node",
+      "person_follower_user_interface_node_ui_man_py_point",
+      "person_follower_user_interface_node_ui_man_py_string",
+      "person_follower_user_interface_node_ui_man_userinterfacenode",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_camera_status_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_destroy_node",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_detection_status_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_display_status",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_general_clusters_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_init",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_initialize_shutdown_listener",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_leg_clusters_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_mode_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_person_detected_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_person_position_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_publish_cluster_marker",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_publish_fixed_text_marker",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_publish_legend_hud",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_publish_robot_marker",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_shutdown_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_start_rviz",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_stop_rviz",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_teleop_status_callback",
+      "person_follower_user_interface_node_ui_man_userinterfacenode_tracking_status_callback"
+    ],
+    "2": [
+      "laserscan",
+      "person_follower_tracking_node_tracking_node",
+      "person_follower_tracking_node_tracking_node_kalmantracker",
+      "person_follower_tracking_node_tracking_node_kalmantracker_acceleration",
+      "person_follower_tracking_node_tracking_node_kalmantracker_build_f_q",
+      "person_follower_tracking_node_tracking_node_kalmantracker_init",
+      "person_follower_tracking_node_tracking_node_kalmantracker_predict_position",
+      "person_follower_tracking_node_tracking_node_kalmantracker_update",
+      "person_follower_tracking_node_tracking_node_kalmantracker_velocity",
+      "person_follower_tracking_node_tracking_node_main",
+      "person_follower_tracking_node_tracking_node_py_bool",
+      "person_follower_tracking_node_tracking_node_py_node",
+      "person_follower_tracking_node_tracking_node_py_point",
+      "person_follower_tracking_node_tracking_node_rationale_101",
+      "person_follower_tracking_node_tracking_node_rationale_153",
+      "person_follower_tracking_node_tracking_node_rationale_29",
+      "person_follower_tracking_node_tracking_node_rationale_62",
+      "person_follower_tracking_node_tracking_node_trackingnode",
+      "person_follower_tracking_node_tracking_node_trackingnode_init",
+      "person_follower_tracking_node_tracking_node_trackingnode_obstacle_avoidance",
+      "person_follower_tracking_node_tracking_node_trackingnode_on_detected",
+      "person_follower_tracking_node_tracking_node_trackingnode_on_enable",
+      "person_follower_tracking_node_tracking_node_trackingnode_on_position",
+      "person_follower_tracking_node_tracking_node_trackingnode_on_scan",
+      "person_follower_tracking_node_tracking_node_trackingnode_on_shutdown",
+      "person_follower_tracking_node_tracking_node_trackingnode_publish_telemetry",
+      "person_follower_tracking_node_tracking_node_trackingnode_stop"
+    ],
+    "3": [
+      "person_follower_user_interface_node_user_interface_node",
+      "person_follower_user_interface_node_user_interface_node_main",
+      "person_follower_user_interface_node_user_interface_node_py_bool",
+      "person_follower_user_interface_node_user_interface_node_py_float32multiarray",
+      "person_follower_user_interface_node_user_interface_node_py_node",
+      "person_follower_user_interface_node_user_interface_node_py_point",
+      "person_follower_user_interface_node_user_interface_node_py_string",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_camera_status_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_destroy_node",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_detection_status_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_display_status",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_general_clusters_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_init",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_initialize_shutdown_listener",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_leg_clusters_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_mode_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_person_detected_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_person_position_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_publish_cluster_marker",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_publish_fixed_text_marker",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_publish_robot_marker",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_shutdown_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_start_rviz",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_stop_rviz",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_teleop_status_callback",
+      "person_follower_user_interface_node_user_interface_node_userinterfacenode_tracking_status_callback"
+    ],
+    "4": [
+      "validation_verify_fusion_confirm",
+      "validation_verify_fusion_confirm_check",
+      "validation_verify_fusion_confirm_fusiongatesim",
+      "validation_verify_fusion_confirm_fusiongatesim_confirm",
+      "validation_verify_fusion_confirm_fusiongatesim_confirm_fusion_candidate",
+      "validation_verify_fusion_confirm_fusiongatesim_filter_by_drift",
+      "validation_verify_fusion_confirm_fusiongatesim_gate_by_continuity",
+      "validation_verify_fusion_confirm_fusiongatesim_init",
+      "validation_verify_fusion_confirm_rationale_114",
+      "validation_verify_fusion_confirm_rationale_131",
+      "validation_verify_fusion_confirm_rationale_153",
+      "validation_verify_fusion_confirm_rationale_174",
+      "validation_verify_fusion_confirm_rationale_198",
+      "validation_verify_fusion_confirm_rationale_212",
+      "validation_verify_fusion_confirm_rationale_29",
+      "validation_verify_fusion_confirm_scenario_default_param_sin_cambio_de_comportamiento",
+      "validation_verify_fusion_confirm_scenario_leg_pairs_no_afectados",
+      "validation_verify_fusion_confirm_scenario_mueble_cuela_con_gate_by_continuity",
+      "validation_verify_fusion_confirm_scenario_mueble_no_cuela_con_confirm_fusion",
+      "validation_verify_fusion_confirm_scenario_persona_real_confirma_rapido",
+      "validation_verify_fusion_confirm_scenario_ruido_no_se_repite"
+    ],
+    "5": [
+      "person_follower_control_node_control_node",
+      "person_follower_control_node_control_node_controlnode",
+      "person_follower_control_node_control_node_controlnode_gesture_command_callback",
+      "person_follower_control_node_control_node_controlnode_handle_tracking_response",
+      "person_follower_control_node_control_node_controlnode_init",
+      "person_follower_control_node_control_node_controlnode_keyboard_loop",
+      "person_follower_control_node_control_node_controlnode_notify_shutdown",
+      "person_follower_control_node_control_node_controlnode_person_detected_callback",
+      "person_follower_control_node_control_node_controlnode_publish_mode",
+      "person_follower_control_node_control_node_controlnode_shutdown_confirmation_callback",
+      "person_follower_control_node_control_node_controlnode_start_keyboard_listener",
+      "person_follower_control_node_control_node_controlnode_start_tracking",
+      "person_follower_control_node_control_node_controlnode_stop_robot",
+      "person_follower_control_node_control_node_controlnode_toggle_tracking",
+      "person_follower_control_node_control_node_controlnode_transition_to",
+      "person_follower_control_node_control_node_controlnode_transition_to_auto",
+      "person_follower_control_node_control_node_controlnode_velocity_callback",
+      "person_follower_control_node_control_node_controlnode_wait_for_service",
+      "person_follower_control_node_control_node_main",
+      "person_follower_control_node_control_node_py_node"
+    ],
+    "6": [
+      "person_follower_slam_node_slam_node",
+      "person_follower_slam_node_slam_node_main",
+      "person_follower_slam_node_slam_node_py_node",
+      "person_follower_slam_node_slam_node_rationale_126",
+      "person_follower_slam_node_slam_node_rationale_155",
+      "person_follower_slam_node_slam_node_rationale_174",
+      "person_follower_slam_node_slam_node_rationale_62",
+      "person_follower_slam_node_slam_node_rationale_67",
+      "person_follower_slam_node_slam_node_rationale_78",
+      "person_follower_slam_node_slam_node_rationale_97",
+      "person_follower_slam_node_slam_node_slamnode",
+      "person_follower_slam_node_slam_node_slamnode_destroy_node",
+      "person_follower_slam_node_slam_node_slamnode_init",
+      "person_follower_slam_node_slam_node_slamnode_initialize_shutdown_listener",
+      "person_follower_slam_node_slam_node_slamnode_listener_callback",
+      "person_follower_slam_node_slam_node_slamnode_person_position_callback",
+      "person_follower_slam_node_slam_node_slamnode_publish_map",
+      "person_follower_slam_node_slam_node_slamnode_publish_person_marker",
+      "person_follower_slam_node_slam_node_slamnode_publish_static_transform",
+      "person_follower_slam_node_slam_node_slamnode_shutdown_callback"
+    ],
+    "7": [
+      "person_follower_control_node_c_man",
+      "person_follower_control_node_c_man_controlnode",
+      "person_follower_control_node_c_man_controlnode_gesture_command_callback",
+      "person_follower_control_node_c_man_controlnode_handle_tracking_response",
+      "person_follower_control_node_c_man_controlnode_init",
+      "person_follower_control_node_c_man_controlnode_keyboard_loop",
+      "person_follower_control_node_c_man_controlnode_notify_shutdown",
+      "person_follower_control_node_c_man_controlnode_person_detected_callback",
+      "person_follower_control_node_c_man_controlnode_shutdown_confirmation_callback",
+      "person_follower_control_node_c_man_controlnode_start_keyboard_listener",
+      "person_follower_control_node_c_man_controlnode_start_tracking",
+      "person_follower_control_node_c_man_controlnode_stop_robot",
+      "person_follower_control_node_c_man_controlnode_toggle_tracking",
+      "person_follower_control_node_c_man_controlnode_transition_to",
+      "person_follower_control_node_c_man_controlnode_transition_to_auto",
+      "person_follower_control_node_c_man_controlnode_velocity_callback",
+      "person_follower_control_node_c_man_controlnode_wait_for_service",
+      "person_follower_control_node_c_man_main",
+      "person_follower_control_node_c_man_py_node"
+    ],
+    "8": [
+      "person_follower_control_node_cierre_seguro",
+      "person_follower_control_node_cierre_seguro_controlnode",
+      "person_follower_control_node_cierre_seguro_controlnode_gesture_command_callback",
+      "person_follower_control_node_cierre_seguro_controlnode_handle_tracking_response",
+      "person_follower_control_node_cierre_seguro_controlnode_init",
+      "person_follower_control_node_cierre_seguro_controlnode_keyboard_loop",
+      "person_follower_control_node_cierre_seguro_controlnode_notify_shutdown",
+      "person_follower_control_node_cierre_seguro_controlnode_person_detected_callback",
+      "person_follower_control_node_cierre_seguro_controlnode_shutdown_confirmation_callback",
+      "person_follower_control_node_cierre_seguro_controlnode_start_keyboard_listener",
+      "person_follower_control_node_cierre_seguro_controlnode_start_tracking",
+      "person_follower_control_node_cierre_seguro_controlnode_stop_robot",
+      "person_follower_control_node_cierre_seguro_controlnode_toggle_tracking",
+      "person_follower_control_node_cierre_seguro_controlnode_transition_to",
+      "person_follower_control_node_cierre_seguro_controlnode_transition_to_auto",
+      "person_follower_control_node_cierre_seguro_controlnode_velocity_callback",
+      "person_follower_control_node_cierre_seguro_controlnode_wait_for_service",
+      "person_follower_control_node_cierre_seguro_main",
+      "person_follower_control_node_cierre_seguro_py_node"
+    ],
+    "9": [
+      "person_follower_visual_detection_node_visual_detection_node",
+      "person_follower_visual_detection_node_visual_detection_node_main",
+      "person_follower_visual_detection_node_visual_detection_node_py_node",
+      "person_follower_visual_detection_node_visual_detection_node_rationale_215",
+      "person_follower_visual_detection_node_visual_detection_node_rationale_252",
+      "person_follower_visual_detection_node_visual_detection_node_rationale_293",
+      "person_follower_visual_detection_node_visual_detection_node_rationale_37",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_capture_loop",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_check_gesture",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_detect_hog",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_detect_mp",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_init",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_init_hog",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_init_mediapipe",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_pub_status",
+      "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode_shutdown_cb"
+    ],
+    "10": [
+      "validation_verify_single_leg_fallback",
+      "validation_verify_single_leg_fallback_check",
+      "validation_verify_single_leg_fallback_rationale_122",
+      "validation_verify_single_leg_fallback_rationale_144",
+      "validation_verify_single_leg_fallback_rationale_165",
+      "validation_verify_single_leg_fallback_rationale_29",
+      "validation_verify_single_leg_fallback_rationale_73",
+      "validation_verify_single_leg_fallback_rationale_97",
+      "validation_verify_single_leg_fallback_scenario_confirm_frames_mayor_que_uno_exige_consistencia",
+      "validation_verify_single_leg_fallback_scenario_giro_pierna_unica_rellena_el_hueco",
+      "validation_verify_single_leg_fallback_scenario_mueble_no_se_cuela_como_pierna_unica",
+      "validation_verify_single_leg_fallback_scenario_par_disponible_no_pasa_por_aqui",
+      "validation_verify_single_leg_fallback_singleleggatesim",
+      "validation_verify_single_leg_fallback_singleleggatesim_confirm_single_leg_candidate",
+      "validation_verify_single_leg_fallback_singleleggatesim_filter_by_drift",
+      "validation_verify_single_leg_fallback_singleleggatesim_init",
+      "validation_verify_single_leg_fallback_singleleggatesim_step"
+    ],
+    "11": [
+      "person_follower_tracking_node_dwa",
+      "person_follower_tracking_node_dwa_main",
+      "person_follower_tracking_node_dwa_py_node",
+      "person_follower_tracking_node_dwa_trackingnode",
+      "person_follower_tracking_node_dwa_trackingnode_clearance",
+      "person_follower_tracking_node_dwa_trackingnode_detection_callback",
+      "person_follower_tracking_node_dwa_trackingnode_dynamic_window_approach",
+      "person_follower_tracking_node_dwa_trackingnode_enable_tracking_callback",
+      "person_follower_tracking_node_dwa_trackingnode_heading",
+      "person_follower_tracking_node_dwa_trackingnode_init",
+      "person_follower_tracking_node_dwa_trackingnode_listener_callback",
+      "person_follower_tracking_node_dwa_trackingnode_person_position_callback",
+      "person_follower_tracking_node_dwa_trackingnode_shutdown_callback",
+      "person_follower_tracking_node_dwa_trackingnode_stop_robot"
+    ],
+    "12": [
+      "validation_plot_run",
+      "validation_plot_run_load_csv",
+      "validation_plot_run_load_xy",
+      "validation_plot_run_main",
+      "validation_plot_run_position_jumps",
+      "validation_plot_run_rationale_113",
+      "validation_plot_run_rationale_60",
+      "validation_plot_run_rationale_68",
+      "validation_plot_run_rationale_80",
+      "validation_plot_run_rationale_90",
+      "validation_plot_run_rel_time",
+      "validation_plot_run_saturation_with_stability",
+      "validation_plot_run_stable_mask",
+      "validation_plot_run_to_float"
+    ],
+    "13": [
+      "legacy_previo_person_follower",
+      "legacy_previo_person_follower_main",
+      "legacy_previo_person_follower_personfollower",
+      "legacy_previo_person_follower_personfollower_detect_person",
+      "legacy_previo_person_follower_personfollower_image_callback",
+      "legacy_previo_person_follower_personfollower_init",
+      "legacy_previo_person_follower_personfollower_listener_callback",
+      "legacy_previo_person_follower_personfollower_plot_clusters",
+      "legacy_previo_person_follower_personfollower_rotate_180_degrees",
+      "legacy_previo_person_follower_personfollower_smooth_angle",
+      "legacy_previo_person_follower_py_node"
+    ],
+    "14": [
+      "person_follower_collision_handling_node_collision_handling_node",
+      "person_follower_collision_handling_node_collision_handling_node_collisionhandlingnode",
+      "person_follower_collision_handling_node_collision_handling_node_collisionhandlingnode_init",
+      "person_follower_collision_handling_node_collision_handling_node_collisionhandlingnode_lidar_callback",
+      "person_follower_collision_handling_node_collision_handling_node_collisionhandlingnode_publish_closest_distance",
+      "person_follower_collision_handling_node_collision_handling_node_collisionhandlingnode_publish_status",
+      "person_follower_collision_handling_node_collision_handling_node_main",
+      "person_follower_collision_handling_node_collision_handling_node_py_node"
+    ],
+    "15": [
+      "sequentialreader",
+      "validation_bag_to_csv",
+      "validation_bag_to_csv_main",
+      "validation_bag_to_csv_open_reader",
+      "validation_bag_to_csv_rationale_45",
+      "validation_bag_to_csv_stamp_to_s"
+    ],
+    "16": [
+      "webots_launch_robot_pedestrian",
+      "webots_launch_robot_pedestrian_bash__entry",
+      "webots_launch_robot_pedestrian_ros_localhost_only",
+      "webots_launch_robot_pedestrian_webots_home"
+    ],
+    "17": [
+      "scripts_launch_robot",
+      "scripts_launch_robot_bash__entry",
+      "scripts_launch_robot_ros_domain_id"
+    ],
+    "18": [
+      "validation_record_run",
+      "validation_record_run_ros_domain_id",
+      "validation_record_run_sh__entry"
+    ],
+    "19": [
+      "claude_hooks_session_start_context",
+      "claude_hooks_session_start_context_sh__entry"
+    ],
+    "20": [
+      "person_follower_launch_bringup_full_launch",
+      "person_follower_launch_bringup_full_launch_generate_launch_description"
+    ],
+    "21": [
+      "person_follower_launch_nav2_localization_demo_launch",
+      "person_follower_launch_nav2_localization_demo_launch_generate_launch_description"
+    ],
+    "22": [
+      "person_follower_launch_slam_toolbox_launch",
+      "person_follower_launch_slam_toolbox_launch_generate_launch_description"
+    ],
+    "23": [
+      "person_follower_launch_start_person_follower_launch",
+      "person_follower_launch_start_person_follower_launch_generate_launch_description"
+    ],
+    "24": [
+      "scripts_continue_session",
+      "scripts_continue_session_sh__entry"
+    ],
+    "25": [
+      "scripts_nav2_send_goal",
+      "scripts_nav2_send_goal_main"
+    ],
+    "26": [
+      "sync_nuc",
+      "sync_nuc_sh__entry"
+    ],
+    "27": [
+      "test_test_copyright",
+      "test_test_copyright_test_copyright"
+    ],
+    "28": [
+      "test_test_flake8",
+      "test_test_flake8_test_flake8"
+    ],
+    "29": [
+      "test_test_pep257",
+      "test_test_pep257_test_pep257"
+    ],
+    "30": [
+      "validation_test_nomotion_launch",
+      "validation_test_nomotion_launch_generate_launch_description"
+    ],
+    "31": [
+      "person_follower_collision_handling_node_init"
+    ],
+    "32": [
+      "person_follower_control_node_init"
+    ],
+    "33": [
+      "person_follower_detection_node_init"
+    ],
+    "34": [
+      "person_follower_init"
+    ],
+    "35": [
+      "person_follower_slam_node_init"
+    ],
+    "36": [
+      "person_follower_tracking_node_init"
+    ],
+    "37": [
+      "person_follower_user_interface_node_init"
+    ],
+    "38": [
+      "person_follower_visual_detection_node_init"
+    ],
+    "39": [
+      "setup"
+    ]
+  },
+  "cohesion": {
+    "0": 0.10416666666666667,
+    "1": 0.12433862433862433,
+    "2": 0.10826210826210826,
+    "3": 0.1282051282051282,
+    "4": 0.21428571428571427,
+    "5": 0.19473684210526315,
+    "6": 0.13157894736842105,
+    "7": 0.19883040935672514,
+    "8": 0.19298245614035087,
+    "9": 0.17647058823529413,
+    "10": 0.20588235294117646,
+    "11": 0.1978021978021978,
+    "12": 0.21978021978021978,
+    "13": 0.2727272727272727,
+    "14": 0.35714285714285715,
+    "15": 0.4666666666666667,
+    "16": 0.5,
+    "17": 0.6666666666666666,
+    "18": 0.6666666666666666,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0
+  },
+  "gods": [
+    {
+      "id": "person_follower_detection_node_detection_node_detectionnode",
+      "label": "DetectionNode",
+      "degree": 24
+    },
+    {
+      "id": "person_follower_user_interface_node_ui_man_userinterfacenode",
+      "label": "UserInterfaceNode",
+      "degree": 23
+    },
+    {
+      "id": "person_follower_user_interface_node_user_interface_node_userinterfacenode",
+      "label": "UserInterfaceNode",
+      "degree": 22
+    },
+    {
+      "id": "person_follower_control_node_control_node_controlnode",
+      "label": "ControlNode",
+      "degree": 19
+    },
+    {
+      "id": "person_follower_control_node_c_man_controlnode",
+      "label": "ControlNode",
+      "degree": 18
+    },
+    {
+      "id": "person_follower_control_node_cierre_seguro_controlnode",
+      "label": "ControlNode",
+      "degree": 18
+    },
+    {
+      "id": "person_follower_tracking_node_dwa_trackingnode",
+      "label": "TrackingNode",
+      "degree": 13
+    },
+    {
+      "id": "person_follower_visual_detection_node_visual_detection_node_visualdetectionnode",
+      "label": "VisualDetectionNode",
+      "degree": 13
+    },
+    {
+      "id": "validation_verify_fusion_confirm_fusiongatesim",
+      "label": "FusionGateSim",
+      "degree": 13
+    },
+    {
+      "id": "person_follower_slam_node_slam_node_slamnode",
+      "label": "SLAMNode",
+      "degree": 12
+    }
+  ],
+  "surprises": [],
+  "questions": [
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `session_start_context.sh script`, `continue_session.sh script`, `launch_robot.bash script` to the rest of the system?",
+      "why": "10 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10416666666666667 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.12433862433862433 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 2` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10826210826210826 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 3` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1282051282051282 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 6` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.13157894736842105 - nodes in this community are weakly interconnected."
+    }
+  ]
+}
