@@ -820,15 +820,65 @@ vez de seguir probando el mismo escenario sin haber cambiado nada primero.
 
 ---
 
-## Julio 2026 (planificado)
+## Julio 2026
 
-### Fase 3 — Navegación autónoma (Nav2)
+> Pendiente: redactar en prosa las entradas de las sesiones de julio
+> anteriores al 27 (1 a 6) — de momento su registro técnico vive en
+> `PROGRESO.md` y `docs/decisiones.md`. Se incorpora aquí solo la Sesión 7
+> por ser la que cierra el objetivo 3 del TFM.
 
-**Objetivos:**
-- [ ] Configurar Nav2 con el mapa generado por SLAM Toolbox.
-- [ ] Probar navegación a waypoints predefinidos en el laboratorio.
-- [ ] Implementar comportamiento de guiado: seguir persona → navegar a destino.
-- [ ] Evaluar planificador (NavFn vs Smac).
+### 27 de julio — Fase 3 completada: Nav2 funcionando de extremo a extremo (Sesión 7)
+
+La Sesión 6 había dejado Nav2 a medias: el mapa cargaba, AMCL se activaba y
+generaba una primera pose válida, pero parecía quedarse congelado después
+de ese primer ciclo, sin forma de diagnosticarlo más a fondo por falta de
+una herramienta visual (RViz) en el portátil de aquella sesión. La Sesión
+7 empezó justo por ahí, esta vez con RViz disponible, y terminó
+resolviendo Nav2 por completo en una sola sesión — localización,
+navegación y un remapeo del laboratorio incluidos.
+
+El diagnóstico con RViz reveló algo inesperado: el problema nunca había
+sido de AMCL. Los comandos de movimiento usados para forzar una
+actualización de la localización se enviaban como procesos nuevos por SSH,
+de muy corta duración (1-2 segundos) — tiempo insuficiente para que dos
+participantes DDS recién conectados (el proceso de prueba y el nodo del
+robot, ya en marcha) completen su fase de descubrimiento mutuo. El robot,
+sencillamente, nunca llegó a moverse durante esas pruebas, así que AMCL no
+tenía nada nuevo que procesar. Alargar esos comandos a 6-8 segundos bastó
+para que el movimiento llegara de verdad al robot y para que AMCL
+actualizara su pose de forma consistente en las siguientes comprobaciones.
+Es un recordatorio de que, en un sistema distribuido como ROS 2, un
+comando "correcto" puede no tener ningún efecto si no se le da tiempo a la
+capa de transporte para establecerse — y de que conviene desconfiar de un
+diagnóstico hecho sin poder observar el sistema en directo, como había
+pasado la sesión anterior.
+
+Con la localización confirmada, se decidió aprovechar el tiempo de robot
+restante para probar directamente la fase de navegación completa —
+planificador, controlador, gestión de comportamientos y árbol de
+comportamiento —, algo que hasta entonces solo existía como código escrito
+sin ejecutar nunca. Funcionó a la primera: de siete objetivos de
+navegación mandados desde RViz, seis se completaron con éxito, incluyendo
+dos trayectos largos de unos ocho metros y uno en el que se colocó
+deliberadamente un obstáculo real, ausente del mapa guardado, en mitad del
+camino — el robot lo detectó con el láser en directo y lo rodeó sin
+problema. El único fallo se produjo al cancelar un objetivo a mitad de
+ejecución para mandar otro casi inmediatamente después; el propio sistema
+de gestión de Nav2 reinició y reactivó los nodos de navegación de forma
+automática en un par de segundos, sin intervención humana, y a partir de
+ahí todo volvió a funcionar con normalidad.
+
+La sesión cerró con un tercer hito no planeado: el autor señaló que el
+mapa del laboratorio guardado desde hacía meses no reflejaba bien el
+espacio real y le faltaban zonas. Con SLAM Toolbox ya preparado desde
+semanas atrás pero nunca ejecutado, se lanzó en modo de mapeo mientras el
+autor recorría el laboratorio conduciendo el robot por teclado, y se
+generó un mapa nuevo, más completo, que se validó localizando sobre él
+antes de sustituir al anterior como mapa oficial del proyecto.
+
+Con esto, el objetivo específico 3 del TFM (navegación autónoma con Nav2)
+queda completado. Detalle técnico completo de los tres hallazgos en
+`docs/decisiones.md` (2026-07-27).
 
 ---
 

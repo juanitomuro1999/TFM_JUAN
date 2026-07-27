@@ -5,6 +5,215 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-27 — Nav2 fase A: causa raíz real del "AMCL no converge" (Sesión 6) — latencia de descubrimiento DDS, no un bug de AMCL
+
+- **Contexto:** objetivo de la Sesión 7 (ver `docs/sesion_siguiente.md`) —
+  repetir el diagnóstico de la Sesión 6 con RViz disponible (esta vez sí,
+  Humble en el portátil de la sesión).
+- **Reproducido el mismo síntoma que el 23/07:** tras dar la pose inicial en
+  RViz, `/amcl_pose` y `map→odom` quedaban congelados en el valor inicial
+  pese a mandar comandos de movimiento (`ros2 topic pub ... /commands/velocity`
+  de 1.5-2s de duración) que en teoría debían superar los umbrales de
+  actualización (`update_min_d=0.25m`, `update_min_a=0.2rad`).
+- **Verificación de parámetros (todos correctos, se descarta typo de
+  config):** `update_min_d`, `update_min_a`, `odom_frame_id=odom`,
+  `base_frame_id`, `global_frame_id=map`, `tf_broadcast=true`,
+  `robot_model_type=nav2_amcl::DifferentialMotionModel` — todos con el
+  valor esperado. QoS de `/scan` compatible (publisher `RELIABLE`,
+  subscripción de `amcl` `BEST_EFFORT`, compatible por regla DDS).
+  `createLaserObject` se ejecuta correctamente (a diferencia del 23/07, no
+  hay problema de TF esta vez).
+- **Hallazgo clave:** se comprobó `odom→base_footprint` con `tf2_echo`
+  antes y después de dos comandos de movimiento (uno lineal, uno angular)
+  de 1.5-2s — **el valor no cambió en absoluto entre las dos pruebas**,
+  pese a que el usuario confirmó visualmente (mirando el robot en directo)
+  que no hubo ni siquiera un tintineo de las ruedas. El robot nunca
+  recibió los comandos.
+- **Causa raíz aislada:** se hizo una prueba de control — lanzar un
+  `ros2 topic echo /commands/velocity` en una sesión SSH y, en paralelo, un
+  `ros2 topic pub` de corta duración en otra. Con solapamiento de ~2s,
+  **cero mensajes llegaron al echo**; con ~6s de solapamiento, sí llegaron
+  varios. Esto confirma que el descubrimiento DDS entre un proceso `ros2`
+  recién lanzado (cada `ros2 topic pub` de prueba es un participante DDS
+  nuevo) y un nodo suscriptor ya activo (`kobuki`, en marcha desde hacía
+  minutos) tarda un margen de varios segundos — los comandos de prueba de
+  1.5-2s terminaban **antes** de que la publicación empezara a entregarse
+  de verdad. El robot nunca se movió durante ninguna de las pruebas
+  "fallidas" — por eso AMCL nunca tuvo un delta de movimiento real que
+  procesar. Esto aplica igualmente a la Sesión 6 (23/07): el mismo patrón
+  de comandos cortos por SSH probablemente causó el mismo problema, no un
+  bug de AMCL/Nav2.
+- **Verificación de la causa raíz:** repetido el mismo movimiento (avance y
+  luego giro) con comandos de 6-7s en vez de 1.5-2s. El robot se movió de
+  verdad (confirmado visualmente y por `/odom`), y **AMCL actualizó
+  `/amcl_pose` correctamente dos veces seguidas**, con valores de posición
+  coherentes con el desplazamiento real observado.
+- **Decisión:** no hace falta ningún cambio de configuración de Nav2/AMCL.
+  Nav2 fase A se da por **resuelta y funcionando**. Lección operativa para
+  futuras sesiones: cualquier `ros2 topic pub`/`ros2 topic echo` de prueba
+  lanzado como proceso nuevo por SSH necesita ~4-8s de margen además de la
+  duración real que se quiere probar, para dar tiempo al descubrimiento
+  DDS — comandos más cortos pueden dar "cero efecto" sin ningún error
+  visible (ni el publisher ni el suscriptor avisan de que no se
+  encontraron a tiempo).
+
+## 2026-07-27 — Bug real: reenumeración de puerto USB del Kobuki + parámetros de `kobuki_node` ignorados por `--params-file` con `ros2 run`
+
+- **Síntoma:** al lanzar `kobuki_node-launch.py`, log
+  `Kobuki : could not open connection [/dev/ttyUSB0]` / `no data stream, is
+  kobuki turned on?`. El Kobuki físico seguía apagado... no, estaba
+  encendido: el puerto USB había reenumerado otra vez (ver precedente del
+  2026-07-15) — hoy `ttyUSB0` era el RPLIDAR y `ttyUSB1` el Kobuki, al
+  revés que configurado por defecto en `kobuki_node_params.yaml`
+  (`device_port: /dev/ttyUSB0`).
+- **Camino equivocado probado primero:** `ros2 run kobuki_node
+  kobuki_ros_node --params-file <kobuki_node_params.yaml> -p
+  device_port:=/dev/serial/by-id/...-Kobuki-...`. El `device_port` sí se
+  aplicó (el override `-p` explícito siempre se aplica), pero el resto de
+  parámetros del YAML (`base_frame: base_footprint`, etc.) **se ignoraron
+  en silencio** — el nodo arrancó con `base_frame` en su valor por defecto
+  de código (`base`), rompiendo la cadena de TF (`odom→base` en vez de
+  `odom→base_footprint`, sin conectar con la TF estática
+  `base_footprint→laser` ya publicada). Causa: `--params-file` en ROS 2
+  aplica los parámetros de un fichero YAML solo a los nodos cuyo nombre
+  coincide con la clave de nivel superior del YAML (`kobuki_ros_node` en
+  este caso) — pero el nodo real, una vez arrancado, se llama `kobuki` (
+  confirmado con `ros2 node list`), no `kobuki_ros_node` (ese es solo el
+  nombre del *executable*). Como no hay coincidencia de nombre, ningún
+  parámetro del fichero se aplicó; solo el `-p` suelto, que no necesita
+  coincidencia de nombre en `ros2 run`.
+- **Fix aplicado:** en vez de pelear con overrides sueltos, se editó
+  directamente `device_port: /dev/ttyUSB0` → `device_port: /dev/kobuki` en
+  `kobuki_node_params.yaml` (usando el symlink de udev `/dev/kobuki` que ya
+  existía, apuntando a lo que sea que sea la Kobuki en cada arranque —
+  mismo patrón que `/dev/rplidar` para el LIDAR, ambos ya presentes en el
+  sistema pero sin usar hasta hoy en `kobuki_node_params.yaml`). Corregido
+  tanto en `~/kobuki_ws/install/kobuki_node/share/kobuki_node/config/` como
+  en el `src/` correspondiente, para que sobreviva a un futuro `colcon
+  build`. Relanzado con el launch file oficial (`kobuki_node-launch.py`,
+  que pasa los parámetros como diccionario Python directo a `Node(...)`,
+  sin pasar por matching de nombre de YAML) — `base_frame` correcto desde
+  el primer intento con este método.
+- **Lección:** usar `/dev/kobuki`/`/dev/rplidar` (symlinks de udev ya
+  existentes) en vez de `/dev/ttyUSBx` en cualquier configuración nueva,
+  para no depender del orden de enumeración USB. Si en el futuro hace falta
+  overridear un parámetro de un nodo de terceros por línea de comandos,
+  comprobar primero el nombre real del nodo con `ros2 node list` antes de
+  asumir que coincide con el nombre del YAML o del executable.
+
+## 2026-07-27 — Bug real (menor, cosmético): `/particle_cloud` de AMCL nunca visible en RViz por incompatibilidad de QoS
+
+- **Síntoma:** con Nav2 fase A funcionando correctamente (confirmado por
+  `/amcl_pose` actualizándose), el display "ParticleCloud" de
+  `nav2_default_view.rviz` (Humble) nunca mostró ninguna partícula, ni
+  siquiera transitoriamente.
+- **Causa:** `ros2 topic info /particle_cloud --verbose` muestra el log de
+  `amcl` avisando: `New subscription discovered on topic '/particle_cloud',
+  requesting incompatible QoS ... Last incompatible policy:
+  RELIABILITY_QOS_POLICY`. AMCL publica `/particle_cloud` en `BEST_EFFORT`;
+  el display de RViz lo suscribe en `RELIABLE`. Por la regla de
+  compatibilidad DDS, un suscriptor `RELIABLE` **no** puede recibir de un
+  publisher `BEST_EFFORT` (al revés sí es compatible) — incompatibilidad
+  real, no un problema de red ni de AMCL.
+- **Impacto:** ninguno sobre la navegación/localización en sí (solo
+  visualización). No bloquea nada, pero conviene saberlo para no perder
+  tiempo buscando un bug de convergencia que en realidad es un problema de
+  configuración de RViz.
+- **Pendiente (no bloqueante):** cambiar la política de QoS del display
+  "ParticleCloud" a `Best Effort` en la config de RViz (`.rviz`) si se
+  quiere visualizar en el futuro.
+
+## 2026-07-27 — Nav2 fase B (navegación): primera prueba, funcionó a la primera; un fallo por preemption rápida con recuperación automática
+
+- **Contexto:** con fase A resuelta (ver entrada de arriba), se decidió
+  intentar la fase B en la misma sesión en vez de esperar a la Sesión 8,
+  dado el margen de tiempo de robot disponible.
+- **Lanzamiento:** en vez de relanzar `nav2_localization_demo.launch.py`
+  con `launch_navigation:=true` (que habría reiniciado `map_server`/`amcl`
+  y perdido la localización ya convergida), se lanzaron a mano
+  `controller_server`, `planner_server`, `behavior_server`, `bt_navigator`
+  (cada uno con `ros2 run` + `--params-file nav2_params.yaml`, remapeando
+  `cmd_vel:=/commands/velocity` en `controller_server`) y por último
+  `lifecycle_manager_navigation` (con `autostart:=true` y los 4 nodos en
+  `node_names`) para activarlos todos — replicando exactamente lo que
+  haría el bloque condicional `launch_navigation:=true` del launch file,
+  pero sin tocar `amcl`/`map_server`, que siguieron con la pose ya
+  estabilizada.
+- **Objetivos mandados con el botón "Nav2 Goal" de RViz** (en vez de
+  `scripts/nav2_send_goal.py`, que exige leer y transcribir coordenadas a
+  mano — el botón de RViz hace lo mismo con un clic sobre el mapa,
+  visualmente más fiable la primera vez).
+- **Resultado: 6 de 7 objetivos completados con éxito**, incluyendo:
+  - Dos trayectos largos (~8m en diagonal cada uno).
+  - Un objetivo con un **obstáculo real colocado a propósito**, no presente
+    en el mapa estático — detectado por el `local_costmap` vía `/scan` en
+    vivo y esquivado sin incidentes ("lo ha logrado saltar con facilidad",
+    confirmado por el autor).
+- **El único fallo:** una preemption muy rápida (el autor mandó un segundo
+  objetivo casi inmediatamente después del primero, cancelando el que
+  estaba en curso) terminó en `[ERROR] [bt_navigator]: Goal failed` +
+  `Aborting handle`. Justo después, `lifecycle_manager_navigation` hizo
+  **un reset y re-bringup automático de los 4 nodos de navegación**
+  (deactivate → cleanup → configure → activate, todo en ~2s, sin
+  intervención manual) — comportamiento nativo de `nav2_lifecycle_manager`
+  ante un fallo de navegación. Tras el reset, los siguientes objetivos
+  (incluidas más preemptions) funcionaron con normalidad.
+- **No investigado a fondo (no bloqueante):** la causa exacta de por qué
+  esa preemption concreta provocó un fallo y no las demás (varias
+  preemptions posteriores funcionaron bien). Posible condición de carrera
+  al cancelar el árbol de comportamiento (BT) justo cuando estaba
+  recalculando el plan. Como el propio sistema se recuperó solo sin
+  intervención, no se considera bloqueante para dar la fase B por válida,
+  pero merece una nota como limitación conocida en el capítulo de
+  resultados/conclusiones.
+- **Decisión:** Nav2 fase B (objetivo específico 3 del TFM) se da por
+  **conseguida**. Ver `docs/01_introduccion.md` §1.2.
+
+## 2026-07-27 — Remapeo del laboratorio con `slam_toolbox` (mapa anterior incompleto/desactualizado)
+
+- **Contexto:** durante las pruebas de fase B, el autor señaló que el mapa
+  guardado (`maps/mapa_laboratorio.yaml`/`.pgm`) no se correspondía del
+  todo con el laboratorio real y no estaba completo. Decidido regrabarlo
+  en la misma sesión aprovechando que ya había tiempo de robot disponible.
+- **Preparación:** parada toda la pila de Nav2 (`amcl`, `map_server`,
+  `controller_server`, `planner_server`, `behavior_server`, `bt_navigator`,
+  ambos `lifecycle_manager`) antes de lanzar `slam_toolbox` — necesario
+  porque tanto AMCL como `slam_toolbox` publican la TF `map→odom`; tenerlos
+  vivos a la vez habría causado conflicto.
+- **`slam_toolbox.launch.py`** (andamiaje escrito el 2026-06-04, nunca
+  antes ejecutado) lanzado en modo `mapping` sin cambios. El autor condujo
+  el robot con `ros2 run teleop_twist_keyboard teleop_twist_keyboard
+  --ros-args --remap cmd_vel:=/commands/velocity` desde su propio terminal
+  SSH (necesario: un teleop de teclado necesita entrada de terminal
+  interactiva real, no se puede automatizar por los mismos comandos no
+  interactivos usados el resto de la sesión), recorriendo el laboratorio
+  completo mientras se observaba `/map` crecer en vivo en RViz.
+- **Mapa guardado** con `ros2 run nav2_map_server map_saver_cli`: 348×358
+  celdas @ 0.05m/celda (mapa anterior: 261×338), origen `[1.638, -17.516,
+  0]` (antes `[-8.319, -11.352, 0]`) — área bastante mayor cubierta.
+  Comparación visual (PGM convertido a PNG): el contorno general coincide
+  con el mapa anterior, pero el nuevo tiene menos "rayos" espurios sueltos
+  (ruido de una pasada de mapeo peor cerrada en el mapa viejo) y cubre algo
+  más de área.
+- **Validado antes de sustituir:** relanzada la localización
+  (`nav2_localization_demo.launch.py map:=<mapa_nuevo>.yaml`) con el mapa
+  nuevo, pose inicial dada en RViz, movimiento real del robot confirmado, y
+  `/amcl_pose` se actualizó correctamente (posición coherente con el
+  desplazamiento) — mismo comportamiento sano que con el mapa viejo.
+- **Sustituido como mapa oficial:** copiado a `maps/mapa_laboratorio.pgm`/
+  `.yaml` en el repo (mismo nombre de fichero, sin necesidad de tocar
+  ninguna referencia en launch files/config) y sincronizado al `src/` del
+  `person_follower` del NUC — el `install/share` se actualizó solo gracias
+  a la cadena de symlinks de `colcon build --symlink-install`, sin
+  necesitar rebuild.
+- **Nota operativa encontrada de camino:** varios `pkill -9 -f <patrón>`
+  encadenados con `;` en un solo comando SSH, cuando el patrón mata un
+  proceso relacionado con la propia sesión SSH en curso, pueden cortar la
+  conexión a mitad de la cadena (`exit code 255`) dejando sin ejecutar los
+  `pkill` siguientes del mismo comando. Cuando haga falta matar varios
+  procesos de golpe por SSH, verificar con `ps aux` después en vez de dar
+  por hecho que todo el comando se ejecutó completo.
+
 ## 2026-07-23 — Nav2 fase A: localización arranca (mapa + AMCL activo + TF corregida) pero no converge tras el primer ciclo, sin RViz para diagnosticar más
 
 - **Contexto:** objetivo principal de la Sesión 6 (ver `docs/sesion_siguiente.md`)

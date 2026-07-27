@@ -5,7 +5,12 @@
 # Demo minima de Nav2 (objetivo especifico 3 del TFM): manda UN objetivo de
 # navegacion a un punto fijo del mapa con nav2_simple_commander.
 #
-#   ANDAMIAJE SIN PROBAR (2026-07-09, escrito sin acceso al robot).
+#   Este script en si (BasicNavigator) sigue sin ejecutarse directamente,
+#   pero la accion NavigateToPose que envuelve (planner/controller/BT) ya
+#   se probo en el robot real 2026-07-27 (Sesion 7) via el boton "Nav2
+#   Goal" de RViz (equivalente funcional, mas simple que transcribir
+#   coordenadas a mano) — 6/7 objetivos logrados. Ver docs/decisiones.md
+#   (2026-07-27).
 #
 # Requisitos antes de usarlo:
 #   1. person_follower/launch/nav2_localization_demo.launch.py ya lanzado y
@@ -13,9 +18,9 @@
 #   2. paquete nav2_simple_commander instalado (suele venir con
 #      nav2-bringup; comprobar con `ros2 pkg list | grep simple_commander`).
 #   3. Las coordenadas (x, y) son en el frame `map` del mapa guardado
-#      (maps/mapa_laboratorio.yaml, origen [-8.319, -11.352, 0], resolucion
-#      0.05 m/px) -- hay que leerlas sobre el mapa real en RViz la primera
-#      vez, no se pueden adivinar sin el robot.
+#      (maps/mapa_laboratorio.yaml, origen [1.638, -17.516, 0] desde el
+#      remapeo del 2026-07-27, resolucion 0.05 m/px) -- hay que leerlas
+#      sobre el mapa real en RViz, no se pueden adivinar sin el robot.
 #
 # Uso (en el NUC, con el workspace sourceado):
 #   python3 scripts/nav2_send_goal.py <x> <y> [yaw_deg=0]

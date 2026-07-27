@@ -229,10 +229,15 @@ person_follower
 
 ---
 
-## 2.8 Arquitectura de Nav2 (Fase 3, en desarrollo)
+## 2.8 Arquitectura de Nav2 (Fase 3, completada)
 
-Primera prueba en el laboratorio 2026-07-23 (Sesión 6). El pipeline se
-organiza en cuatro capas, de sensores a salida:
+Primera prueba en el laboratorio 2026-07-23 (Sesión 6, solo capas 1-2).
+Completada en 2026-07-27 (Sesión 7): las cuatro capas probadas y
+funcionando en el robot real, con el "bug" de convergencia de AMCL de la
+Sesión 6 resuelto (era metodológico — comandos de prueba demasiado cortos
+para el descubrimiento DDS, no un fallo de AMCL — ver `docs/decisiones.md`
+2026-07-27). El pipeline se organiza en cuatro capas, de sensores a
+salida:
 
 ```
 CAPA 1 — SENSORES (materia prima; sin esto no funciona nada de lo de abajo)
@@ -285,7 +290,12 @@ CAPA 4 — SALIDA
    `/odom` + `/map` para estimar dónde está el robot: publica la nube de
    partículas en `/particle_cloud` y, sobre todo, genera la TF `map→odom`
    — esa TF es la que hace que el Fixed Frame `map` de RViz resuelva
-   correctamente. Partículas agrupadas = AMCL ha convergido.
+   correctamente. Partículas agrupadas = AMCL ha convergido. **Nota:** el
+   display "ParticleCloud" de `nav2_default_view.rviz` no recibe nunca
+   mensajes por una incompatibilidad de QoS (`/particle_cloud` se publica
+   `BEST_EFFORT`, el display pide `RELIABLE`) — no afecta a la
+   localización en sí, solo impide verla converger visualmente sin tocar
+   la config de RViz (ver `docs/decisiones.md` 2026-07-27).
 3. **Núcleo Nav2.** Son *lifecycle nodes*: `lifecycle_manager_navigation`
    los pasa a `active` (con `autostart: true`). `bt_navigator` es el
    cerebro (ejecuta el árbol de comportamiento, recibe el objetivo).
@@ -295,7 +305,11 @@ CAPA 4 — SALIDA
    `/commands/velocity`, igual que el resto del sistema). `behavior_server`
    ejecuta recuperaciones cuando el robot se atasca. En
    `nav2_localization_demo.launch.py` esta capa está apagada por defecto
-   (`launch_navigation:=false`) — la Sesión 6 solo validó las capas 1-2.
+   (`launch_navigation:=false`); la Sesión 6 solo validó las capas 1-2 y la
+   Sesión 7 (2026-07-27) validó esta capa lanzando los cuatro nodos a mano
+   (sin relanzar `map_server`/`amcl`, para no perder la localización ya
+   convergida) — 6 de 7 objetivos de navegación completados con éxito,
+   incluida evasión de un obstáculo real no presente en el mapa.
 4. **Salida.** `/commands/velocity` mueve las ruedas. RViz2 nunca
    controla nada, solo lee y dibuja lo que los demás nodos publican.
 

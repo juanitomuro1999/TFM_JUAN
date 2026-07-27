@@ -4,7 +4,7 @@
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  
-**Versión actual:** 0.4.0 | Fase 2 completada (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara) — validación experimental iniciada, Fase 3 (Nav2, demo mínima) preparada sin robot, pendiente de ejecutar
+**Versión actual:** 0.5.0 | Fases 1-3 completadas (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara + navegación autónoma con Nav2) — validación experimental (Fase 4) avanzada, quedan 2 sesiones de laboratorio (8-9) para demo final y cierre
 
 ---
 
@@ -191,17 +191,19 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 
 > **Sin acceso al laboratorio en agosto** (confirmado 2026-07-09): las 9
 > sesiones de julio (ver `docs/sesion_siguiente.md`) son todo el tiempo de
-> robot para experimentación/validación que queda. **Hay acceso en
+> robot para experimentación/validación que queda. Tras la Sesión 7
+> (2026-07-27) quedan 2 sesiones (8-9), reservadas a grabar la demo final y
+> al cierre — sin objetivos de alto riesgo pendientes. **Hay acceso en
 > septiembre, pero reservado para el cierre** (demo final, comprobación del
-> sistema) — no es margen para rematar validación o Nav2 sin terminar.
+> sistema) — no es margen para validación nueva.
 
 | Fase | Período | Estado |
 |---|---|---|
 | Fase 1 – Base y definición | Hasta mayo 2026 | ✅ Completada |
 | Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06; gesto real con ambas manos validado en movimiento el 09/07 tras bajar el umbral de visibilidad y cambiar de cámara, ver `docs/decisiones.md`) |
-| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 (sesiones 5-6 de 9) | 🔄 Demo mínima decidida, launch file y script de objetivo preparados sin robot (`docs/decisiones.md`), sin ejecutar |
-| Fase 4 – Validación experimental | Julio 2026 (sesiones 2-4 de 9) — no agosto | 🔄 Iniciada — gesto validado con movimiento el 09/07; encontrado y corregido un bug de deriva en el gate de continuidad y añadido arranque suave; pendiente aislar `near_gain`, resolver oscilación de la FSM y repetir tomas para el Capítulo 7 |
-| Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab; septiembre con lab reservado a cierre, no a validación nueva |
+| Fase 3 – Navegación autónoma (Nav2) | Julio 2026 (Sesión 7 de 9, 2026-07-27) | ✅ Completada — localización (AMCL) y navegación (planificador + controlador + comportamientos) probadas en el robot real por primera vez: 6/7 objetivos de navegación logrados, incluida evasión de un obstáculo real no presente en el mapa. Mapa del laboratorio regrabado con SLAM Toolbox de camino. Ver `docs/decisiones.md` (2026-07-27) y `docs/07_resultados.md` §7.4quater |
+| Fase 4 – Validación experimental | Julio 2026 (Sesiones 2-7 de 9) | 🔄 Avanzada — gesto real, fusión LiDAR-cámara, evasión de obstáculos (con maniobra de rodeo) y Nav2 validados en el robot con datos reales para el Capítulo 7; quedan repeticiones menores (`parada`/`oclusión` en N=1) y actualizar las limitaciones (§7.5) antes de cerrar el capítulo — ver `docs/07_resultados.md` |
+| Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab (redacción de memoria); septiembre con lab reservado a cierre, no a validación nueva |
 
 ---
 

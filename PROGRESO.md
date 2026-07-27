@@ -1,5 +1,86 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-27 (lab, Sesión 7) — Nav2 fase A resuelta (era un falso bug), fase B completa a la primera, y remapeo del laboratorio
+
+**Objetivo de la sesión cumplido y superado.** El pendiente de la Sesión 6
+("AMCL arranca pero no converge tras el primer ciclo") se diagnosticó y
+cerró del todo, y encima se completó la fase B (navegación real) y se
+regrabó el mapa del laboratorio — los tres en una sola sesión, con margen.
+
+**Causa raíz real del "bug" de AMCL de la Sesión 6 — no era de AMCL.**
+Con RViz disponible esta vez (Humble, en el portátil de esta sesión), se
+reprodujo el mismo síntoma (`map→odom` congelado tras la pose inicial) y se
+diagnosticó a fondo: los comandos de movimiento de prueba (`ros2 topic pub`
+de 1.5-2s, lanzados como procesos nuevos por SSH) **nunca llegaban al
+robot** porque el descubrimiento DDS entre un proceso `ros2` recién creado
+y el nodo `kobuki` (ya en marcha desde hacía rato) tarda varios segundos —
+las pruebas terminaban antes de que se estableciera la conexión. Verificado
+de forma aislada: un `ros2 topic echo` con más margen de tiempo sí recibe
+los mensajes de un publisher igual de nuevo. El robot nunca se movió de
+verdad en las pruebas de la Sesión 6 ni en los primeros intentos de hoy, así
+que AMCL no tenía ningún movimiento real que procesar — no era una
+limitación de AMCL ni de configuración. **Con comandos de 6-8s (margen de
+sobra para el descubrimiento), el robot se movió de verdad y AMCL actualizó
+su pose correctamente dos veces seguidas**, con valores coherentes con el
+desplazamiento real. Lección operativa: cualquier `ros2 topic pub` de
+prueba lanzado como proceso nuevo necesita varios segundos extra de
+margen, no solo la duración del movimiento que se quiere probar.
+
+**Bug real encontrado de camino (menor, hardware):** el Kobuki había vuelto
+a reenumerar el puerto USB (`ttyUSB0` pasó a ser el RPLIDAR, `ttyUSB1` el
+Kobuki — al revés que en sesiones anteriores). `kobuki_node_params.yaml`
+tenía hardcodeado `/dev/ttyUSB0`. Corregido apuntando al symlink
+`/dev/kobuki` que ya crea udev (existía desde antes, sin usar) — corregido
+tanto en el install como en el source del NUC, robusto a futuras
+reenumeraciones. **Lección de depuración añadida:** al intentar sobreescribir
+`device_port` con `ros2 run kobuki_node kobuki_ros_node --params-file ... -p
+device_port:=...`, el resto de parámetros del YAML (incluido `base_frame`)
+dejaron de aplicarse silenciosamente — el nodo real se llama `kobuki` (no
+`kobuki_ros_node`) y `--params-file` solo aplica si la clave de nivel
+superior del YAML coincide con el nombre real del nodo; el override `-p`
+suelto sí se aplica siempre. Usar el launch file oficial (que pasa los
+parámetros como diccionario directo) evita este problema de raíz.
+
+**Bug real encontrado (menor, cosmético):** `/particle_cloud` de AMCL se
+publica en QoS `BEST_EFFORT`, pero `nav2_default_view.rviz` (Humble) pide
+`RELIABLE` para ese display — incompatibles, así que la nube de partículas
+nunca se puede ver en RViz con la config por defecto, converja o no AMCL.
+No afecta a la navegación, solo a la visualización. Pendiente de arreglar
+la config de RViz si se quiere ver la nube de partículas en el futuro.
+
+**Nav2 — fase B (navegación completa), primera vez que se prueba, funcionó
+a la primera:** lanzados `controller_server`/`planner_server`/
+`behavior_server`/`bt_navigator` + `lifecycle_manager_navigation` a mano
+(sin relanzar `map_server`/`amcl`, para no perder la localización ya
+convergida). Objetivos mandados con el botón "Nav2 Goal" de RViz (más
+simple que leer coordenadas para `nav2_send_goal.py`). **6 de 7 objetivos
+alcanzados con éxito**, incluyendo dos trayectos largos (~8m) y uno con un
+obstáculo real no presente en el mapa (colocado a propósito) —
+detectado por el costmap local vía `/scan` en vivo y esquivado sin
+problema. El único fallo ocurrió tras una preemption muy rápida (objetivo
+nuevo mandado a mitad de ejecución del anterior) y provocó un reset
+automático de `lifecycle_manager_navigation` (reconfiguración y
+reactivación de los 4 nodos en ~2s) — tras el cual todo volvió a funcionar
+con normalidad sin intervención manual.
+
+**Remapeo del laboratorio con `slam_toolbox`:** el mapa guardado
+(`maps/mapa_laboratorio.yaml`/`.pgm`, sin fecha de origen documentada)
+estaba incompleto/desactualizado según el autor. Lanzado
+`slam_toolbox.launch.py` (andamiaje escrito el 2026-06-04, nunca antes
+ejecutado) en modo mapeo; el autor condujo el robot con
+`teleop_twist_keyboard` (remapeado a `/commands/velocity`) recorriendo el
+laboratorio. Mapa nuevo guardado con `nav2_map_server`'s `map_saver_cli`:
+348×358 celdas @ 0.05m (antes 261×338), origen `[1.638, -17.516, 0]`.
+Validado relanzando AMCL con el mapa nuevo: pose inicial + movimiento real
+→ la pose de AMCL se actualizó correctamente también con el mapa nuevo.
+Sustituido como mapa oficial en `maps/` del repo y sincronizado al NUC
+(source + install, vía la cadena de symlinks de `colcon
+--symlink-install`, sin necesidad de rebuild).
+
+**Objetivo específico 3 del TFM (Nav2) dado por conseguido** — ver
+`docs/01_introduccion.md` §1.2. Detalle completo de todo lo anterior en
+`docs/decisiones.md` (2026-07-27).
+
 ## Sesión 2026-07-23 (lab, Sesión 6) — `obstaculo` N=2 confirmado sin contacto + Nav2 fase A: localización arranca pero no converge tras el primer ciclo
 
 **Remate de la Sesión 5:** repetida `obstaculo_v9_mueble` (mismo mueble

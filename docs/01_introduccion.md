@@ -25,7 +25,7 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
 
 2. ✅ **Cartografía SLAM:** integrar SLAM Toolbox con los datos del LiDAR para construir mapas del entorno en tiempo real. *(Completado — mapa del laboratorio generado y guardado en `maps/`)*
 
-3. 🔄 **Navegación autónoma (Nav2):**
+3. ✅ **Navegación autónoma (Nav2):**
    - Localización basada en AMCL sobre mapa guardado.
    - Planificación de rutas con NavFn o Smac Planner.
    - Navegación a objetivos predefinidos (salas, puntos de interés).
@@ -33,11 +33,20 @@ Extender el sistema de seguimiento de personas hasta convertirlo en una platafor
    un punto — ver `docs/decisiones.md`. Primera prueba en el lab
    2026-07-23: mapa carga, AMCL activo, cadena de TF corregida y
    completa, localización global genera una primera pose válida
-   (`map`→`odom` publicada) — pero AMCL no converge/actualiza tras el
-   primer ciclo, pendiente de diagnosticar con RViz (no disponible esa
-   sesión). Navegación (planificación de rutas + `nav2_send_goal.py`)
-   todavía sin probar, depende de resolver la localización primero. Ver
-   `docs/decisiones.md` 2026-07-23 y `docs/sesion_siguiente.md`.)*
+   (`map`→`odom` publicada) — pero AMCL no parecía converger/actualizar
+   tras el primer ciclo. **Completado 2026-07-27 (Sesión 7):** el
+   "bug" del 23/07 resultó ser un falso positivo — causa raíz real:
+   los comandos de movimiento de prueba (SSH, corta duración) nunca
+   llegaban al robot por latencia de descubrimiento DDS, así que AMCL
+   nunca tenía movimiento real que procesar. Con comandos más largos,
+   AMCL converge y actualiza con normalidad. Fase B (navegación
+   completa) probada por primera vez y funcionando a la primera: 6/7
+   objetivos alcanzados con éxito, incluidos dos trayectos largos
+   (~8m) y uno esquivando un obstáculo real no presente en el mapa
+   (detectado por el costmap local en vivo). Mapa del laboratorio
+   regrabado con `slam_toolbox` en la misma sesión (más completo que
+   el anterior) y validado con AMCL. Ver `docs/decisiones.md`
+   2026-07-27 y `PROGRESO.md` para el detalle completo.)*
 
 4. ✅ **Fusión sensorial:** mejorar la robustez de la detección de personas combinando LiDAR (geometría) y cámara (confirmación visual). *(Completado 2026-06-25: `visual_detection_node` publica el rumbo de la persona (`/person_bearing`) desde MediaPipe; cuando el LiDAR no encuentra un par de piernas válido, `detection_node` usa ese rumbo para elegir el clúster correcto y seguir publicando posición. Validado sin movimiento: 100% detección, 0 pérdidas, en `validation/runs/fusion_track_20260625/`; ver `docs/04_diario_desarrollo.md` y `PROGRESO.md`. 2026-07-08: validado también con movimiento — la primera toma reveló saltos de detección y saturación angular (causa raíz identificada y corregida: filtro de continuidad + gate de Mahalanobis + rate-limit angular, ver `docs/decisiones.md`). 2026-07-15: corregido un signo invertido en el PD angular de `tracking_node` (causa raíz real del "gira al lado contrario" reportado desde el 13/07) y validado `near_gain` de forma aislada (0.49-0.86m): comportamiento acotado y con el signo correcto, con saturación puntual esperable a corta distancia — ver `docs/decisiones.md` y `PROGRESO.md`. 2026-07-21 (Sesión 4): corregido un sector invertido en la evasión de obstáculos de `tracking_node` (vigilaba la parte trasera del robot, no la delantera — mismo desfase de π que ya se corregía en la fusión); añadido un fallback de pierna única (sin par) en `detection_node` para el hueco de detección al girar (~2-4s → ~1.6s, validado en vivo); subido `continuity_confirm_frames` de 1 a 3 tras estresar con mobiliario denso real (saltos de posición 12.9%→4.6%, saturación 4.9%→0.0%) — ver `docs/decisiones.md` y `PROGRESO.md`. 2026-07-22 (Sesión 5): tras 4 contactos leves reales con mobiliario en dos sesiones, corregido `lin_factor` de la evasión de obstáculos para que llegue a 0.0 de verdad (antes nunca bajaba de 0.4, código muerto) y añadida una maniobra de rodeo (giro + avance corto) para obstáculos sostenidos — dos tomas siguientes en vivo sin contacto; sigue sin resolver el punto ciego de altura del LIDAR 2D (silla de patas finas) — ver `docs/decisiones.md` y `PROGRESO.md`.)*
 
@@ -64,19 +73,21 @@ Limitaciones asumidas:
 > **Sin acceso al laboratorio en agosto** (confirmado 2026-07-09): las 9
 > sesiones de julio (`docs/sesion_siguiente.md`, "Presupuesto de lab") son
 > **todo el tiempo de robot para experimentación/validación que queda**.
-> **Sí hay acceso en septiembre, pero reservado para tareas de cierre**
-> (demo final para la defensa, comprobación de que el sistema sigue
-> funcionando) — no es margen para recuperar validación o Nav2 sin terminar.
-> Todo lo que no quede recogido al final de la sesión 9 de julio pasa a
-> trabajo futuro documentado; agosto es análisis/redacción de lo ya grabado,
-> sin datos nuevos.
+> Tras la Sesión 7 (2026-07-27, Nav2 completado) quedan 2 sesiones (8-9),
+> reservadas a grabar la demo final y al cierre, sin objetivos de alto
+> riesgo pendientes. **Sí hay acceso en septiembre, pero reservado para
+> tareas de cierre** (demo final para la defensa, comprobación de que el
+> sistema sigue funcionando) — no es margen para validación nueva. Todo lo
+> que no quede recogido al final de la sesión 9 de julio pasa a trabajo
+> futuro documentado; agosto es análisis/redacción de lo ya grabado, sin
+> datos nuevos.
 
 | Fase | Descripción | Periodo | Estado |
 |------|-------------|---------|--------|
 | 1 | Definición, revisión del sistema, redacción inicial | Mayo 2026 | ✅ Completada |
 | 2 | Módulo de interacción, integración SLAM, fusión sensorial | Junio 2026 | ✅ Completada |
-| 3 | Navegación autónoma completa | Julio 2026 (sesiones 5-6 de 9) | 🔄 Alcance decidido (demo mínima), código preparado sin robot, sin ejecutar todavía |
-| 4 | Validación experimental (entorno UJI) | Julio 2026 (sesiones 2-4 de 9) — **no agosto**, sin lab ese mes | 🔄 Iniciada — primera toma sin movimiento registrada 2026-06-25, con movimiento 2026-07-08. Repeticiones y reproducibilidad de métricas pendientes de las sesiones de julio que quedan |
+| 3 | Navegación autónoma completa | Julio 2026 (Sesión 7 de 9, 2026-07-27) | ✅ Completada — AMCL y navegación (planificador/controlador/comportamientos) probados en el robot real: 6/7 objetivos logrados, incluida evasión de un obstáculo real no mapeado. Mapa del laboratorio regrabado con SLAM Toolbox. Ver `docs/decisiones.md` (2026-07-27) |
+| 4 | Validación experimental (entorno UJI) | Julio 2026 (Sesiones 2-7 de 9) — **no agosto**, sin lab ese mes | 🔄 Avanzada — gesto real, fusión LiDAR-cámara, evasión de obstáculos y Nav2 validados con datos reales; quedan repeticiones menores (`parada`/`oclusión`) y actualizar limitaciones (§7.5) antes de cerrar el Capítulo 7 |
 | 5 | Cierre, memoria final, defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab (análisis/redacción de lo grabado en julio); septiembre con lab reservado a cierre (demo final, comprobación del sistema), no a validación nueva |
 
 ## 1.5 Estructura de este documento

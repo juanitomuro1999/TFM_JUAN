@@ -5,15 +5,19 @@
 # el mapa guardado + pila de navegacion (planner/controller/BT) para mandar
 # UN objetivo predefinido con scripts/nav2_send_goal.py.
 #
-#   ⚠️  ANDAMIAJE ESCRITO SIN ACCESO AL ROBOT (2026-07-09), NUNCA EJECUTADO.
-#       Usa person_follower/config/nav2_params.yaml, que tiene el mismo aviso
-#       (los strings de plugin cambian entre distros de ROS 2 — verificar
-#       contra la version de nav2 instalada en el NUC antes de fiarse).
+#   Probado en el robot real 2026-07-27 (Sesion 7): localizacion (fase A)
+#   y navegacion completa (fase B) funcionando, 6/7 objetivos de
+#   navegacion logrados. Ver docs/decisiones.md (2026-07-27) para el
+#   detalle. Los strings de plugin de nav2_params.yaml verificados contra
+#   Nav2 Jazzy instalado en el NUC — coinciden, sin cambios necesarios.
 #
-#   RECOMENDADO PARA LA PRIMERA PRUEBA: comentar el bloque "NAVEGACION" de
-#   abajo y lanzar solo "LOCALIZACION" primero. Confirmar en RViz que la
-#   pose de AMCL se estabiliza sobre el mapa (pose inicial aproximada con
-#   "2D Pose Estimate") antes de anadir la pila de navegacion completa.
+#   Para la primera prueba en una sesion nueva: lanzar solo "LOCALIZACION"
+#   primero (launch_navigation:=false, el default). Confirmar en RViz que
+#   la pose de AMCL se estabiliza sobre el mapa (pose inicial aproximada
+#   con "2D Pose Estimate", y dar tiempo de sobra a los comandos de
+#   movimiento de prueba — el descubrimiento DDS entre un proceso nuevo y
+#   un nodo ya activo tarda varios segundos) antes de anadir la pila de
+#   navegacion completa.
 #
 #   El cmd_vel final de controller_server se remapea DIRECTAMENTE a
 #   /commands/velocity (igual que el resto del stack) — SIN velocity_smoother

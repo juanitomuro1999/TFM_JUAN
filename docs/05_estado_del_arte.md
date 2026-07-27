@@ -247,9 +247,9 @@ en la Fase 2 a una implementación propia de SLAM básico
 robustez, cierre de bucles y serialización de mapas sin mantener código de
 SLAM propio.
 
-Para la navegación autónoma planificada (Fase 3, sin ejecutar todavía en el
-robot a fecha de este capítulo — ver `docs/sesion_siguiente.md`), el
-proyecto usa **Nav2**, sucesor profesional del stack de navegación de ROS 1
+Para la navegación autónoma (Fase 3, completada en el robot real el
+2026-07-27 — ver `docs/decisiones.md`), el proyecto usa **Nav2**, sucesor
+profesional del stack de navegación de ROS 1
 para ROS 2 (Macenski et al., 2020, "The Marathon 2"), que separa
 planificación global, control local y percepción en módulos cooperantes
 orquestados mediante árboles de comportamiento y nodos con ciclo de vida

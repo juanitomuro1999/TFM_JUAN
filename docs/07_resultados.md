@@ -227,6 +227,73 @@ maniobra de rodeo (giro + avance, con aborto de seguridad), en
   probados hoy. Sí funcionó de forma consistente con el mueble sólido
   (`v7`, `v8`).
 
+## 7.4quater Resultado 5 — Nav2: localización y navegación autónoma (2026-07-27, Sesión 7)
+
+Objetivo específico 3 del TFM. Primera prueba real de la pila completa de
+Nav2 (fase A y fase B, ambas en la misma sesión) — hasta esta sesión el
+andamiaje (`nav2_localization_demo.launch.py`, `nav2_params.yaml`,
+`scripts/nav2_send_goal.py`) llevaba escrito desde el 2026-07-09 sin
+ejecutarse nunca.
+
+**Fase A — localización (AMCL):** la Sesión 6 (2026-07-23) había dejado
+esta fase sin cerrar: el mapa cargaba y AMCL se activaba, pero
+`/amcl_pose`/`map→odom` parecían quedarse congelados tras el primer ciclo,
+sin RViz disponible esa sesión para diagnosticar más. Con RViz disponible
+en la Sesión 7, se aisló la causa real: los comandos de movimiento de
+prueba (procesos `ros2 topic pub` nuevos por SSH, de 1.5-2s) nunca
+llegaban al robot por la latencia de descubrimiento DDS entre un proceso
+recién lanzado y el nodo del robot ya en marcha — el robot nunca se movía
+de verdad, así que AMCL no tenía ningún delta de movimiento que procesar.
+No era un bug de AMCL ni de configuración. Con comandos de 6-8s de
+duración, el robot se movió de verdad y AMCL actualizó su pose
+correctamente en dos pruebas consecutivas. Detalle completo en
+`docs/decisiones.md` (2026-07-27).
+
+**Fase B — navegación (planner + controller + behaviors + BT):** probada
+por primera vez, lanzando `controller_server`/`planner_server`/
+`behavior_server`/`bt_navigator` + `lifecycle_manager_navigation` a mano
+(sin reiniciar la localización ya convergida). Objetivos mandados con el
+botón "Nav2 Goal" de RViz.
+
+| Objetivo | Distancia aprox. | Resultado |
+|---|---|---|
+| 1 | ~3.7m | Éxito |
+| 2 | ~5.9m | Éxito |
+| 3 (obstáculo real no mapeado en el camino) | ~5.3m | Éxito — costmap local lo detectó vía `/scan` y lo esquivó |
+| 4 | ~8.0m | Éxito |
+| 5 | ~8.1m | Éxito |
+| 6 | ~0.6m (preemption rápida a mitad del objetivo anterior) | **Fallo** (`Goal failed`) — recuperación automática de `lifecycle_manager_navigation` (reset+reconfigure+reactivate, ~2s) |
+| 7 | ~3.6m (tras la recuperación) | Éxito |
+
+**6 de 7 objetivos completados con éxito** (86%), incluyendo dos trayectos
+largos (~8m) y uno con evasión de un obstáculo real, deliberadamente no
+presente en el mapa estático, detectado y esquivado por el `local_costmap`
+sin intervención. El único fallo fue autorrecuperado por el propio
+`nav2_lifecycle_manager` sin intervención manual, y no volvió a repetirse
+en preemptions posteriores.
+
+**Regrabado del mapa:** de camino, se detectó que el mapa guardado
+(`maps/mapa_laboratorio.yaml`/`.pgm`) no reflejaba bien el laboratorio real
+y le faltaban zonas. Regrabado con `slam_toolbox` (348×358 celdas @ 0.05m,
+antes 261×338) y validado localizando sobre él antes de sustituirlo como
+mapa oficial. Todos los resultados de esta tabla usan ya el mapa nuevo.
+
+**Limitaciones de este resultado:**
+- N=1 por escenario de navegación — no hay repeticiones para separar la
+  variabilidad real de la puntual (p.ej. si el fallo del objetivo 6 se
+  repetiría con otra preemption similar).
+- No investigada la causa exacta de por qué esa preemption concreta causó
+  un fallo y no las demás — posible condición de carrera en el árbol de
+  comportamiento al cancelar mientras replanifica. Ver `docs/decisiones.md`
+  (2026-07-27).
+- `/particle_cloud` no es visible en RViz con la configuración por defecto
+  (incompatibilidad de QoS `BEST_EFFORT`/`RELIABLE`) — no afecta a la
+  navegación, solo impide verificar visualmente la convergencia de
+  partículas sin cambiar la config de RViz.
+- No se ha probado el objetivo 5 del TFM (seguir a la persona → navegar a
+  un destino) — Nav2 y `person_follower` corren de forma independiente,
+  sin integración entre ambos todavía.
+
 ## 7.5 Limitaciones de los resultados actuales
 
 - **Reproducibilidad de "saltos"/"saturación" — resuelta 2026-07-21, con
@@ -298,8 +365,8 @@ maniobra de rodeo (giro + avance, con aborto de seguridad), en
   desactualizadas por los fixes de las Sesiones 4-5 (gate de continuidad,
   `near_gain`, gesto real) y necesitan una revisión completa antes de
   cerrar el capítulo, no solo añadir 7.4bis.
-- [ ] Incorporar resultados de Nav2 si se decide abordarlo (objetivo 3,
-  sigue pendiente de decidir alcance).
+- [x] ~~Incorporar resultados de Nav2~~ — hecho 2026-07-27 (Sesión 7), ver
+  §7.4quater: objetivo 3 completado (fase A + fase B + remapeo).
 - [ ] Sustituir este borrador por prosa de memoria una vez el conjunto de
   datos esté completo — este archivo está pensado como andamiaje de
   trabajo, no como texto final de la memoria.

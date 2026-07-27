@@ -1,76 +1,76 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 7: diagnosticar con RViz por qué AMCL no converge tras el primer ciclo + fase B si da tiempo
+## OBJETIVO de la Sesión 8: colchón + grabar vídeo de demostración del TFM
 
-La Sesión 6 (2026-07-23) se da por completada — ver tabla de sesiones más
-abajo. Remate de la Sesión 5 cerrado (`obstaculo` N=2 sin contacto,
-confirmado). El objetivo de Nav2 — fase A quedó **a medias**: la
-localización arranca (mapa carga, AMCL activo, TF completa, primer
-`/amcl_pose` + `map→odom` válidos) pero **no converge/actualiza tras el
-primer ciclo**, y sin RViz no se pudo diagnosticar más — ver
-`docs/decisiones.md` (2026-07-23) para el detalle completo.
+La Sesión 7 (2026-07-27) se da por completada, y de sobra — ver tabla de
+sesiones más abajo. **Nav2 (objetivo específico 3 del TFM) queda
+completado del todo:** fase A (localización) resuelta — el "bug" de la
+Sesión 6 era en realidad un problema de metodología de prueba (comandos de
+movimiento demasiado cortos para el descubrimiento DDS), no de AMCL — y
+fase B (navegación) probada por primera vez con 6/7 objetivos logrados,
+incluida evasión de un obstáculo real no mapeado. De propina, se regrabó y
+validó un mapa del laboratorio más completo que el anterior. Ver
+`docs/decisiones.md` (2026-07-27), `PROGRESO.md` y `docs/07_resultados.md`
+§7.4quater para el detalle completo.
 
-**Antes de nada — imprescindible esta vez: llevar un portátil con ROS 2
-Jazzy instalado** (o instalarlo en el que se lleve) para poder abrir RViz2
-y ver la nube de partículas de AMCL en directo. La Sesión 6 se quedó ciega
-en este punto exacto porque el portátil de esa sesión no tenía ROS 2.
-Comando (con `ROS_DOMAIN_ID=24`, misma red que el NUC):
-```bash
-export ROS_DOMAIN_ID=24
-ros2 run rviz2 rviz2 -d /opt/ros/jazzy/share/nav2_bringup/rviz/nav2_default_view.rviz
-```
+**Con el objetivo de mayor riesgo ya cerrado, la Sesión 8 puede centrarse
+en su plan original sin presión de tiempo:**
 
-**Pasos:**
-1. Lanzar kobuki + rplidar + la TF estática `base_footprint→laser` (ver
-   "Pasos para empezar" más abajo — ya incluye el paso `tf` que faltaba el
-   23/07) + `nav2_localization_demo.launch.py` (localización sola, es el
-   default: `launch_navigation:=false` no hace falta pasarlo explícito).
-2. Abrir RViz, cargar el mapa, dar pose inicial con "2D Pose Estimate" (más
-   fiable que la localización global usada a ciegas el 23/07) y mover el
-   robot un poco.
-3. **Observar en vivo si la nube de partículas converge y se actualiza con
-   el movimiento**, o si se queda congelada igual que se vio (a ciegas) el
-   23/07. Si se congela, mirar el log de `amcl` en la propia terminal de
-   RViz/lanzamiento (esta vez con salida visible, no bufereada por SSH) por
-   si hay algún warning/error que no se vio el 23/07.
-4. Si converge bien: pasar a fase B (activar `launch_navigation:=true`,
-   mandar un objetivo con `scripts/nav2_send_goal.py <x> <y>` leído sobre
-   el mapa en RViz). **No lanzar este launch a la vez que
-   `start_person_follower.launch.py` con `launch_navigation:=true`** —
-   ambos publican en `/commands/velocity`.
-5. Si no converge y no se identifica la causa rápido: Nav2 es el bloque
-   más prescindible del reparto de sesiones (ver tabla más abajo) — no
-   merece la pena gastar mucho más tiempo de robot en depurarlo a fondo;
-   mejor documentarlo como limitación/trabajo futuro y usar el tiempo
-   restante en el colchón de la Sesión 8 (grabar demo, rematar memoria).
+1. **Grabar el vídeo de demostración del TFM.** Ahora hay bastante más que
+   mostrar que cuando se planeó esta sesión: seguimiento de personas con
+   gesto real, evasión de obstáculos (`lin_factor` + maniobra de rodeo), y
+   navegación autónoma con Nav2 (incluida evasión de un obstáculo no
+   mapeado). Decidir con el autor qué escenas incluir antes de grabar — no
+   intentar meterlo todo en una sola toma continua.
+2. **Rematar N=1 si sobra tiempo (no bloqueante):** una repetición más de
+   `parada` y de `oclusión` (`bash validation/record_run.sh <etiqueta>
+   [duración_s]`, protocolo: `stop_tracking` antes de cada toma, gesto de
+   inicio inmediato al empezar a grabar).
+3. **Si sobra tiempo de robot de verdad:** investigar la causa del único
+   fallo de Nav2 de la Sesión 7 (un `Goal failed` tras una preemption muy
+   rápida, autorrecuperado por `lifecycle_manager_navigation` sin
+   intervención) — no bloqueante, ver `docs/decisiones.md` (2026-07-27).
+   También pendiente, menor: arreglar el QoS del display "ParticleCloud"
+   en la config de RViz (pide `RELIABLE`, AMCL publica `BEST_EFFORT`) si
+   se quiere ver la nube de partículas convergiendo en vivo.
 
-**Recordatorio operativo importante de la Sesión 6 (leer antes de lanzar
-nada):**
+**Recordatorios operativos que siguen vigentes:**
 - `nohup ... & disown` **no basta** en este NUC — `systemd-logind` mata los
-  procesos al cerrar la sesión SSH que los lanzó (sin password de `sudo`
-  para arreglarlo con `loginctl enable-linger`). Lanzar cada nodo de larga
-  duración manteniendo la conexión SSH abierta en segundo plano, no
-  backgroundeando el proceso remoto y cerrando la sesión.
-- El stdout de los nodos ROS2 sin tty (pipe/fichero) queda bufereado por
-  bloques — un log que no crece no significa que el proceso esté muerto.
-  Comprobar estado real con `ros2 topic echo --once` / `ros2 node list`.
-- No olvidar la TF estática del láser (`scripts/launch_robot.bash`, paso
-  `tf`) al lanzar Nav2 — es fácil que se quede fuera si se lanzan los
-  nodos a mano en vez de con ese script.
+  procesos al cerrar la sesión SSH que los lanzó. Lanzar cada nodo de larga
+  duración manteniendo la conexión SSH abierta en segundo plano.
+- El stdout de los nodos ROS2 sin tty queda bufereado por bloques — un log
+  que no crece no significa que el proceso esté muerto. Comprobar con
+  `ros2 topic echo --once` / `ros2 node list`.
+- **Nuevo (Sesión 7):** cualquier `ros2 topic pub`/`ros2 topic echo` de
+  prueba lanzado como proceso nuevo por SSH necesita ~4-8s de margen
+  además de la duración real que se quiere probar — el descubrimiento DDS
+  entre un proceso recién lanzado y un nodo ya activo tarda varios
+  segundos, y un comando más corto puede tener "cero efecto" sin ningún
+  aviso. Ver `docs/decisiones.md` (2026-07-27) para el caso real que este
+  patrón causó (dos sesiones de diagnóstico de un "bug" de AMCL que no
+  existía).
+- **Nuevo (Sesión 7):** si el Kobuki no conecta (`could not open connection
+  [/dev/ttyUSBx]`), comprobar reenumeración de puerto USB — usar
+  `device_port: /dev/kobuki` (symlink de udev, ya configurado en
+  `kobuki_node_params.yaml` desde hoy) en vez de `/dev/ttyUSBx` a pelo. Si
+  hace falta overridear un parámetro de un nodo por línea de comandos,
+  comprobar el nombre real del nodo con `ros2 node list` primero — no
+  siempre coincide con el nombre del YAML de parámetros ni con el del
+  executable (ver el caso de `kobuki_ros_node`/`kobuki` en
+  `docs/decisiones.md`, 2026-07-27).
 
-**Estado heredado de la Sesión 6 (2026-07-23, no repetir, solo verificar):**
+**Estado heredado de la Sesión 7 (2026-07-27, no repetir, solo verificar):**
+- ✅ **Nav2 fase A y fase B completadas** — ver arriba y
+  `docs/decisiones.md` (2026-07-27).
+- ✅ **Mapa del laboratorio regrabado y sustituido** (`maps/`) — 261×338 →
+  348×358 celdas, validado con AMCL antes de sustituir el anterior. Si en
+  la Sesión 8 se detecta que sigue faltando alguna zona, repetir el
+  proceso de `docs/decisiones.md` (2026-07-27, "Remapeo del laboratorio").
 - ✅ `obstaculo` N=2 confirmado sin contacto con mobiliario sólido
-  (`obstaculo_v9_mueble`) — fix de `lin_factor` + maniobra de rodeo dados
-  por cerrados para el Capítulo 7. Ver `docs/07_resultados.md` §7.4ter.
-- ✅ **Confirma un pendiente heredado de la Sesión 4:** `lin_factor` sí
-  frena de verdad la marcha con el robot en movimiento real (visto en la
-  telemetría de `obstaculo_v9`: `vlin` rampa de 0.18→0.000 según
-  `lin_factor` cae 1.0→0.0, con tracking activo de verdad, no parado).
-- Nav2 fase A preparado (plugins verificados, ficheros sincronizados al
-  NUC, TF del láser corregida) pero localización sin converger tras el
-  primer ciclo — ver objetivo de arriba y `docs/decisiones.md` (2026-07-23).
-- La silla de patas finas del 21/07 sigue **cerrada, no reintentar** (límite
-  de altura del LIDAR 2D, confirmado con 5 contactos reales) — ver
+  (heredado de la Sesión 6, sigue cerrado) — ver `docs/07_resultados.md`
+  §7.4ter.
+- La silla de patas finas del 21/07 sigue **cerrada, no reintentar**
+  (límite de altura del LIDAR 2D, confirmado con 5 contactos reales) — ver
   `docs/decisiones.md` (2026-07-22).
 
 **Rematar N=1 si sobra tiempo (no bloqueante, heredado de Sesiones
@@ -201,27 +201,24 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~4~~ | ~~Estresar el gate de continuidad con mobiliario denso + arreglar confirmación en el fallback de fusión + el hueco de detección LIDAR+cámara al girar + resolver reproducibilidad de métricas del Capítulo 7~~ **✅ hecho 2026-07-21** (los cuatro objetivos completados en una sola sesión — ver estado heredado abajo y `docs/decisiones.md`) |
 | ~~5~~ | ~~Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7~~ **✅ hecho 2026-07-22** — **21/07:** solo `obstaculo` (2 tomas, 2 choques reales). **22/07:** offset LIDAR medido, `obstacle_threshold`→0.40m, 10 tomas de `recta`/`curva`/`parada`/`corto`/`oclusion` (§7.4bis); reintentado `obstaculo` — 2 contactos leves más llevaron a corregir `lin_factor` (parada dura real) y a una maniobra de rodeo nueva, últimas 2 tomas sin contacto (§7.4ter). Quedan remates menores (ver objetivo de la Sesión 6, arriba) |
 | ~~6~~ | ~~Remates de la Sesión 5 + Nav2 — fase A: solo localización AMCL~~ **✅ hecho 2026-07-23** (parcial — `obstaculo` N=2 sin contacto cerrado; Nav2 fase A preparado y arrancando pero AMCL no converge tras el primer ciclo, sin RViz para diagnosticar más — ver estado heredado arriba y `docs/decisiones.md`) |
-| 7 | Nav2 — fase A remate (diagnóstico con RViz) + fase B si da tiempo |
-| 8 | Colchón + grabar vídeo de demostración del TFM |
+| ~~7~~ | ~~Nav2 — fase A remate (diagnóstico con RViz) + fase B si da tiempo~~ **✅ hecho 2026-07-27, completo:** fase A resuelta (el "bug" era metodológico, no de AMCL) + fase B funcionando a la primera (6/7 objetivos) + remapeo del laboratorio de propina — ver estado heredado arriba y `docs/decisiones.md` |
+| 8 | Colchón + grabar vídeo de demostración del TFM (sin presión de tiempo — el objetivo de mayor riesgo ya está cerrado) |
 | 9 | **Última sesión de lab del TFM.** |
 
 **Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
 presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
-como la nº1). Tras completar la Sesión 6 (2026-07-23) — **quedan 3 sesiones
-(7 a 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
+como la nº1). Tras completar la Sesión 7 (2026-07-27) — **quedan 2 sesiones
+(8 y 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
 era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
 en sesiones futuras.
 
-**Planteamiento del 2026-07-22 sobre comprimir 4→3 sesiones — resuelto de
-forma natural:** el autor se planteaba comprimir las entonces 4 sesiones
-restantes (6-9) a 3, recortando/aplazando Nav2. Al completar la Sesión 6
-como estaba planeada (aunque Nav2 fase A quedara a medias), el recuento ya
-ha bajado solo a 3 sesiones (7-9) sin necesidad de decidir explícitamente
-qué recortar — mismo resultado que se buscaba con la compresión. Si la
-Sesión 7 tampoco cierra Nav2 del todo, sigue vigente la nota de abajo:
-es el bloque más prescindible del reparto, y recortarlo a "solo
-localización documentada" (o directamente a trabajo futuro) es preferible
-a robar tiempo a las Sesiones 8-9.
+**Planteamiento del 2026-07-22 sobre comprimir 4→3 sesiones — superado por los
+hechos:** el autor se planteaba comprimir las entonces 4 sesiones restantes
+(6-9) a 3, recortando/aplazando Nav2 por ser el bloque de mayor riesgo. Al
+final ni hizo falta recortar nada ni Nav2 quedó pendiente: la Sesión 7
+(2026-07-27) lo completó del todo (fase A + fase B + remapeo) en una sola
+sesión, dejando las Sesiones 8-9 libres para su plan original (demo +
+cierre) sin ninguna presión de tiempo añadida.
 
 ### Calendario estimado (añadido 2026-07-17)
 
@@ -237,8 +234,8 @@ ya vistos (~2 días), no la media.
 | 4 | ~19 jul | Sobrecargada — 4 objetivos distintos (verificar sector de obstáculos + fallback de fusión en vivo + hueco al girar + reproducibilidad Cap.7). Si se alarga, primero recortar: convertir la decisión de estrategia del "hueco al girar" en trabajo de escritorio previo (dejar solo la prueba en vivo para la sesión) |
 | 5 | ~21 jul | Depende de que la 4 cierre la reproducibilidad de métricas — si no, esta sesión hereda ese trabajo antes de las repeticiones |
 | 6 | ~23 jul | Nav2 fase A — bloque oficialmente prescindible (ver nota de abajo) |
-| 7 | ~25 jul | Nav2 fase B — condicional a que la 6 saliera bien |
-| 8 | ~27 jul | Colchón (recoger lo que quedó atrás) + grabar vídeo de demo del TFM — margen de seguridad real del plan |
+| ~~7~~ | ~~25 jul~~ **27 jul (real)** | ~~Nav2 fase B — condicional a que la 6 saliera bien~~ **✅ Nav2 fase A+B completas + remapeo, todo en esta sesión** |
+| 8 | ~29 jul | Colchón (recoger lo que quedó atrás) + grabar vídeo de demo del TFM — margen de seguridad real del plan, ahora sin nada pendiente de alto riesgo |
 | 9 | ~29-31 jul | Última sesión — cierre. Sin margen después de esta: lo que no quede aquí pasa a "limitación/trabajo futuro documentado" en la memoria, no se pospone |
 
 *Fechas ilustrativas calculadas a partir de la cadencia real de las sesiones
@@ -251,11 +248,10 @@ todavía no existe en `01_introduccion.md` §1.5, preparar la defensa) y
 septiembre con lab reservado solo al cierre (demo final), no a validación
 nueva — ver Fase 5 en `README.md`/`docs/01_introduccion.md` §1.4.
 
-**Si las sesiones 6-7 (Nav2) se retrasan o no salen bien:** es el bloque más
-prescindible de la lista — empieza de cero (`docs/decisiones.md`,
-2026-07-09) y los objetivos 1/2/4 ya tienen inversión y datos reales detrás.
-Mejor recortar Nav2 a "solo localización" o a "trabajo futuro documentado"
-que sacrificar tiempo de las sesiones 8-9 por él.
+~~**Si las sesiones 6-7 (Nav2) se retrasan o no salen bien:** es el bloque
+más prescindible de la lista...~~ — **ya no aplica: Nav2 se completó del
+todo en la Sesión 7 (2026-07-27)**, ver tabla de arriba. Nota histórica
+conservada para el registro de cómo se planificó el riesgo.
 
 **Trabajo de escritorio en paralelo, sin gastar tiempo de robot (se puede
 hacer cualquier día, incluidos los días sin lab):** el objetivo 6 (QR,
@@ -493,7 +489,13 @@ con `distance` en los instantes "estables" de fix1/fix2 para confirmar o
 descartar el efecto de acercamiento a corta distancia sin `near_gain`
 (que no existía todavía el 08/07) como causa de la saturación alta.
 
-## OBJETIVO de las Sesiones 6-7: Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09)
+## OBJETIVO de las Sesiones 6-7: Nav2 — demo mínima (objetivo 3, alcance decidido 2026-07-09) — ✅ COMPLETADO 2026-07-27, sección histórica
+
+> Conservada como registro de cómo se planificó originalmente. El objetivo
+> se completó del todo en la Sesión 7 (2026-07-27) — fase A y fase B en la
+> misma sesión, más un remapeo del laboratorio no planeado. Ver
+> `docs/decisiones.md` (2026-07-27) y `docs/07_resultados.md` §7.4quater
+> para el resultado real, que superó lo planeado aquí.
 
 **Ya preparado sin robot (ver `docs/decisiones.md`, entrada 2026-07-09):**
 `person_follower/launch/nav2_localization_demo.launch.py` (nuevo) y
