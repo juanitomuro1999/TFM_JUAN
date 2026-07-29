@@ -1,46 +1,71 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 8: colchón + grabar vídeo de demostración del TFM
+## OBJETIVO de la Sesión 9 (última sesión de lab): cierre — decidir si arreglar los dos hallazgos de hoy, rematar `parada`/`oclusión` limpias, y trabajo de escritorio pendiente
 
-La Sesión 7 (2026-07-27) se da por completada, y de sobra — ver tabla de
-sesiones más abajo. **Nav2 (objetivo específico 3 del TFM) queda
-completado del todo:** fase A (localización) resuelta — el "bug" de la
-Sesión 6 era en realidad un problema de metodología de prueba (comandos de
-movimiento demasiado cortos para el descubrimiento DDS), no de AMCL — y
-fase B (navegación) probada por primera vez con 6/7 objetivos logrados,
-incluida evasión de un obstáculo real no mapeado. De propina, se regrabó y
-validó un mapa del laboratorio más completo que el anterior. Ver
-`docs/decisiones.md` (2026-07-27), `PROGRESO.md` y `docs/07_resultados.md`
-§7.4quater para el detalle completo.
+La Sesión 8 (2026-07-29) se da por completada: **vídeo de demostración
+grabado con las tres escenas previstas** (seguimiento+gesto, evasión de
+obstáculos, Nav2), sin presión de tiempo porque Nav2 ya estaba cerrado del
+todo desde la Sesión 7. Ver `docs/decisiones.md` y `PROGRESO.md`
+(2026-07-29) para el detalle completo de lo de abajo.
 
-**Con el objetivo de mayor riesgo ya cerrado, la Sesión 8 puede centrarse
-en su plan original sin presión de tiempo:**
+**Esta es la última sesión de lab — lo que no quede aquí pasa a
+"limitación/trabajo futuro documentado" en la memoria, no se pospone.**
 
-1. **Grabar el vídeo de demostración del TFM.** Ahora hay bastante más que
-   mostrar que cuando se planeó esta sesión: seguimiento de personas con
-   gesto real, evasión de obstáculos (`lin_factor` + maniobra de rodeo), y
-   navegación autónoma con Nav2 (incluida evasión de un obstáculo no
-   mapeado). Decidir con el autor qué escenas incluir antes de grabar — no
-   intentar meterlo todo en una sola toma continua. **Grabación física
-   (cámara/móvil) a cargo del autor** — Claude puede preparar y lanzar cada
-   escenario por el lado de ROS mientras se graba, pero no puede operar una
-   cámara. Una vez grabado, subir el vídeo resultante al repositorio (o a
-   `docs/` con un enlace, según el tamaño — un vídeo pesado puede no ser
-   apropiado para un `git push` normal sin Git LFS; decidir en el momento
-   según el tamaño real del fichero).
-2. **Rematar N=1 si sobra tiempo (no bloqueante):** una repetición más de
-   `parada` y de `oclusión` (`bash validation/record_run.sh <etiqueta>
-   [duración_s]`, protocolo: `stop_tracking` antes de cada toma, gesto de
-   inicio inmediato al empezar a grabar).
-3. **Si sobra tiempo de robot de verdad:** investigar la causa del único
-   fallo de Nav2 de la Sesión 7 (un `Goal failed` tras una preemption muy
-   rápida, autorrecuperado por `lifecycle_manager_navigation` sin
-   intervención) — no bloqueante, ver `docs/decisiones.md` (2026-07-27).
-   También pendiente, menor: arreglar el QoS del display "ParticleCloud"
-   en la config de RViz (pide `RELIABLE`, AMCL publica `BEST_EFFORT`) si
-   se quiere ver la nube de partículas convergiendo en vivo.
+**Dos hallazgos reales de la Sesión 8, sin arreglar todavía, a decidir hoy:**
+
+1. **`_obstacle_avoidance` no excluye a la persona seguida del `/scan`**
+   (confirmado con datos en vivo, error angular 41.7°/saturación 32.3% en
+   `parada_N1` frente al 5.9°/0.0% de la toma limpia de la Sesión 5). Si se
+   acerca la persona por debajo de ~0.4-0.5m, el robot la trata como
+   obstáculo sólido y dispara la maniobra de rodeo contra ella. Posible fix:
+   excluir del `/scan` usado por `_obstacle_avoidance` el sector angular
+   donde se encuentra la posición confirmada de la persona (ya se conoce
+   `angle_deg`/`dist` en cada ciclo). Decidir si merece la pena arreglarlo
+   con el tiempo que queda o documentarlo como limitación de arquitectura
+   (obstáculo real vs. persona seguida no se distinguen en el LiDAR 2D).
+2. **Salto espurio de posición al recuperar detección tras un hueco de
+   oclusión largo** (~2.3m en 1.15s, coincide con el giro brusco hacia una
+   pared que describió el autor). Hipótesis: el gate de continuidad no
+   cubre bien la primera detección tras un hueco largo. Si se aborda: exigir
+   confirmación reforzada (`continuity_confirm_frames` consecutivos) también
+   en la primera detección tras superar cierto `obs_age`, no solo en el
+   fallback de fusión/pierna única. Verificar primero con datos sintéticos
+   antes de tocar el robot real, como se hizo con el fix de fusión del
+   2026-07-16.
+
+**Si se decide rematar N=1→N=2 de `parada`/`oclusión` (solo tiene sentido
+si se arregla el punto 1 antes, si no se repetirá el mismo problema):**
+`bash validation/record_run.sh <etiqueta> [duración_s]`, protocolo:
+`stop_tracking` antes de cada toma, gesto de inicio inmediato, **acercarse
+y pararse sobre ~1-1.5m sin cruzar los ~0.5m de la evasión de obstáculos**.
+Los bags de hoy (`parada_N1`, útil; `oclusion_N1`, sin datos útiles —
+grabado en reposo) están en `~/tfm_bags/` del NUC sin copiar al portátil.
+
+**Bug menor, no bloqueante, pendiente de arreglo:** `scripts/nav2_send_goal.py`
+resetea la localización a `(0,0,0)` en cada ejecución (side-effect de
+`BasicNavigator` de `nav2_simple_commander`, publica una pose inicial por
+defecto sin que el script lo pida). Preferir el botón "Nav2 Goal" de RViz
+mientras no se arregle. Ver `docs/decisiones.md` (2026-07-29).
+
+**Trabajo de escritorio pendiente (sin robot, se puede hacer en cualquier
+máquina):** revisar y actualizar §7.5 de `docs/07_resultados.md` — varias
+entradas están desactualizadas por fixes de sesiones anteriores.
 
 **Recordatorios operativos que siguen vigentes:**
+- **Nuevo (Sesión 8):** si RViz no muestra el mapa aunque `map_server` esté
+  activo, comprobar `Fixed Frame` en `Global Options` — tiene que ser `map`,
+  no `base_footprint` (sin pose de AMCL no existe esa TF, y sin la TF no se
+  puede ni empezar a localizar — problema de huevo y gallina). También
+  comprobar que las herramientas "2D Pose Estimate"/"2D Nav Goal" están en
+  la barra de RViz (`rviz/config.rviz` ya las trae desde hoy, pero si se usa
+  otro config puede faltar). Ver `docs/decisiones.md` (2026-07-29).
+- **Nuevo (Sesión 8):** al matar un `ros2 launch` con `pkill -f
+  <launch_file.py>`, los nodos hijos pueden quedar huérfanos vivos en vez de
+  cerrarse con el padre — comprobar con `ps aux | grep <nombre_nodo>` tras
+  matar el launch, no solo `ros2 node list` (puede tardar en reflejar el
+  cambio por caché de descubrimiento DDS). Matar los PIDs huérfanos a mano
+  si aparecen, antes de lanzar un stack que comparta topics (p. ej. Nav2 y
+  `person_follower` compiten por `/commands/velocity`).
 - `nohup ... & disown` **no basta** en este NUC — `systemd-logind` mata los
   procesos al cerrar la sesión SSH que los lanzó. Lanzar cada nodo de larga
   duración manteniendo la conexión SSH abierta en segundo plano.
@@ -208,15 +233,15 @@ se pueden hacer en cualquier máquina con este repo, incluida la de casa:
 | ~~5~~ | ~~Repeticiones de validación (2-3 tomas por escenario) para el Capítulo 7~~ **✅ hecho 2026-07-22** — **21/07:** solo `obstaculo` (2 tomas, 2 choques reales). **22/07:** offset LIDAR medido, `obstacle_threshold`→0.40m, 10 tomas de `recta`/`curva`/`parada`/`corto`/`oclusion` (§7.4bis); reintentado `obstaculo` — 2 contactos leves más llevaron a corregir `lin_factor` (parada dura real) y a una maniobra de rodeo nueva, últimas 2 tomas sin contacto (§7.4ter). Quedan remates menores (ver objetivo de la Sesión 6, arriba) |
 | ~~6~~ | ~~Remates de la Sesión 5 + Nav2 — fase A: solo localización AMCL~~ **✅ hecho 2026-07-23** (parcial — `obstaculo` N=2 sin contacto cerrado; Nav2 fase A preparado y arrancando pero AMCL no converge tras el primer ciclo, sin RViz para diagnosticar más — ver estado heredado arriba y `docs/decisiones.md`) |
 | ~~7~~ | ~~Nav2 — fase A remate (diagnóstico con RViz) + fase B si da tiempo~~ **✅ hecho 2026-07-27, completo:** fase A resuelta (el "bug" era metodológico, no de AMCL) + fase B funcionando a la primera (6/7 objetivos) + remapeo del laboratorio de propina — ver estado heredado arriba y `docs/decisiones.md` |
-| 8 | Colchón + grabar vídeo de demostración del TFM (sin presión de tiempo — el objetivo de mayor riesgo ya está cerrado) |
+| ~~8~~ | ~~Colchón + grabar vídeo de demostración del TFM~~ **✅ hecho 2026-07-29:** vídeo grabado (3 escenas) + dos hallazgos reales sin arreglar (evasión de obstáculos vs. persona seguida, salto tras oclusión) — ver `docs/decisiones.md` y objetivo de la Sesión 9 arriba |
 | 9 | **Última sesión de lab del TFM.** |
 
 **Recuento de sesiones resuelto 2026-07-15:** confirmado con el usuario que el
 presupuesto real es el del 09/07 (9 sesiones totales, contando esa misma sesión
-como la nº1). Tras completar la Sesión 7 (2026-07-27) — **quedan 2 sesiones
-(8 y 9)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día" no
-era el recuento correcto; descartar esa cifra. No volver a plantear esta duda
-en sesiones futuras.
+como la nº1). Tras completar la Sesión 8 (2026-07-29) — **queda 1 sesión (la
+9, última)**. La mención del 13/07 de "9 o 10 sesiones quedando desde ese día"
+no era el recuento correcto; descartar esa cifra. No volver a plantear esta
+duda en sesiones futuras.
 
 **Planteamiento del 2026-07-22 sobre comprimir 4→3 sesiones — superado por los
 hechos:** el autor se planteaba comprimir las entonces 4 sesiones restantes

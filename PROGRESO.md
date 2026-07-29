@@ -1,5 +1,52 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-07-29 (lab, Sesión 8) — Vídeo de demo grabado (3 escenas); bug de localización en `nav2_send_goal.py`; confirmación en vivo del fallo de evasión-vs-persona; nuevo hallazgo de salto tras oclusión
+
+**Objetivo cumplido: vídeo de demostración grabado con las tres escenas
+previstas** — seguimiento con gesto, evasión de obstáculos, y navegación
+autónoma con Nav2 (incluida una preemption resuelta limpia a mitad de
+trayecto). Sesión sin presión de tiempo (Nav2 ya cerrado del todo en la
+Sesión 7).
+
+**RViz no estaba preparado para Nav2** — `Fixed Frame` en `base_footprint`
+bloqueaba el display del mapa (sin pose de AMCL no hay TF `map→
+base_footprint`), y faltaban las herramientas "2D Pose Estimate"/"2D Nav
+Goal". Corregido en `rviz/config.rviz`: `Fixed Frame: map`, vista
+`TopDownOrtho` centrada, herramientas añadidas, QoS del mapa corregido
+(`Transient Local`), y display `ParticleCloud` añadido (pendiente desde la
+Sesión 7). Detalle en `docs/decisiones.md`.
+
+**Bug real: `nav2_send_goal.py` resetea la localización a `(0,0,0)`** —
+`BasicNavigator` publica una pose inicial por defecto sin que el script lo
+pida, pisando la localización ya convergida. Reproducido dos veces
+(objetivos fallidos por "Robot is out of bounds"). Recuperado con un nuevo
+"2D Pose Estimate". Pendiente de arreglo en el script — ver
+`docs/decisiones.md`.
+
+**Investigado (sin reproducir) el único fallo de Nav2 de la Sesión 7**
+(preemption rápida → reset automático) — se repitieron dos preemptions más
+y ambas se resolvieron limpio. Sigue siendo una condición de carrera
+intermitente y no bloqueante.
+
+**Confirmado con datos en vivo: la evasión de obstáculos sigue sin excluir
+a la persona seguida** (hallazgo original del 22/07). Al repetir `parada`
+acercándose demasiado, el robot trató a la propia persona como un
+obstáculo y disparó la maniobra de rodeo contra ella — error angular medio
+41.7°, saturación 32.3% (vs. 5.9°/0.0% del `parada` limpio de la Sesión 5).
+No se cuenta como repetición válida — el protocolo de la prueba fue el
+problema, no el sistema.
+
+**Hallazgo nuevo: salto espurio de posición al recuperar detección tras un
+hueco de oclusión largo** — la posición saltó ~2.3m en 1.15s justo al volver
+de IDLE a TRACKING, coincidiendo con el giro brusco hacia una pared que
+reportó el autor. Hipótesis: el gate de continuidad puede no cubrir bien la
+primera detección tras un hueco largo. Sin arreglar hoy, solo diagnosticado
+— ver `docs/decisiones.md` para el detalle completo y la hipótesis.
+
+**Bags de hoy** (`parada_N1`, `oclusion_N1` — este último sin datos útiles,
+grabado en un tramo de reposo) en `~/tfm_bags/` del NUC, sin copiar al
+portátil todavía.
+
 ## Sesión 2026-07-27 (lab, Sesión 7) — Nav2 fase A resuelta (era un falso bug), fase B completa a la primera, y remapeo del laboratorio
 
 **Objetivo de la sesión cumplido y superado.** El pendiente de la Sesión 6

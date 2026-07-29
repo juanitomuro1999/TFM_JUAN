@@ -5,6 +5,86 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-07-29 — Sesión 8: vídeo de demo grabado; bug real en `nav2_send_goal.py`; confirmación en vivo de que la evasión de obstáculos no excluye a la persona seguida; hallazgo nuevo de salto espurio tras oclusión larga
+
+- **Vídeo de demostración del TFM:** grabadas con éxito las tres escenas
+  planeadas — seguimiento con gesto (arranque derecha / parada izquierda),
+  evasión de obstáculos (`lin_factor` + maniobra de rodeo, sin contacto) y
+  navegación autónoma con Nav2 (dos objetivos, incluida una preemption limpia
+  a mitad de trayecto). Grabación física a cargo del autor; Claude preparó y
+  lanzó cada escenario por SSH.
+- **RViz preparado para Nav2 (no lo estaba):** `rviz/config.rviz` traía
+  `Fixed Frame: base_footprint` (bloqueaba el display del mapa — sin pose de
+  AMCL no hay TF `map→base_footprint`, problema de huevo y gallina) y no
+  tenía las herramientas "2D Pose Estimate"/"2D Nav Goal" en la barra.
+  Corregido: `Fixed Frame: map`, vista cambiada de `Orbit` a `TopDownOrtho`
+  centrada en el origen del mapa, añadidas `SetInitialPose` (`/initialpose`)
+  y `SetGoal` (`/goal_pose`), y el display "SLAM Map" pasado de
+  `Enabled: false` / `Durability: Volatile` a `true` / `Transient Local`
+  (confirmado con `ros2 topic info /map --verbose` que `map_server` publica
+  con `RELIABLE`+`TRANSIENT_LOCAL`). También añadido el display
+  `ParticleCloud` (pendiente desde la Sesión 7), con QoS `Best Effort`/
+  `Volatile` para que coincida con lo que publica `amcl` de verdad.
+- **Bug real encontrado: `scripts/nav2_send_goal.py` resetea la localización
+  a `(0,0,0)` en cada ejecución.** `nav2_simple_commander.BasicNavigator`
+  publica una pose inicial por defecto en `/initialpose` aunque el script
+  nunca llama a `setInitialPose()` explícitamente, pisando una localización
+  de AMCL ya convergida y correcta. Reproducido dos veces (dos objetivos
+  consecutivos fallaron con `TaskResult.FAILED` porque `global_costmap`
+  reportó "Robot is out of bounds" con origen en `(0,0)`). Recuperado dando
+  de nuevo el "2D Pose Estimate" en RViz. **Pendiente de arreglo (no
+  bloqueante):** o bien el script debería llamar a `setInitialPose()` con la
+  pose real antes de `waitUntilNav2Active()`, o evitar el side-effect por
+  defecto de `BasicNavigator`. Mientras tanto, preferir el botón "Nav2 Goal"
+  de RViz (como en la Sesión 7) para no arriesgar la localización.
+- **Investigado el único fallo de Nav2 de la Sesión 7** (preemption rápida →
+  `Goal failed` + reset automático de los 4 nodos de navegación). Se
+  reprodujeron dos preemptions más (una vía `nav2_send_goal.py` en paralelo
+  con ~1.5s de margen, otra vía el botón de RViz) y **ambas se resolvieron
+  limpio** (`Failed to make progress` → `Aborting handle` → nuevo plan →
+  `Goal succeeded`, sin el reset completo). Sigue sin ser reproducible a
+  voluntad — se confirma como condición de carrera intermitente y rara, no
+  bloqueante, autorrecuperable en la inmensa mayoría de los casos (van ya
+  2/2 limpias hoy más las de la Sesión 7).
+- **Confirmado en vivo (con datos, no solo sospecha) que
+  `_obstacle_avoidance` sigue sin excluir a la persona seguida del `/scan`**
+  (hallazgo original del 2026-07-22). Al repetir `parada` acercándose mucho
+  al robot, `r_min` bajó a 0.16-0.22m (por debajo de
+  `obstacle_stop_distance=0.25m`), disparando parada dura y la maniobra de
+  rodeo *contra la propia persona seguida*, no contra un obstáculo real.
+  Métricas de esa toma (`parada_N1`, bag en `~/tfm_bags/` del NUC, 49.0s):
+  error angular medio 41.7°, saturación angular 32.3% — mucho peor que el
+  `parada` limpio de la Sesión 5 (5.9°/0.0%), porque el escenario en sí se
+  ejecutó mal (acercarse hasta casi tocar en vez de pararse sobre el metro
+  de `target_distance`). **No se cuenta como repetición N=2 válida para la
+  tabla de §7.4bis** — el propio protocolo de la prueba fue el problema, no
+  el sistema. Recomendación para repetirlo bien: acercarse y pararse sobre
+  ~1-1.5m, sin cruzar los ~0.5m donde entra la evasión de obstáculos.
+- **Hallazgo nuevo: salto espurio de posición justo al recuperar la
+  detección tras un hueco de oclusión largo.** Durante un intento de
+  `oclusion` (sin bag grabado, solo log en vivo), la posición publicada
+  saltó de un punto estable (`x_laser=-2.07, y_laser=-0.95`, coherente con
+  `theta_tgt_deg≈-163°` mantenido varios segundos) a un punto casi encima
+  del robot (`x_laser=0.11, y_laser=-0.08`, ~0.14m) en 1.15s, justo al volver
+  de `>> IDLE` a `>> TRACKING`. El autor confirma que el robot giró bruscamente
+  hacia una pared en vez de seguir una trayectoria de rodeo normal del
+  obstáculo que le ocluía — coherente con este salto. **Hipótesis (no
+  confirmada):** el gate de continuidad (`continuity_confirm_frames`/
+  `_filter_by_drift`) compara contra la última posición confirmada, pero tras
+  un hueco tan largo esa referencia puede haber quedado obsoleta o
+  reseteada, dejando pasar sin confirmación un candidato espurio en la
+  primera detección tras el hueco. **Pendiente para una sesión futura:**
+  decidir si el gate de continuidad debe exigir confirmación reforzada
+  específicamente en la primera detección tras `obs_age`/hueco largo (no
+  solo en el fallback de fusión/pierna única como ya hace). No se tocó
+  código hoy — solo diagnóstico, sin tiempo de robot para verificar un fix.
+- **Nota operativa:** grabar con `validation/record_run.sh` en paralelo NO
+  causa el comportamiento errático — se reprodujo el mismo patrón de
+  evasión-contra-la-persona sin ningún bag corriendo. El autor prefirió
+  parar de usar el script de todas formas para simplificar la sesión en
+  vivo; los dos bags de hoy (`parada_N1`, `oclusion_N1`) están en
+  `~/tfm_bags/` del NUC sin copiar aún al portátil.
+
 ## 2026-07-27 — Nav2 fase A: causa raíz real del "AMCL no converge" (Sesión 6) — latencia de descubrimiento DDS, no un bug de AMCL
 
 - **Contexto:** objetivo de la Sesión 7 (ver `docs/sesion_siguiente.md`) —

@@ -171,6 +171,18 @@ el hallazgo de seguridad del 2026-07-21). Bags en
 - Con estas 10 tomas, `recta`/`curva`/`corto` ya tienen 2-3 repeticiones (el
   objetivo de esta sesión); `parada` y `oclusion` se quedan en N=1 —
   repetirlas en una sesión futura si hay tiempo (no bloquea el Capítulo 7).
+- **Intento de repetición el 2026-07-29 (Sesión 8), no válido como N=2:** al
+  repetir `parada` acercándose demasiado al robot, `_obstacle_avoidance`
+  trató a la propia persona seguida como un obstáculo sólido y disparó la
+  maniobra de rodeo contra ella (error angular medio 41.7°, saturación
+  32.3% — muy por encima del 5.9°/0.0% de la fila de arriba). No se añade
+  como fila nueva porque el protocolo de la prueba, no el sistema, fue la
+  causa. El intento de `oclusion` no generó datos de bag utilizables, pero
+  sí reveló un salto de posición espurio (~2.3m en 1.15s) justo al
+  recuperar la detección tras el hueco de oclusión, coincidente con un giro
+  brusco hacia una pared observado en vivo. Ver `docs/decisiones.md`
+  (2026-07-29) para el detalle completo de ambos hallazgos, pendientes de
+  arreglo y repetición limpia en la Sesión 9.
 
 ## 7.4ter Resultado 4 — Escenario `obstaculo`: de 4 contactos reales a evasión + rodeo sin contacto (2026-07-22)
 

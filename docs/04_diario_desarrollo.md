@@ -880,6 +880,54 @@ Con esto, el objetivo específico 3 del TFM (navegación autónoma con Nav2)
 queda completado. Detalle técnico completo de los tres hallazgos en
 `docs/decisiones.md` (2026-07-27).
 
+### 29 de julio — Sesión 8: vídeo de demostración grabado, y dos hallazgos reales sobre los límites de la evasión de obstáculos y la recuperación tras oclusión
+
+Con Nav2 ya cerrado del todo en la Sesión 7, esta sesión pudo dedicarse sin
+presión de tiempo a su objetivo original: grabar el vídeo de demostración
+del TFM. Se grabaron con éxito las tres escenas previstas — seguimiento con
+gesto de mano, evasión de un obstáculo real con la maniobra de rodeo, y
+navegación autónoma con Nav2 sobre el mapa del laboratorio, incluida una
+preemption de objetivo resuelta sin incidentes a mitad de trayecto.
+
+Preparar la escena de Nav2 exigió dejar RViz realmente operativo para este
+uso por primera vez: la configuración guardada tenía el frame fijo puesto
+en el propio robot en vez de en el mapa, lo que impedía mostrar el mapa
+hasta tener ya una pose de AMCL — un problema de huevo y gallina que no se
+había notado porque nunca se había usado RViz para dar una pose inicial en
+sesiones anteriores. Corregido, junto con la falta de las herramientas de
+pose inicial y objetivo de navegación en la barra de RViz, que tampoco
+estaban.
+
+Aprovechando que Nav2 ya no era la prioridad, se dedicó un rato a investigar
+el único fallo de navegación de la Sesión 7 (una preemption rápida que
+había forzado un reinicio automático de los nodos de navegación). No se
+consiguió reproducir — dos intentos más de preemption esta vez se
+resolvieron sin problema —, lo que refuerza la idea de que fue una
+condición de carrera puntual y no un problema sistemático. En el camino se
+encontró un bug real, aunque no relacionado: el script auxiliar que manda
+objetivos de navegación por línea de comandos resetea sin querer la
+localización del robot al origen del mapa cada vez que se ejecuta, un
+efecto secundario de la librería que usa por debajo. Queda pendiente de
+arreglo, documentado para no repetir el susto.
+
+La parte más reveladora de la sesión llegó al intentar repetir en vivo dos
+de los escenarios de validación pendientes, `parada` y `oclusión`. En
+`parada`, acercarse demasiado al robot para forzar la parada hizo que el
+sistema de evasión de obstáculos tratara a la propia persona seguida como
+un obstáculo sólido: giros al máximo y frenados en seco que se sintieron
+como "comportamiento errático" en el momento, pero que la telemetría
+grabada permite explicar con precisión. Es la confirmación en vivo, con
+datos, de un hallazgo que ya se
+sospechaba desde julio — la evasión de obstáculos no distingue entre un
+mueble y la persona que el robot está siguiendo. En `oclusión`, el hallazgo
+fue distinto pero igual de concreto: justo al recuperar de nuevo a la
+persona tras un hueco largo detrás de un obstáculo, la posición estimada
+saltó de golpe casi encima del propio robot, lo que coincide exactamente
+con el giro brusco hacia una pared que el autor describió al ver al robot
+"rallarse" en directo. Ninguno de los dos hallazgos se ha corregido
+todavía — quedan documentados como limitaciones concretas, con los números
+y el mecanismo sospechado, para decidir si abordarlos en la sesión final.
+
 ---
 
 ## Agosto 2026 (planificado)
