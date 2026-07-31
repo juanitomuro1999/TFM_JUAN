@@ -337,8 +337,8 @@ bruscos cuando la persona se aleja poco del umbral de seguimiento.
 
 ### Evasión de obstáculos reactiva (no DWA)
 
-Pese a que el diagrama del Capítulo 2 y el README heredan la etiqueta
-"Kalman + DWA" del diseño original, `tracking_node.py` **no implementa un
+Aunque el diagrama del Capítulo 2 y el README etiquetaban originalmente
+este bloque como "Kalman + DWA", `tracking_node.py` **no implementa un
 Dynamic Window Approach real** (simulación de trayectorias en el espacio
 de velocidades admisibles, §5.8) — la implementación real de DWA vive en
 un fichero separado, no registrado (`DWA.py`, §6.11). `_obstacle_avoidance()`
@@ -355,9 +355,9 @@ sobre las restricciones cinemáticas del robot ni sobre el futuro a varios
 pasos — suficiente para el caso de uso actual (evasión reactiva mientras
 se sigue a una persona a baja velocidad, `max_speed=0.18` m/s), pero es
 una simplificación real frente al DWA que sí se usará en Nav2 (Fase 3,
-§5.8-5.9), y frente a la etiqueta que todavía lleva en los diagramas de
-arquitectura — una inconsistencia de documentación pendiente de corregir
-en el Capítulo 2.
+§5.8-5.9). La etiqueta "Kalman + DWA" del diagrama de arquitectura y del
+README ya se ha corregido a "Kalman + evasión reactiva" para eliminar
+esta inconsistencia de documentación.
 
 ## 6.6 `control_node` — máquina de estados finitos y teleoperación
 

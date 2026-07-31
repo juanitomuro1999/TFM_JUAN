@@ -81,7 +81,8 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
          ┌──────────────┐      ┌─────────────────┐
          │ tracking_node│      │collision_handling│
          │ (Kalman +    │      │_node (/scan)     │
-         │  DWA + avoid)│      └─────────────────┘
+         │  evasión     │      └─────────────────┘
+         │  reactiva)   │
          └──────┬───────┘
                 │/tracking/velocity_cmd
                 ▼

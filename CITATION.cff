@@ -4,7 +4,8 @@ message: "If you use this repository, please cite it using the metadata below."
 type: software
 authors:
   - name: "omixxxer"
-repository-code: "https://github.com/omixxxer/TFM"
+  - name: "Juan Muñoz Rovira"
+repository-code: "https://github.com/juanitomuro1999/TFM_JUAN"
 license: "Apache-2.0"
 version: "0.0.1"
 date-released: "2026-05-06"

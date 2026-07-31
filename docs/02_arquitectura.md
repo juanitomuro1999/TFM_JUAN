@@ -26,7 +26,7 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
                                                               enable_tracking (svc)
                                                                           │
                /scan──────────────────────────────────────────►[tracking_node]
-                                                                    (Kalman + DWA)
+                                                             (Kalman + evasión reactiva)
                                                                           │
                                                                /tracking/velocity_cmd
                                                                           │
