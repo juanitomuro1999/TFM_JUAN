@@ -193,6 +193,10 @@ class TrackingNode(Node):
         self.declare_parameter('startup_max_wz',             0.5)
         self.declare_parameter('observation_timeout',        2.0)
         self.declare_parameter('extrapolation_limit_s',      0.6)
+        # Giro de búsqueda tras perder a la persona (2026-09-23). 0 = desactivado.
+        self.declare_parameter('lost_search_s',              0.0)
+        self.declare_parameter('lost_search_wz',             0.5)
+        self.declare_parameter('lost_search_min_angle_deg', 10.0)
 
         self.enabled = self.get_parameter('enabled').value
         if not self.enabled:
@@ -224,6 +228,9 @@ class TrackingNode(Node):
         self.startup_max_wz   = self.get_parameter('startup_max_wz').value
         self.timeout_s        = self.get_parameter('observation_timeout').value
         self.extrap_limit_s   = self.get_parameter('extrapolation_limit_s').value
+        self.lost_search_s    = self.get_parameter('lost_search_s').value
+        self.lost_search_wz   = self.get_parameter('lost_search_wz').value
+        self.lost_search_min_angle = math.radians(self.get_parameter('lost_search_min_angle_deg').value)
 
         # ── Kalman 6 estados ──────────────────────────────────────────────
         self.kf = KalmanTracker(q=kq, r=kr)
@@ -292,6 +299,9 @@ class TrackingNode(Node):
             return
 
         elapsed = time.monotonic() - self.last_obs_t
+
+        if elapsed > self.extrap_limit_s and self._lost_search(elapsed):
+            return
 
         if elapsed > self.timeout_s:
             self.get_logger().warn(f"Timeout observación ({elapsed:.1f}s) → parar")
@@ -457,6 +467,45 @@ class TrackingNode(Node):
         self.vel_pub.publish(cmd)
 
         self._publish_telemetry(distance, angle_to, vx, wz, lin_factor, elapsed)
+
+    # ─── Giro de búsqueda tras perder a la persona ───────────────────────────
+
+    def _lost_search(self, elapsed):
+        """
+        Añadido 2026-09-23 (lab, gesto casa): al girar, la persona sale del
+        campo de visión por un lado (hueco de detección LIDAR+cámara de
+        ~2-4 s, ver docs/decisiones.md 2026-07-15) y, pasado
+        extrapolation_limit_s, el robot se quedaba quieto mirando al frente
+        — sin volver a verla nunca ("se pierde y no sabe"). Ahora, durante
+        lost_search_s tras extrapolation_limit_s, gira sin avanzar hacia el
+        lado de la última observación, para devolverla al sector frontal
+        donde detection_node puede re-engancharla (reacquire_sector_deg).
+        No se aplica si la última observación estaba casi de frente
+        (< lost_search_min_angle_deg): girar a ciegas no ayuda ahí.
+        Mismo signo que el PD angular (ang_err = angle_to, verificado con
+        /odom el 2026-07-15: wz > 0 = izquierda = ángulo > 0).
+
+        Devuelve True si ha publicado el comando de búsqueda.
+        """
+        if self.lost_search_s <= 0 or elapsed > self.extrap_limit_s + self.lost_search_s:
+            return False
+        last_angle = math.atan2(self.person_pos.y, self.person_pos.x)
+        if abs(last_angle) < self.lost_search_min_angle:
+            return False
+        wz = math.copysign(self.lost_search_wz, last_angle)
+        wz = self.prev_wz + max(-self.ang_acc_limit, min(self.ang_acc_limit, wz - self.prev_wz))
+        self.prev_wz = wz
+        self.prev_vx = 0.0
+        self._stuck_since = None
+        self._detour_phase = None
+        cmd = Twist()
+        cmd.angular.z = float(wz)
+        self.vel_pub.publish(cmd)
+        self.get_logger().info(
+            f"Persona perdida ({elapsed:.1f}s): girando hacia la última observación "
+            f"({math.degrees(last_angle):+.0f}°) wz={wz:+.2f}",
+            throttle_duration_sec=0.5)
+        return True
 
     # ─── Evasión de obstáculos ────────────────────────────────────────────────
 

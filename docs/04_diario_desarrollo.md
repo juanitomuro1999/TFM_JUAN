@@ -942,11 +942,62 @@ y el mecanismo sospechado, para decidir si abordarlos en la sesión final.
 
 ---
 
-## Septiembre 2026 (planificado)
+## Septiembre 2026
+
+### 23 de septiembre — Sesión final de laboratorio: el gesto "casa" une el seguimiento y la navegación autónoma
+
+La última sesión de laboratorio antes de la defensa tenía un objetivo
+nuevo y concreto: que el usuario pudiera pedirle al robot, con un gesto,
+que dejara de seguirle y volviera solo a un punto de partida. Era el primer
+paso del objetivo de guiado (objetivo específico 5) y la pieza que faltaba
+para que las dos mitades del sistema, el seguimiento reactivo y la
+navegación con Nav2, trabajaran juntas en lugar de por separado.
+
+El gesto elegido fue un "tejado": las dos muñecas juntas por encima de la
+cabeza. Además de evocar la idea de casa, tiene una propiedad práctica
+importante. Es simétrico, así que se reconoce igual de frente que de
+espaldas a la cámara, y en el seguimiento normal la persona camina
+precisamente de espaldas al robot. La integración planteaba un problema de
+fondo: el seguimiento y Nav2 publicaban sus órdenes en el mismo topic de
+velocidad y se habrían pisado. Se resolvió haciendo que Nav2 publicara en
+un topic propio y que la máquina de estados de `control_node`, con un
+estado nuevo HOMING, decidiera en cada momento qué fuente llega a las
+ruedas. Antes de ir al laboratorio, toda la lógica se verificó sin robot:
+los gestos con poses sintéticas y la máquina de estados real contra un Nav2
+simulado dentro de un contenedor con ROS 2.
+
+En el robot, el gesto funcionó a la primera. De doce vueltas a casa
+pedidas, nueve terminaron con éxito en unos quince segundos, a unos 27 cm
+de la pose objetivo. Una se canceló a propósito con la mano izquierda, y el
+robot se detuvo en veinte milisegundos. Las dos que fallaron lo hicieron
+por el mismo motivo, bien identificado. La localización del robot sobre el
+mapa tenía una incertidumbre de medio metro y el seguimiento lo había
+llevado pegado a un mueble o a una pared, así que Nav2 creía que el robot
+estaba dentro del obstáculo y no encontraba ruta. En ambos casos el sistema
+volvió a reposo de forma ordenada, como estaba previsto.
+
+Lo más valioso de la sesión, sin embargo, surgió de probar el sistema
+completo con el usuario caminando de verdad. Aparecieron tres problemas del
+seguimiento que llevaban tiempo latentes. El primero, un robot que "se
+rallaba", se debía a que el detector aceptaba como persona reflejos pegados
+al propio chasis. El segundo era el salto a objetivos espurios tras perder
+a la persona, pendiente desde la sesión anterior. Tenía tres vías de
+entrada distintas y un pequeño error que impedía volver a enganchar a la
+persona incluso cuando reaparecía delante; se corrigió exigiendo que
+cualquier reenganche ocurra por delante del robot y se confirme durante
+varias lecturas. El tercero era que, al perder a la persona en un giro, el
+robot se quedaba quieto mirando al frente; ahora gira brevemente hacia el
+último lado donde la vio. Los tres se diagnosticaron con los datos
+grabados, se verificaron primero con el código real en simulación y se
+comprobaron de nuevo en el robot en la misma sesión. En palabras del
+propio autor, el seguimiento pasó a ir "mucho más fluido".
 
 ### Fase 5 — Cierre
 
 **Objetivos:**
+- [x] Última sesión de laboratorio (23/09): gesto "casa" validado en el robot
+  real, vídeo de las pruebas grabado por el autor.
 - [ ] Revisión final del documento de TFM.
-- [ ] Preparación de la presentación y defensa.
+- [ ] Preparación de la presentación y defensa (figuras en
+  `docs/figuras/gesto_casa/`).
 - [ ] Repositorio con tag `v1.0.0`.

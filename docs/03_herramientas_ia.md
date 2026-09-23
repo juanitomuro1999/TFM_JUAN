@@ -30,6 +30,30 @@ La declaración de uso de herramientas de IA es coherente con las directrices ac
 - No realizó pruebas experimentales ni interpretó resultados.
 - No redactó el análisis del estado del arte ni las conclusiones del TFM.
 
+**Nota añadida el 2026-09-23 (sesión final, pendiente de revisión por el
+autor):** el uso del asistente (Claude Code) en las sesiones de laboratorio
+fue más allá de lo descrito arriba, y esta sección y la tabla de §3.4 deben
+revisarse para reflejarlo. En la sesión final, a partir de la idea y los
+requisitos del autor (nueva funcionalidad "casa" mediante un gesto, pose
+fija, validación en el robot), el asistente:
+- propuso el diseño (gesto "tejado", estado HOMING, arbitraje de velocidad
+  en `control_node`) y lo implementó, con las opciones de diseño
+  confirmadas por el autor;
+- escribió las verificaciones sin robot (gestos, máquina de estados con
+  Nav2 simulado, reenganche y giro de búsqueda en Docker);
+- operó el robot por SSH (arranque, sincronización, bags) mientras el autor
+  ejecutaba las pruebas físicas, daba la pose inicial en RViz y grababa los
+  vídeos;
+- diagnosticó con los bags y logs los tres problemas de seguimiento
+  observados por el autor, e implementó y verificó sus correcciones;
+- generó el análisis, las figuras y la documentación de esa sesión
+  (`docs/decisiones.md`, `PROGRESO.md`, §7.4quinquies y §7.5 de
+  `docs/07_resultados.md`, entrada del 23/09 en `docs/04_diario_desarrollo.md`).
+
+Las pruebas físicas, la observación del comportamiento del robot, la
+validación de cada decisión y la responsabilidad del resultado
+corresponden al autor.
+
 ---
 
 ### 3.2.2 Herramientas de autocompletado de código

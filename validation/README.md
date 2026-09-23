@@ -95,3 +95,25 @@ evo_traj tum <carpeta_bag>/analysis/odom.tum -p --plot_mode xy
 - [ ] `scp` de los bags al portátil al acabar (el NUC tiene espacio limitado).
 - [ ] `bag_to_csv.py` + `plot_run.py` por cada toma.
 - [ ] Guardar `figs/` y `metrics.txt` para el Capítulo 7.
+
+## Gesto "casa" y fixes de seguimiento (sesión final, 2026-09-23)
+
+Verificaciones reproducibles sin robot. Las de ROS se ejecutan en Docker con
+ROS 2 Jazzy si el portátil no tiene ROS:
+
+| Script | Qué verifica | Cómo |
+|---|---|---|
+| `verify_home_gesture.py` | Clasificación y exclusión mutua de los 3 gestos (sin ROS) | `python3 validation/verify_home_gesture.py` |
+| `verify_homing_fsm.py` | `control_node` real + Nav2 simulado (estado HOMING) | `bash validation/run_homing_fsm_docker.sh` |
+| `verify_reacquire_sector.py` | `detection_node` real: reenganche solo por delante | `bash validation/run_reacquire_docker.sh` |
+| `verify_lost_search.py` | `tracking_node` real: giro de búsqueda | `bash validation/run_lost_search_docker.sh` |
+
+Análisis de los bags de la sesión (`~/tfm_bags/20260923_*`):
+
+```bash
+# 1. Extraer a CSV (necesita ROS; en Docker si no hay ROS local)
+docker run --rm -v $PWD:/repo:ro -v ~/tfm_bags:/bags -w /repo ros:jazzy-ros-base \
+  bash -c "source /opt/ros/jazzy/setup.bash && python3 validation/extract_casa_bags.py /bags /bags/csv_20260923"
+# 2. Figuras y métricas (sin ROS)
+python3 validation/plot_casa_session.py ~/tfm_bags/csv_20260923 docs/figuras/gesto_casa
+```

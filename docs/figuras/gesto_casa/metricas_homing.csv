@@ -1,0 +1,10 @@
+n,bag,desde,duracion_s,inicio_x,inicio_y,resultado,error_llegada_m,error_yaw_deg
+1,20260923_172747_casa_C1,IDLE,17.2,8.54,-6.21,éxito,0.33,6.5
+2,20260923_173107_casa_C2,IDLE,17.4,6.40,-7.31,éxito,0.21,14.6
+3,20260923_173653_casa_C2_mindist,TRACKING,15.9,7.02,-6.01,éxito,0.25,4.5
+4,20260923_174126_casa_C2c_C3,TRACKING,2.0,7.42,-5.54,cancelado,3.26,109.2
+5,20260923_174126_casa_C2c_C3,IDLE,16.4,7.49,-5.54,éxito,0.29,5.0
+6,20260923_174347_casa_C4_C5,TRACKING,39.0,7.44,-5.53,fallo,2.50,96.0
+7,20260923_174938_casa_C4b_C5,TRACKING,20.5,8.03,-5.66,éxito,0.28,9.7
+8,20260923_182001_giros_busqueda,IDLE,11.9,7.03,-6.04,éxito,0.29,3.9
+9,20260923_182001_giros_busqueda,IDLE,18.1,5.26,-7.67,éxito,0.21,12.5

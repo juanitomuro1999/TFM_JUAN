@@ -86,6 +86,14 @@ class DetectionNode(Node):
         self.declare_parameter('position_jump_margin', 0.3)    # m — margen extra sobre max_person_speed*dt
         self.declare_parameter('continuity_confirm_frames', 1)  # scans seguidos de salto implausible antes de aceptarlo (1 = sin espera, comportamiento anterior)
         self.declare_parameter('continuity_window_s', 1.0)      # ventana (s) para limitar la deriva acumulada, no solo el salto frame a frame
+        # Sector frontal (± grados) donde se permite (re)enganchar a la persona
+        # cuando no hay ancla (arranque o tras pérdida larga). 180 = sin
+        # restricción (comportamiento anterior). Ver _gate_by_continuity.
+        self.declare_parameter('reacquire_sector_deg', 180.0)
+        # Tras más de este tiempo (s) sin publicar posición, la siguiente
+        # detección se trata como reenganche aunque quede un ancla antigua.
+        # <= 0 desactiva (comportamiento anterior).
+        self.declare_parameter('reacquire_after_s', 0.0)
 
         # Carga de parámetros
         self.enabled = self.get_parameter('enabled').value
@@ -111,6 +119,8 @@ class DetectionNode(Node):
         self.position_jump_margin = self.get_parameter('position_jump_margin').value
         self.continuity_confirm_frames = int(self.get_parameter('continuity_confirm_frames').value)
         self.continuity_window_s = float(self.get_parameter('continuity_window_s').value)
+        self.reacquire_sector = math.radians(float(self.get_parameter('reacquire_sector_deg').value))
+        self.reacquire_after_s = float(self.get_parameter('reacquire_after_s').value)
 
         if not self.enabled:
             self.get_logger().info("Nodo de Detección desactivado.")
@@ -203,6 +213,11 @@ class DetectionNode(Node):
             self._detect_streak  = 0
             if self._loss_streak >= self._loss_frames:
                 self._confirmed = False
+            # Reset del anclaje UNA vez, al perder a la persona — no en cada
+            # scan sin detección: si no, la confirmación del reenganche
+            # (`_reacquire`, 3 scans seguidos) se reiniciaba en cada scan y la
+            # persona nunca volvía a engancharse (2026-09-23).
+            if self._loss_streak == self._loss_frames:
                 self._last_confirmed_pos = None  # pérdida larga: ya no ancla el gating de continuidad
                 self._continuity_reject_streak = 0  # streak obsoleto tras perder el anclaje
                 self._pending_reanchor = None
@@ -385,6 +400,55 @@ class DetectionNode(Node):
             return candidate
         return None
 
+    def _in_reacquire_sector(self, p):
+        # Frame bruto del láser: delante del robot ≈ π (TF base→laser con yaw=π).
+        theta = math.atan2(p[1], p[0])
+        dev = abs(math.atan2(math.sin(theta - math.pi), math.cos(theta - math.pi)))
+        return dev <= self.reacquire_sector
+
+    def _needs_reacquire(self, now):
+        if self._last_confirmed_pos is None or self._last_position_time is None:
+            return True
+        gap = (now - self._last_position_time).nanoseconds * 1e-9
+        return self.reacquire_after_s > 0 and gap > self.reacquire_after_s
+
+    def _reacquire(self, positions):
+        """
+        (Re)enganche sin ancla (2026-09-23, lab — hallazgo nº 2 de la Sesión
+        8): antes, tras una pérdida larga (`_last_confirmed_pos = None`) se
+        aceptaba cualquier par de piernas en cualquier dirección y al primer
+        scan, quedándose con el más cercano al robot — con patas de
+        mobiliario detrás/al lado, el robot se enganchaba a ellas y giraba
+        sobre sí mismo (visto 3 veces en vivo el 2026-09-23). Ahora sin ancla
+        solo se aceptan candidatos en el sector frontal
+        (`reacquire_sector_deg`, donde también ve la cámara y donde tiene que
+        estar el usuario para el gesto) y repetidos en el mismo sitio
+        `continuity_confirm_frames` scans seguidos.
+
+        Lo mismo tras un hueco de más de `reacquire_after_s` aunque quede un
+        ancla: el radio "plausible" (`max_person_speed·Δt + margen`) supera
+        los 2 m tras ~0.9 s sin ver a la persona, y el primer candidato que
+        cayera dentro se aceptaba sin confirmar — era la vía real del salto
+        (verificado con validation/verify_reacquire_sector.py).
+        """
+        front = [p for p in positions if self._in_reacquire_sector(p)]
+        if not front:
+            self._continuity_reject_streak = 0
+            self._pending_reanchor = None
+            return []
+        nearest = min(front, key=lambda p: np.linalg.norm(p))
+        if self._pending_reanchor is not None and \
+                np.linalg.norm(nearest - self._pending_reanchor) <= self.position_jump_margin:
+            self._continuity_reject_streak += 1
+        else:
+            self._continuity_reject_streak = 1
+        self._pending_reanchor = nearest
+        if self._continuity_reject_streak >= self.continuity_confirm_frames:
+            self._continuity_reject_streak = 0
+            self._pending_reanchor = None
+            return [nearest]
+        return []
+
     def _gate_by_continuity(self, positions, now):
         """
         Filtra `positions` (lista de np.array [x,y]) descartando las que
@@ -424,8 +488,8 @@ class DetectionNode(Node):
         if not positions:
             return []
 
-        if self._last_confirmed_pos is None or self._last_position_time is None:
-            return positions
+        if self._needs_reacquire(now):
+            return self._reacquire(positions)
 
         elapsed = (now - self._last_position_time).nanoseconds * 1e-9
         max_jump = self.max_person_speed * max(elapsed, 0.0) + self.position_jump_margin
@@ -438,19 +502,14 @@ class DetectionNode(Node):
         if not positions:
             return []
 
-        nearest = min(positions, key=lambda p: np.linalg.norm(p - last))
-        if self._pending_reanchor is not None and \
-                np.linalg.norm(nearest - self._pending_reanchor) <= self.position_jump_margin:
-            self._continuity_reject_streak += 1
-        else:
-            self._continuity_reject_streak = 1
-        self._pending_reanchor = nearest
-
-        if self._continuity_reject_streak >= self.continuity_confirm_frames:
-            self._continuity_reject_streak = 0
-            self._pending_reanchor = None
-            return positions
-        return []
+        # Ningún candidato es continuación plausible: reanclaje. Antes se
+        # aceptaba el candidato más cercano al ancla en cuanto se repetía
+        # `continuity_confirm_frames` scans en el mismo sitio, en cualquier
+        # dirección — y un mueble quieto siempre "se repite en el mismo
+        # sitio" (el robot se enganchaba a él en 0.3 s si la persona
+        # desaparecía). Ahora pasa por `_reacquire`: misma confirmación, pero
+        # solo en el sector frontal (2026-09-23).
+        return self._reacquire(positions)
 
     def _publish_person_position(self, xy, now, log_msg, log_data):
         # Convenio de salida de /person_position: "delante del robot" = +x
@@ -552,6 +611,8 @@ class DetectionNode(Node):
             single_positions = [p for p in single_positions
                                  if np.linalg.norm(p) <= self.max_detection_distance]
             single_positions = self._filter_by_drift(single_positions, now)
+            if self._needs_reacquire(now):
+                single_positions = [p for p in single_positions if self._in_reacquire_sector(p)]
             if single_positions:
                 last = np.array(self._last_confirmed_pos) if self._last_confirmed_pos is not None else None
                 key = (lambda p: np.linalg.norm(p - last)) if last is not None else (lambda p: np.linalg.norm(p))

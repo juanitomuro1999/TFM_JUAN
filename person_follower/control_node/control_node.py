@@ -7,14 +7,25 @@ import select
 import termios
 import tty
 import threading
+import math
 import time
 
 
 import rclpy
+from rclpy.action import ActionClient
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
 from std_srvs.srv import SetBool
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseStamped, Twist
+from action_msgs.msg import GoalStatus
+
+# nav2_msgs solo hace falta para el estado HOMING (gesto "casa"). Si no está
+# instalado (p. ej. simulación sin Nav2), el resto de la FSM funciona igual.
+try:
+    from nav2_msgs.action import NavigateToPose
+    _NAV2_OK = True
+except ImportError:
+    _NAV2_OK = False
 
 class ControlNode(Node):
     def __init__(self):
@@ -33,7 +44,9 @@ class ControlNode(Node):
             return
 
         # ───────────── Estados de la FSM ─────────────
-        self.states = ['INIT', 'IDLE', 'TRACKING', 'MANUAL', 'SHUTDOWN']
+        # HOMING (2026-09): volver a la pose "casa" con Nav2 tras el gesto
+        # go_home (tejado). Ver docs/decisiones.md.
+        self.states = ['INIT', 'IDLE', 'TRACKING', 'MANUAL', 'HOMING', 'SHUTDOWN']
         self.current_state = 'INIT'
 
         # ───────────── Variables de estado ─────────────
@@ -47,6 +60,22 @@ class ControlNode(Node):
         self.shutdown_requested     = False
         self._lost_person_time      = None
 
+        # ───────────── Gesto "casa" (HOMING con Nav2) ─────────────
+        self.declare_parameter('home_enabled', True)
+        self.declare_parameter('home_x', 0.0)          # m, frame home_frame
+        self.declare_parameter('home_y', 0.0)          # m, frame home_frame
+        self.declare_parameter('home_yaw_deg', 0.0)    # orientación final
+        self.declare_parameter('home_frame', 'map')
+        self.declare_parameter('nav_action_name', 'navigate_to_pose')
+        # Nav2 publica aquí (remapeado en bringup_home.launch.py), y este nodo
+        # lo reenvía a /commands/velocity SOLO en HOMING — mismo patrón que
+        # /tracking/velocity_cmd en TRACKING, para que Nav2 y el seguimiento
+        # nunca se pisen.
+        self.declare_parameter('nav_cmd_vel_topic', '/nav2/cmd_vel')
+        self.home_enabled = self.get_parameter('home_enabled').value and _NAV2_OK
+        self._nav_goal_handle = None
+        self._nav_goal_seq    = 0
+
         # ───────────── Terminal settings ─────────────
         self.tty_fd = None
         self._original_tty_attrs = None
@@ -56,6 +85,8 @@ class ControlNode(Node):
         self.create_subscription(Bool,   '/shutdown_confirmation', self.shutdown_confirmation_callback, 10)
         self.create_subscription(Twist,  '/tracking/velocity_cmd', self.velocity_callback,              10)
         self.create_subscription(String, '/gesture_command',       self.gesture_command_callback,       10)
+        self.create_subscription(Twist,  self.get_parameter('nav_cmd_vel_topic').value,
+                                 self.nav_velocity_callback, 10)
 
         # ───────────── Publicadores ─────────────
         self.shutdown_publisher         = self.create_publisher(Bool,  '/system_shutdown', 10)
@@ -67,6 +98,21 @@ class ControlNode(Node):
         # ───────────── Cliente del servicio de tracking ─────────────
         self.tracking_client = self.create_client(SetBool, 'enable_tracking')
         self.wait_for_service(self.tracking_client, 'enable_tracking')
+
+        # ───────────── Cliente de la acción de Nav2 (HOMING) ─────────────
+        # No se espera al servidor aquí: el seguimiento no depende de Nav2.
+        # Se comprueba al recibir el gesto go_home.
+        self.nav_client = None
+        if self.home_enabled:
+            self.nav_client = ActionClient(
+                self, NavigateToPose, self.get_parameter('nav_action_name').value)
+            self.get_logger().info(
+                f"Gesto 'casa' activo → home=({self.get_parameter('home_x').value:.2f}, "
+                f"{self.get_parameter('home_y').value:.2f}, "
+                f"{self.get_parameter('home_yaw_deg').value:.0f}°) "
+                f"en '{self.get_parameter('home_frame').value}'")
+        elif not _NAV2_OK:
+            self.get_logger().warn("nav2_msgs no disponible → gesto 'casa' desactivado.")
 
         self.get_logger().info("Nodo de Control iniciado.")
 
@@ -87,7 +133,10 @@ class ControlNode(Node):
 
     # Publicar velocidad recibida desde el nodo de seguimiento (si procede)
     def velocity_callback(self, msg):
-        if self.current_state == 'MANUAL':
+        # En HOMING manda Nav2: tracking_node (desactivado) sigue publicando
+        # Twist() a cero en cada scan, y reenviar un stop aquí anularía los
+        # comandos de Nav2 a 10 Hz.
+        if self.current_state in ('MANUAL', 'HOMING'):
             return
         if self.current_state == 'TRACKING':
             self.cmd_vel_publisher.publish(msg)
@@ -106,8 +155,19 @@ class ControlNode(Node):
                 self.transition_to('TRACKING')
         elif gesture == "stop_tracking":
             self.user_authorized = False
-            if self.current_state == 'TRACKING':
+            if self.current_state in ('TRACKING', 'HOMING'):
+                # En HOMING, la mano izquierda cancela la vuelta a casa.
                 self.transition_to('IDLE')
+        elif gesture == "go_home":
+            if not self.home_enabled:
+                self.get_logger().warn("Gesto 'casa' recibido pero HOMING desactivado.")
+            elif self.current_state in ('IDLE', 'TRACKING'):
+                self.transition_to('HOMING')
+
+    # Reenviar la velocidad de Nav2 solo mientras se vuelve a casa
+    def nav_velocity_callback(self, msg):
+        if self.current_state == 'HOMING':
+            self.cmd_vel_publisher.publish(msg)
 
     # Iniciar hilo para escuchar teclado en modo MANUAL
     def start_keyboard_listener(self):
@@ -207,14 +267,17 @@ class ControlNode(Node):
             return
 
         self.get_logger().info(f"Transición {self.current_state} → {new_state}")
+        leaving_homing = self.current_state == 'HOMING' and new_state != 'HOMING'
         self.current_state = new_state
+        if leaving_homing:
+            self.cancel_home_goal()
         self.state_publisher.publish(String(data=new_state))   # registrar estado FSM (validación)
 
         # Publicar modo de control actual
         if new_state == 'MANUAL':
             self.publish_mode("MANUAL")
             self.user_authorized = False
-        elif new_state in ['IDLE', 'TRACKING']:
+        elif new_state in ['IDLE', 'TRACKING', 'HOMING']:
             self.publish_mode("AUTO")
 
         # Acciones por estado
@@ -229,6 +292,13 @@ class ControlNode(Node):
             self.start_tracking()
         elif new_state == 'MANUAL':
             self.toggle_tracking(False)
+        elif new_state == 'HOMING':
+            # Al llegar a casa se queda en IDLE: hace falta un gesto de inicio
+            # nuevo para volver a seguir, aunque la persona siga delante.
+            self.user_authorized = False
+            self.toggle_tracking(False)
+            self.stop_robot()
+            self.send_home_goal()
         elif new_state == 'SHUTDOWN':
             self.notify_shutdown()
 
@@ -246,6 +316,70 @@ class ControlNode(Node):
             return self.transition_to('IDLE')
         self.toggle_tracking(True)
         self.get_logger().info(">> TRACKING")
+
+    # ───────────── HOMING: objetivo NavigateToPose ─────────────
+    # Action client directo en vez de nav2_simple_commander.BasicNavigator:
+    # BasicNavigator publica una pose inicial por defecto que resetea AMCL a
+    # (0,0,0) — bug visto en la Sesión 8 con scripts/nav2_send_goal.py.
+    def send_home_goal(self):
+        if not self.nav_client.server_is_ready():
+            self.get_logger().error(
+                "Servidor NavigateToPose no disponible (¿Nav2 lanzado? "
+                "¿bringup_home.launch.py?) → IDLE")
+            return self.transition_to('IDLE')
+
+        yaw = math.radians(self.get_parameter('home_yaw_deg').value)
+        goal = NavigateToPose.Goal()
+        goal.pose = PoseStamped()
+        goal.pose.header.frame_id = self.get_parameter('home_frame').value
+        goal.pose.header.stamp = self.get_clock().now().to_msg()
+        goal.pose.pose.position.x = float(self.get_parameter('home_x').value)
+        goal.pose.pose.position.y = float(self.get_parameter('home_y').value)
+        goal.pose.pose.orientation.z = math.sin(yaw / 2.0)
+        goal.pose.pose.orientation.w = math.cos(yaw / 2.0)
+
+        self._nav_goal_seq += 1
+        seq = self._nav_goal_seq
+        self.get_logger().info(
+            f">> HOMING: objetivo casa ({goal.pose.pose.position.x:.2f}, "
+            f"{goal.pose.pose.position.y:.2f}, {math.degrees(yaw):.0f}°)")
+        fut = self.nav_client.send_goal_async(goal)
+        fut.add_done_callback(lambda f: self._on_home_goal_response(f, seq))
+
+    def _on_home_goal_response(self, future, seq):
+        goal_handle = future.result()
+        stale = seq != self._nav_goal_seq or self.current_state != 'HOMING'
+        if not goal_handle.accepted:
+            if not stale:
+                self.get_logger().error("Nav2 rechazó el objetivo casa → IDLE")
+                self.transition_to('IDLE')
+            return
+        if stale:
+            # Se salió de HOMING mientras el objetivo estaba en vuelo
+            goal_handle.cancel_goal_async()
+            return
+        self._nav_goal_handle = goal_handle
+        goal_handle.get_result_async().add_done_callback(
+            lambda f: self._on_home_result(f, seq))
+
+    def _on_home_result(self, future, seq):
+        status = future.result().status
+        if seq != self._nav_goal_seq or self.current_state != 'HOMING':
+            return
+        self._nav_goal_handle = None
+        if status == GoalStatus.STATUS_SUCCEEDED:
+            self.get_logger().info(">> HOMING completado: robot en casa → IDLE")
+        else:
+            self.get_logger().warn(f">> HOMING terminó sin éxito (status={status}) → IDLE")
+        self.transition_to('IDLE')
+
+    def cancel_home_goal(self):
+        # Invalida respuestas pendientes y cancela el objetivo activo (si hay)
+        self._nav_goal_seq += 1
+        if self._nav_goal_handle is not None:
+            self.get_logger().info("Cancelando objetivo casa.")
+            self._nav_goal_handle.cancel_goal_async()
+            self._nav_goal_handle = None
 
     # Apagar el sistema
     def notify_shutdown(self):

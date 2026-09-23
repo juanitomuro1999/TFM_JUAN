@@ -103,8 +103,15 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 3. Gestos reconocidos a partir de los landmarks de Pose (no de MediaPipe
    Hands): **mano derecha levantada por encima del hombro** (con margen
    relativo al torso) → `start_tracking`; **mano izquierda levantada** →
-   `stop_tracking`. Requiere `gesture_confirm_frames` (3) consecutivos y un
-   `gesture_cooldown_s` (2.0s) entre comandos para evitar falsos positivos.
+   `stop_tracking`; **"tejado"** — ambas muñecas juntas por encima de la
+   cabeza → `go_home` (desde 2026-09, ver 2.9). Los tres gestos son
+   mutuamente excluyentes: con las dos manos arriba nunca se emite
+   `start_tracking`/`stop_tracking`. Requiere `gesture_confirm_frames` (3)
+   consecutivos del mismo gesto y un `gesture_cooldown_s` (2.0s) entre
+   comandos para evitar falsos positivos. La clasificación vive en
+   `visual_detection_node/gestures.py`, sin dependencias de ROS, para poder
+   verificarla con landmarks sintéticos
+   (`validation/verify_home_gesture.py`).
 4. Calcula el **rumbo horizontal** de la persona desde el punto medio de los
    hombros: `bearing = (x_mid - 0.5) * camera_hfov_deg`, publicado en
    `/person_bearing` para el fallback de fusión de `detection_node` (desde
@@ -125,7 +132,9 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 2. Calcula distancia y ángulo hacia la persona.
 3. Aplica **evasión de obstáculos**: analiza el sector frontal ±45° del LiDAR. Si hay obstáculos a <0.6 m, genera una fuerza de repulsión angular y reduce la velocidad lineal.
 4. Publica `/tracking/velocity_cmd` (Twist).
-5. Si la persona desaparece más de 2 segundos, detiene el robot.
+5. Si la persona desaparece más de 2 segundos, detiene el robot. Desde
+   2026-09, entre 0.6 s y 2.6 s sin verla gira sin avanzar hacia el último
+   lado donde la vio (giro de búsqueda, ver §6.5).
 
 **Servicio:** `enable_tracking` (SetBool) — activado/desactivado por `control_node`.
 
@@ -138,14 +147,20 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 **Estados:**
 ```
 INIT → IDLE ←→ TRACKING
-               ↕
-             MANUAL
-               ↓
-            SHUTDOWN
+        ↑ ↖       │ go_home
+        │   ╲     ▼
+        │    ── HOMING   (llegada / fallo / stop_tracking → IDLE)
+        ↕
+      MANUAL
+        ↓
+     SHUTDOWN
 ```
 
 - **IDLE:** esperando persona autorizada.
 - **TRACKING:** persona detectada + usuario autorizado → retransmite velocidades.
+- **HOMING:** vuelta a la pose "casa" con Nav2 tras el gesto `go_home`
+  (desde IDLE o TRACKING). Retransmite solo `/nav2/cmd_vel`; al terminar
+  vuelve a IDLE y hace falta un gesto de inicio nuevo para seguir. Ver 2.9.
 - **MANUAL:** modo teleoperación por teclado (w/s/a/d/x, q para alternar, p para apagar).
 - **SHUTDOWN:** secuencia de apagado coordinado de todos los nodos.
 
@@ -334,3 +349,42 @@ actualizándose con el movimiento real. Log de `amcl` confirmado hasta
 patrón reproducido en un reinicio limpio del stack completo — no es un
 efecto de sesión desordenada. Diagnóstico y fix pendientes para la Sesión
 7. Ver `docs/decisiones.md` (2026-07-23) para el detalle completo.
+
+## 2.9 Integración seguimiento–navegación: gesto "casa" (2026-09)
+
+Hasta la Sesión 8 el seguimiento (`person_follower`) y Nav2 eran dos
+sistemas que no podían convivir: ambos publicaban en `/commands/velocity`.
+El gesto "casa" los integra en un único bringup
+(`launch/bringup_home.launch.py`) con un solo punto de arbitraje, el
+`control_node`:
+
+```
+/tracking/velocity_cmd ─┐  (tracking_node)
+                        ├──►[control_node]──/commands/velocity──►[Kobuki]
+/nav2/cmd_vel ──────────┘   reenvía solo la fuente
+  (controller_server,       del estado activo:
+   behavior_server)         TRACKING → tracking, HOMING → Nav2
+```
+
+1. El usuario hace el gesto "tejado" → `visual_detection_node` publica
+   `go_home` en `/gesture_command`.
+2. `control_node` pasa a **HOMING**: desactiva `tracking_node`, retira la
+   autorización del usuario y envía un objetivo `NavigateToPose` con la pose
+   `home_x/home_y/home_yaw_deg` de `config.yaml` (frame `map`). Usa un action
+   client directo, no `nav2_simple_commander.BasicNavigator`, que resetea la
+   pose de AMCL (bug de la Sesión 8).
+3. Mientras dura, solo `/nav2/cmd_vel` llega a la base. `tracking_node`
+   desactivado sigue publicando `Twist()` a cero a 10 Hz, que se ignora en
+   HOMING (si no, anularía a Nav2).
+4. Al terminar (éxito, aborto o rechazo), o si el usuario levanta la mano
+   izquierda (cancela el objetivo), vuelve a IDLE.
+
+Requisito operativo: AMCL tiene que estar localizado antes del gesto; si el
+servidor de Nav2 no está disponible, HOMING vuelve a IDLE de inmediato. Si
+el bringup se lanza antes de dar la pose inicial, la pila de navegación no
+llega a activarse sola: `scripts/activate_nav2.sh` la activa después.
+
+**Validado en el robot real el 2026-09-23:** 9 vueltas a casa completadas
+de 11 pedidas (15.5 s y 0.27 m de media), cancelación con la mano
+izquierda en 20 ms y 0 falsos positivos. Resultados en §7.4quinquies.
+

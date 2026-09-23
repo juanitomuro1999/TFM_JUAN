@@ -49,10 +49,15 @@ TOPICS=(
   /expected_person_position  # posicion filtrada por Kalman
   /person_detected           # bool deteccion (para analizar perdidas/oscilacion FSM)
   /gesture_command           # gestos start_tracking/stop_tracking (evidencia interaccion)
-  /control/state             # estado FSM INIT/IDLE/TRACKING/MANUAL (arranque/parada del seguimiento)
+  /control/state             # estado FSM INIT/IDLE/TRACKING/HOMING/MANUAL (arranque/parada del seguimiento)
   /control/mode              # AUTO/MANUAL (estado de la maquina de estados)
   /scan                      # LIDAR 2D (pesado; util para replay)
   /tf /tf_static             # transformadas (para evo/SLAM y replay)
+  # Gesto "casa" (2026-09): solo existen con bringup_home.launch.py; si no
+  # hay publicador, ros2 bag los graba vacíos sin error.
+  /nav2/cmd_vel              # velocidad que propone Nav2 (reenviada solo en HOMING)
+  /amcl_pose                 # pose en el mapa (error de llegada a casa)
+  /navigate_to_pose/_action/status  # estado del objetivo casa (éxito/cancelado/abortado)
 )
 
 echo "=========================================================="

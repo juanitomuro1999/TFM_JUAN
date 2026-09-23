@@ -5,6 +5,174 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-09-23 (lab, sesión final) — Gesto "casa" validado en el robot + tres fixes de seguimiento encontrados en vivo
+
+**Contexto:** última sesión de laboratorio antes de la defensa. Objetivo:
+dejar el gesto "casa" (entrada de más abajo, mismo día) probado e integrado.
+Stack: `bringup_home.launch.py` (seguimiento + AMCL + Nav2), `ROS_DOMAIN_ID=24`,
+red WiFi `turtlebot2-24`. Bags en `~/tfm_bags/20260923_*` (NUC y portátil),
+CSV/figuras con `validation/extract_casa_bags.py` + `plot_casa_session.py`,
+figuras en `docs/figuras/gesto_casa/`.
+
+- **Resultado del gesto "casa":** 12 activaciones de HOMING — **9 éxitos, 1
+  cancelación intencionada (mano izquierda), 2 fallos**. Éxitos: 15.5 s de
+  media desde el gesto hasta IDLE (11.3-20.5 s), error de llegada medido con
+  la TF `map→base_footprint` tras llegar de 0.21-0.33 m (media 0.27 m) y
+  3.9-14.6° (media 8.1°). Es coherente con `xy_goal_tolerance=0.25` y
+  `yaw_goal_tolerance=0.25 rad` (14°): Nav2 da el objetivo por alcanzado con
+  su estimación del momento, y AMCL corrige un poco después. Desde IDLE y
+  desde TRACKING, de frente y de espaldas. **0 `go_home` falsos** en ~4 min
+  de seguimiento con gesticulación libre. Cancelación: Nav2 confirmó
+  "Cancellation was successful" 20 ms después del gesto y el robot se
+  desplazó ~7 cm. Tras llegar nunca volvió a seguir sin gesto nuevo. Los
+  `go_home` repetidos por mantener el tejado se ignoraron siempre.
+- **Los 2 fallos, misma causa:** la pose estimada del robot al pedir casa
+  caía dentro de la zona letal inflada de un obstáculo del mapa (coste 253;
+  en un caso una línea de mobiliario, en el otro la pared noreste). NavFn no
+  planifica desde una celda letal → 12 replanificaciones + recuperaciones
+  (limpiar costmaps, giro, marcha atrás abortada por "Collision Ahead") →
+  aborto → HOMING → IDLE, la rama de fallo funcionó como estaba diseñada.
+  Lo que se juntó: AMCL con σ≈0.5 m durante toda la sesión (en uno de los
+  fallos la estimación saltó 0.4 m durante el giro de recuperación), y el
+  seguimiento, que no usa el mapa y lleva al robot pegado a paredes y
+  muebles. Mitigación operativa: localizar bien (láser encajado con el mapa
+  en RViz) y hacer el tejado a ≥0.5 m de obstáculos. **No resuelto en
+  código** — ver limitaciones en `docs/07_resultados.md` §7.5.
+- **Gesto de espaldas:** funciona (tejado simétrico), pero tarda más. De
+  espaldas, la cabeza tapa una muñeca y su visibilidad baja a 0.2-0.45 (<
+  `gesture_min_visibility`=0.5): durante unos frames solo se ve una mano
+  arriba y sale un `start_tracking` (inocuo en TRACKING) hasta que la otra
+  muñeca supera el umbral. Peor caso: ~13 s, estando además demasiado cerca
+  de la cámara (manos saliendo del encuadre por arriba). Recomendación de
+  uso: a ~2 m. Posible mejora no implementada: umbral de visibilidad más
+  bajo solo para el tejado.
+- **Orden de arranque de Nav2 en `bringup_home.launch.py`:** si AMCL no tiene
+  pose inicial, `planner_server` no puede activar su `global_costmap` (sin
+  TF `map→base_footprint`) y `lifecycle_manager_navigation` aborta el
+  arranque a los 60 s. Después de dar "2D Pose Estimate",
+  `manage_nodes STARTUP` tampoco sirve (intenta reconfigurar
+  `controller_server`, que ya estaba activo). Solución de hoy: activar a mano
+  `planner_server`, `behavior_server` y `bt_navigator` con
+  `ros2 lifecycle set <nodo> activate`. Ahora está en
+  `scripts/activate_nav2.sh`.
+- **Fix 1 — `min_detection_distance` 0.10 → 0.30 m (`detection_node`, config):**
+  el usuario notó que el seguimiento "se rallaba". Con los bags se vio que
+  aparecían retornos a 0.10-0.15 m del LIDAR (dentro o pegados al chasis,
+  radio ~0.15 m) y que el detector se reenganchaba a ellos mientras la persona
+  real estaba a 2.2-2.7 m. La evasión frenaba y disparaba el rodeo contra
+  eso (119 avisos de "Obstáculo frontal" en las primeras tomas). La persona
+  seguida no baja nunca de 0.49 m (suelo de `near_gain`, 2026-07-15). Tras el
+  cambio: 0 avisos en la toma siguiente, persona nunca publicada por debajo
+  de 1.21 m, y el usuario lo notó "mucho más fluido". CPU descartada como
+  causa (load 2.2/4 núcleos, ~70% libre por núcleo, todos los topics a su
+  frecuencia normal).
+- **Fix 2 — reenganche solo por delante (`reacquire_sector_deg`=90,
+  `reacquire_after_s`=0.5, `detection_node`):** hallazgo nº 2 de la Sesión 8,
+  reproducido 3 veces hoy (el robot se engancha a patas de mobiliario detrás
+  o al lado y gira sobre sí mismo). La causa, confirmada con el nodo real y
+  scans sintéticos (`validation/verify_reacquire_sector.py`), tenía tres
+  vías: (a) sin ancla se aceptaba cualquier par al primer scan, eligiendo el
+  más cercano al robot; (b) con ancla, el radio "plausible" pasa de 2 m tras
+  ~0.9 s sin ver a la persona; (c) el "reanclaje confirmado" aceptaba
+  cualquier candidato que se repitiera 3 scans en el mismo sitio, y un
+  mueble quieto siempre lo cumple (0.3 s). Ahora las tres pasan por
+  `_reacquire`: solo candidatos a ±`reacquire_sector_deg` del frente y
+  confirmados `continuity_confirm_frames` scans. Bug encontrado de paso: el
+  reset del ancla en `lidar_callback` se ejecutaba en *cada* scan sin
+  detección, así que la confirmación de 3 scans nunca pasaba de 1. Ahora se
+  hace una sola vez, al perder a la persona. El seguimiento con ancla no
+  cambia (sigue hasta 78° de lado en el test). Primero a ±60°; en vivo
+  bloqueaba reenganches laterales al girar y se amplió a ±90° (lo peligroso
+  estaba a −142°, −168°, +116°). Resultado en el robot: posiciones
+  publicadas detrás del robot del 13.3% (bags C1/C2) al 3.2% (todas de
+  seguimiento continuo, ningún reenganche). Los 5 reenganches de la toma C5
+  fueron entre −13° y +44°. Verificación: 7/7.
+- **Fix 3 — giro de búsqueda al perder a la persona (`lost_search_s`=2.0,
+  `lost_search_wz`=0.5, `lost_search_min_angle_deg`=10, `tracking_node`):**
+  al girar, la persona salía del campo de visión por un lado y, pasados
+  0.6 s (`extrapolation_limit_s`), el robot se quedaba quieto mirando al
+  frente ("se pierde y no sabe"). Ahora, durante 2 s tras esos 0.6 s, gira
+  sin avanzar hacia el lado de la última observación (mismo signo que el PD,
+  verificado con `/odom` el 2026-07-15). No gira si la perdió casi de frente.
+  `control_node` pasa a IDLE ~2.3 s tras la pérdida, así que el giro real es
+  de ~1.7 s (≈50°). Verificación: 5/5 (`validation/verify_lost_search.py`).
+  En vivo: 4 activaciones, todas hacia el lado correcto; reenganche sin
+  llegar a IDLE, o en 0.4 s, o en 4.9 s.
+- **Operativo:** la red WiFi del robot es `turtlebot2-24` (no PIROBOTNET6
+  como decía el README). la copia de
+  `scripts/launch_robot.bash` que había en el NUC era antigua y exportaba
+  `ROS_DOMAIN_ID=25` (la del repo ya tenía 24). Hoy todo se lanzó a mano con
+  24; `sync_nuc.sh` ahora también copia `scripts/launch_robot.bash` y
+  `activate_nav2.sh`.
+  El portátil de hoy no tenía ROS: RViz se lanzó desde la imagen Docker
+  `rmf_demos:jazzy` (`--net=host`, X11), con `rviz/config.rviz`.
+- **Pendiente sin robot:** el bag de la toma final
+  (`20260923_182239_final_giros_casa`) quedó solo en el NUC (se apagó antes
+  de copiarlo); está completa en los logs de la sesión.
+
+## 2026-09-23 — Gesto "casa" (tejado → HOMING con Nav2): integración seguimiento + navegación
+
+- **Decisión:** nueva funcionalidad "volver a casa" activada por un cuarto
+  protocolo visual. Gesto **"tejado"**: ambas muñecas por encima de la nariz
+  y juntas (separación horizontal < `gesture_roof_max_sep_ratio`=0.6 × altura
+  del torso). "Casa" es una **pose fija en `config.yaml`**
+  (`home_x/home_y/home_yaw_deg`, frame `map`).
+- **Por qué el tejado y no otras opciones:** es simétrico, así que funciona
+  igual de frente que de espaldas a la cámara (MediaPipe intercambia
+  izquierda/derecha según hacia dónde mire la persona, y en seguimiento
+  normal la persona está de espaldas). Evoca "casa" y no se parece a ningún
+  gesto natural al caminar. Descartados: brazos cruzados en X (las muñecas
+  se ocluyen y la visibilidad cae por debajo de `gesture_min_visibility`) y
+  "ambas manos arriba" sin exigir que se junten (demasiado cerca de los
+  gestos de una mano). Pose fija en vez de "punto de inicio" para que la
+  demo sea reproducible.
+- **Exclusión mutua de gestos (bug latente corregido de paso):** antes
+  `start_now` no comprobaba la mano izquierda, así que cualquier gesto con
+  las dos manos arriba disparaba también `start_tracking`. Ahora con ambas
+  manos arriba solo puede salir `go_home` o nada. La clasificación se ha
+  movido a `visual_detection_node/gestures.py` (sin ROS), y la racha pasa a
+  ser "N frames seguidos del mismo gesto" (`GestureDebouncer`). Verificado
+  con `validation/verify_home_gesture.py`: 16/16 casos, incluidos la subida
+  asimétrica de brazos, el gesto visto de espaldas, sin nariz visible, la
+  "V" con las manos separadas (sin disparo) y la visibilidad baja (sin
+  disparo). **Limitación conocida:** si un brazo llega ≥1.2 s antes que el
+  otro, sale primero `start_tracking`. Es inocuo porque `go_home` llega
+  igual y la máquina de estados termina en HOMING.
+- **Arquitectura: `control_node` arbitra, Nav2 nunca publica directo en la
+  base.** `controller_server` y `behavior_server` se remapean a
+  `/nav2/cmd_vel` (argumento `cmd_vel_topic` de
+  `nav2_localization_demo.launch.py`, que por defecto sigue siendo
+  `/commands/velocity` para no romper el demo de la Sesión 7), y
+  `control_node` lo reenvía solo en el estado nuevo **HOMING**, igual que
+  `/tracking/velocity_cmd` solo en TRACKING. Es la alternativa a un
+  `twist_mux`, que habría añadido un paquete sin probar en el NUC. **De
+  paso:** `behavior_server` no estaba remapeado, así que los comportamientos
+  de recuperación (spin/backup) publicaban en `/cmd_vel`, un topic que no
+  escucha nadie.
+- **Detalle crítico encontrado al diseñarlo:** con el tracking desactivado,
+  `tracking_node` sigue publicando `Twist()` a cero en cada `/scan` (10 Hz),
+  y `control_node` reenviaba un stop en cualquier estado que no fuera
+  TRACKING. Sin tratar HOMING aparte, esos ceros habrían anulado los
+  comandos de Nav2. `velocity_callback` ahora los ignora en HOMING.
+- **HOMING:** se entra desde IDLE o TRACKING. Desactiva el tracking, pone
+  `user_authorized=False` (al llegar a casa el robot no vuelve a seguir a
+  nadie sin un gesto de inicio nuevo) y envía un `NavigateToPose` con un
+  action client directo, **no con `BasicNavigator`**, para no heredar el
+  reset de AMCL a (0,0,0) de la Sesión 8. Sale a IDLE al llegar, si Nav2
+  aborta o rechaza, si no hay servidor, o con la mano izquierda (que cancela
+  el objetivo). Salir a MANUAL también cancela. Las respuestas de objetivos
+  ya obsoletos se descartan con un número de secuencia.
+- **Verificación sin robot:** `validation/verify_homing_fsm.py` (el
+  `control_node` real en ROS 2 Jazzy vía Docker, con un falso
+  `tracking_node` y un falso servidor `NavigateToPose`): 17/17. Cubre
+  éxito, cancelación con mano izquierda, aborto, rechazo, falta de
+  servidor, que solo llegue la velocidad de Nav2 en HOMING, y que tras
+  llegar no vuelva a seguir solo. `bringup_home.launch.py` se lanzó en
+  Docker con los paquetes de Nav2 de Jazzy: `controller_server` y
+  `behavior_server` publican solo en `/nav2/cmd_vel` y hay un único
+  publicador en `/commands/velocity`. **Pendiente:** validación en el robot
+  real (sesión de lab, ver `docs/sesion_siguiente.md`).
+
 ## 2026-07-29 — Sesión 8: vídeo de demo grabado; bug real en `nav2_send_goal.py`; confirmación en vivo de que la evasión de obstáculos no excluye a la persona seguida; hallazgo nuevo de salto espurio tras oclusión larga
 
 - **Vídeo de demostración del TFM:** grabadas con éxito las tres escenas

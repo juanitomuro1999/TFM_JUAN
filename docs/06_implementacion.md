@@ -160,6 +160,20 @@ que mobiliario cercano se cuele dentro del radio de velocidad "plausible"
 (caso real documentado: mueble a 1.34m del último punto confirmado tras
 0.92s de hueco de detección, dentro de un radio plausible de 2.14m).
 
+### Reenganche solo por delante (2026-09)
+
+Cuando no hay ancla (arranque o pérdida larga), cuando han pasado más de
+`reacquire_after_s` (0.5 s) sin publicar posición, o cuando ningún candidato
+es continuación plausible, `_gate_by_continuity` delega en `_reacquire`.
+Este solo acepta candidatos dentro de ±`reacquire_sector_deg` (90°) del
+frente del robot (ángulo π en el frame bruto del láser), y exige que el
+más cercano se repita en el mismo sitio `continuity_confirm_frames` scans.
+El fallback de pierna única aplica el mismo sector. El reset del ancla tras
+`detection_loss_frames` se hace una sola vez, al perder a la persona: si se
+repitiera en cada scan sin detección, la confirmación del reenganche nunca
+avanzaría. `min_detection_distance` (0.30 m) descarta además puntos pegados
+al chasis. Verificado con `validation/verify_reacquire_sector.py`.
+
 ### Convenio de frame en la frontera de publicación
 
 `_publish_person_position()` invierte el signo de `x` e `y` justo antes de
@@ -228,6 +242,15 @@ llamada:
   `gesture_confirm_frames` (3) consecutivos y respeta un
   `gesture_cooldown_s` (2.0s) entre comandos publicados, para no disparar
   gestos accidentales al caminar o gesticular.
+- **Gesto "casa" (desde 2026-09)**: `go_home` si ambas muñecas están por
+  encima de la nariz y su separación horizontal es menor que
+  `gesture_roof_max_sep_ratio` (0.6) × la escala del torso. Con las dos manos
+  arriba nunca se emite `start_tracking` ni `stop_tracking`: los tres gestos
+  son mutuamente excluyentes. La clasificación está en
+  `visual_detection_node/gestures.py` (`classify_gesture` +
+  `GestureDebouncer`), un módulo sin ROS que importan tanto el nodo como
+  `validation/verify_home_gesture.py`. La racha exige N frames seguidos del
+  *mismo* gesto.
 - **Rumbo** (`beta`, para el fallback de fusión de `detection_node`,
   §6.3.1): punto medio de ambos hombros, `beta = (x_mid - 0.5) ·
   camera_hfov_rad`, publicado en `/person_bearing` solo si ambos hombros
@@ -335,6 +358,17 @@ target_distance)` normalizado a una referencia de 1m y `vel_ramp_exp=1.5`
 — más suave que lineal cerca de `target_distance`, evitando arranques
 bruscos cuando la persona se aleja poco del umbral de seguimiento.
 
+### Giro de búsqueda al perder a la persona (2026-09)
+
+Pasado `extrapolation_limit_s` (0.6 s) sin observación, en lugar de parar
+directamente, `_lost_search` gira sin avanzar durante `lost_search_s`
+(2.0 s) a `lost_search_wz` (0.5 rad/s) hacia el signo del ángulo de la
+última observación. Usa el mismo convenio que el PD (`wz > 0` = izquierda),
+respeta `ang_acc_limit` y no se activa si ese ángulo era menor que
+`lost_search_min_angle_deg` (10°). Su fin es devolver a la persona al
+sector frontal, donde `detection_node` puede reengancharla. Verificado con
+`validation/verify_lost_search.py`.
+
 ### Evasión de obstáculos reactiva (no DWA)
 
 Aunque el diagrama del Capítulo 2 y el README etiquetaban originalmente
@@ -386,6 +420,28 @@ Dos mecanismos evitan comportamiento errático en los bordes de la FSM:
   automáticamente a la primera persona detectada, sin gesto — modo
   *headless* usado, entre otras cosas, cuando la cámara está calibrándose
   aparte.
+
+### Estado HOMING: vuelta a casa con Nav2 (2026-09)
+
+El gesto `go_home`, desde IDLE o TRACKING, lleva a `HOMING`. Al entrar se
+desactiva `tracking_node`, se retira `user_authorized` y se envía un
+objetivo `nav2_msgs/NavigateToPose` con `home_x/home_y/home_yaw_deg`
+(frame `map`) mediante un `rclpy.action.ActionClient` directo. No se usa
+`nav2_simple_commander.BasicNavigator` porque publica una pose inicial por
+defecto que resetea AMCL (bug de la Sesión 8). Los parámetros se leen en
+cada envío, así que la pose casa se puede cambiar en caliente con
+`ros2 param set`.
+
+El reparto de la velocidad se resuelve en los propios *callbacks*.
+`nav_velocity_callback` reenvía `/nav2/cmd_vel` a `/cmd_vel` (remapeado a
+`/commands/velocity`) solo en `HOMING`, y `velocity_callback` ignora
+`/tracking/velocity_cmd` en ese estado. Esto último es necesario porque
+`tracking_node`, aunque esté desactivado, publica `Twist()` a cero en cada
+`/scan`, y reenviar esos ceros anularía a Nav2 a 10 Hz. Al salir de `HOMING`
+por cualquier motivo (llegada, fallo, `stop_tracking`, `MANUAL`),
+`transition_to()` cancela el objetivo activo. Un número de secuencia
+descarta las respuestas y resultados de objetivos ya obsoletos. Si el
+servidor de la acción no está disponible, vuelve a IDLE sin esperar.
 
 ### Teleoperación por teclado en un hilo aparte
 

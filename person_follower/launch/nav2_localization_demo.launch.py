@@ -25,11 +25,11 @@
 #   minimo a proposito, para reducir piezas moviles sin probar; anadirlo
 #   despues si el bringup basico funciona bien).
 #
-#   Corre INDEPENDIENTE de person_follower (control_node/tracking_node) — no
-#   hay integracion "seguir a la persona -> navegar a destino" todavia, eso
-#   es el objetivo especifico 5, fuera de alcance de este demo. No lanzar
-#   este launch a la vez que start_person_follower.launch.py: ambos
-#   publicarian en /commands/velocity y se pisarian.
+#   Por si solo corre INDEPENDIENTE de person_follower. No lanzarlo a la vez
+#   que start_person_follower.launch.py con el cmd_vel_topic por defecto:
+#   ambos publicarian en /commands/velocity y se pisarian. Para usar los dos
+#   juntos (gesto "casa") usar bringup_home.launch.py, que remapea Nav2 a
+#   /nav2/cmd_vel y deja que control_node arbitre.
 
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -49,6 +49,7 @@ def generate_launch_description():
     map_yaml = LaunchConfiguration('map', default=map_yaml_default)
     params_file = LaunchConfiguration('params_file', default=nav2_params_default)
     launch_navigation = LaunchConfiguration('launch_navigation', default='false')
+    cmd_vel_topic = LaunchConfiguration('cmd_vel_topic', default='/commands/velocity')
 
     lifecycle_nodes_localization = ['map_server', 'amcl']
     lifecycle_nodes_navigation = [
@@ -70,6 +71,11 @@ def generate_launch_description():
             description='Si es "true", además de localización lanza planner/'
                         'controller/BT (Sesión 7 — fase B). Por defecto solo '
                         'localización (Sesión 6 — fase A).'),
+        DeclareLaunchArgument(
+            'cmd_vel_topic', default_value='/commands/velocity',
+            description='Destino del cmd_vel de controller_server y '
+                        'behavior_server. bringup_home.launch.py lo pone a '
+                        '/nav2/cmd_vel para que control_node arbitre.'),
 
         # ── LOCALIZACION: map_server + AMCL ──────────────────────────────
         Node(
@@ -111,7 +117,7 @@ def generate_launch_description():
             name='controller_server',
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
-            remappings=[('cmd_vel', '/commands/velocity')],
+            remappings=[('cmd_vel', cmd_vel_topic)],
             condition=IfCondition(launch_navigation),
         ),
         Node(
@@ -128,6 +134,9 @@ def generate_launch_description():
             name='behavior_server',
             output='screen',
             parameters=[params_file, {'use_sim_time': use_sim_time}],
+            # Antes sin remapear: los comportamientos de recuperación (spin,
+            # backup) publicaban en /cmd_vel, que nadie escucha.
+            remappings=[('cmd_vel', cmd_vel_topic)],
             condition=IfCondition(launch_navigation),
         ),
         Node(

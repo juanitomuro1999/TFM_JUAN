@@ -302,51 +302,147 @@ mapa oficial. Todos los resultados de esta tabla usan ya el mapa nuevo.
   (incompatibilidad de QoS `BEST_EFFORT`/`RELIABLE`) — no afecta a la
   navegación, solo impide verificar visualmente la convergencia de
   partículas sin cambiar la config de RViz.
-- No se ha probado el objetivo 5 del TFM (seguir a la persona → navegar a
-  un destino) — Nav2 y `person_follower` corren de forma independiente,
-  sin integración entre ambos todavía.
+- ~~No se ha probado el objetivo 5 del TFM (seguir a la persona → navegar a
+  un destino)~~ — primer paso integrado y validado el 2026-09-23 con el
+  gesto "casa", ver §7.4quinquies.
+
+## 7.4quinquies Resultado 6 — Gesto "casa": seguimiento + Nav2 integrados (2026-09-23, sesión final)
+
+Primer paso del objetivo específico 5. Con un cuarto gesto ("tejado": las
+dos muñecas juntas por encima de la cabeza), el usuario ordena al robot que
+deje de seguirle y vuelva de forma autónoma, con Nav2, a una pose fija
+"casa". Es la primera vez que el seguimiento y Nav2 corren a la vez, con
+`control_node` decidiendo qué velocidad llega a la base (diseño en §2.9 y
+`docs/decisiones.md`, 2026-09-23).
+
+![Arbitraje de velocidad](figuras/gesto_casa/arbitraje_velocidad.png)
+![Gestos reconocidos](figuras/gesto_casa/gestos_esquema.png)
+
+**Verificación previa, sin robot (reproducible):**
+
+| Prueba | Qué comprueba | Resultado |
+|---|---|---|
+| `validation/verify_home_gesture.py` | Clasificación y exclusión mutua de los 3 gestos con landmarks sintéticos (de frente, de espaldas, subida asimétrica, "V", baja visibilidad) | 16/16 |
+| `validation/verify_homing_fsm.py` (Docker, ROS 2 Jazzy) | `control_node` real contra un Nav2 simulado: éxito, cancelación, aborto, rechazo, sin servidor, solo velocidad de Nav2 en HOMING | 17/17 |
+| `validation/verify_reacquire_sector.py` (Docker) | `detection_node` real con scans sintéticos: no reengancha a un mueble detrás, reengancha delante y a 70° de lado, sigue con ancla hasta 78° | 7/7 |
+| `validation/verify_lost_search.py` (Docker) | `tracking_node` real: gira hacia el lado de la última observación, acotado a 0.5 rad/s, se para a los 2.6 s, no gira si la perdió de frente | 5/5 |
+
+**En el robot real:** casa en (5.10, −7.76, −141°) del mapa del laboratorio.
+Se usa la pose de AMCL al aparcar el robot, leída con
+`scripts/print_home_pose.py`.
+
+| Prueba | N | Resultado |
+|---|---|---|
+| C1 — tejado desde IDLE → casa | 6 | 5/6 ✅; 1 fallo por localización junto a la pared noreste |
+| C2 — tejado en pleno seguimiento → casa (escena de demo) | 5 | 4/5 ✅; 1 fallo por localización junto a mobiliario (la 1ª toma de C4) |
+| C3 — cancelar con la mano izquierda durante HOMING | 1 | ✅ Nav2 cancela en 20 ms, el robot se desplaza ~7 cm; otro tejado lo reanuda |
+| C4 — tejado de espaldas a la cámara (dentro de C2) | 2 | 2/2 detectado. Vuelta completa 1/2: el fallo es el de C2 (localización), no del gesto |
+| C5 — falsos positivos (~4 min de seguimiento gesticulando) | — | 0 `go_home` falsos |
+| Total HOMING | 12 | **9 éxitos, 1 cancelación intencionada, 2 fallos** (9/11 = 82% de las vueltas pedidas) |
+
+C4 está incluida en C2 (el tejado de espaldas se hizo en pleno seguimiento).
+Total: 6 desde IDLE + 5 desde TRACKING + 1 cancelada = 12.
+
+| Métrica (9 éxitos) | Valor |
+|---|---|
+| Tiempo gesto → IDLE en casa | 15.5 s de media (11.3-20.5 s) |
+| Error de llegada (TF `map→base_footprint` tras llegar, 7 con bag) | 0.27 m de media (0.21-0.33 m) · 8.1° (3.9-14.6°) |
+| Latencia gesto confirmado → HOMING | < 5 ms (confirmar el gesto exige ~1.2 s de pose mantenida) |
+| Seguir sin gesto nuevo tras llegar a casa | 0 veces |
+
+El error de llegada queda en torno a `xy_goal_tolerance` = 0.25 m y
+`yaw_goal_tolerance` = 0.25 rad (14°). Nav2 da el objetivo por alcanzado con
+su estimación del momento y AMCL la corrige ligeramente después. Parte del
+error, por tanto, es de localización (σ≈0.5 m durante la sesión) y no de
+control.
+
+![Vueltas a casa sobre el mapa](figuras/gesto_casa/mapa_vueltas_casa.png)
+![Duración y error de cada vuelta](figuras/gesto_casa/metricas_homing.png)
+
+**Fallos (2/11):** en los dos, la pose estimada del robot al pedir casa
+caía dentro de la zona letal inflada de un obstáculo del mapa (una línea de
+mobiliario y la pared noreste). NavFn no planifica desde una celda letal:
+tras 12 replanificaciones y las recuperaciones de Nav2, el objetivo aborta
+y `control_node` vuelve a IDLE, como estaba diseñado. La causa combina la
+incertidumbre de AMCL (en un caso la estimación saltó 0.4 m durante el giro
+de recuperación) con que el seguimiento, que no usa el mapa, había llevado
+al robot pegado al obstáculo.
+
+**Fixes del seguimiento encontrados durante estas pruebas** (validados en
+vivo; detalle en `docs/decisiones.md`, 2026-09-23 lab):
+
+| Problema observado | Causa | Fix | Efecto medido |
+|---|---|---|---|
+| El seguimiento "se ralla" | Reenganche a retornos a 0.10-0.15 m (pegados al chasis) | `min_detection_distance` 0.10 → 0.30 m | Avisos de obstáculo frontal: 119 → 0; percibido "mucho más fluido" |
+| El robot se engancha a mobiliario detrás y gira sobre sí mismo (hallazgo nº 2 de la Sesión 8) | Reenganche sin restricción de dirección por tres vías + reset en cada scan | Reenganche solo a ±90° del frente, confirmado 3 scans | Posiciones publicadas detrás del robot: 13.3% → 3.2% (el resto es seguimiento continuo, sin reenganches) |
+| Al girar, "se pierde y no sabe" | Pasados 0.6 s sin observación, se queda quieto mirando al frente | Giro de búsqueda de 2 s a 0.5 rad/s hacia el último lado visto | 4 activaciones, todas en el sentido correcto; reenganche en 0-4.9 s |
+
+![Reenganche antes y después](figuras/gesto_casa/reenganche_antes_despues.png)
+![Toma con giros](figuras/gesto_casa/cronologia_giros.png)
+
+**Reproducir las figuras:** `validation/extract_casa_bags.py` (con ROS, sobre
+`~/tfm_bags/20260923_*`) → `validation/plot_casa_session.py` (sin ROS).
+Métricas por vuelta en `docs/figuras/gesto_casa/metricas_homing.csv`.
 
 ## 7.5 Limitaciones de los resultados actuales
 
-- **Reproducibilidad de "saltos"/"saturación" — resuelta 2026-07-21, con
-  matices:** las cifras originales de la tabla 7.4 se habían calculado con
-  un script que no estaba en el repo (`bag_to_csv_direct.py`, sesión
-  2026-07-08). Desde el 2026-07-09 ese cálculo forma parte del pipeline
-  estándar (`bag_to_csv.py`/`plot_run.py`), y el 2026-07-21 (Sesión 4 de
-  lab) se re-ejecutó sobre los tres bags originales del 08/07 en el NUC
-  (que sí tiene ROS 2). El % de saltos de posición reprodujo con
-  exactitud en dos de las tres tomas y quedó más bajo en la tercera — se
-  considera una limitación menor, esperable de una metodología
-  reconstruida y no una recuperación literal del script perdido. **La
-  saturación angular, en cambio, no reprodujo la tendencia decreciente
-  original en absoluto** — con el pipeline reproducible se mantiene alta
-  (86-99%) en las tres tomas, sin la mejora de 94.5%→12.4% que sugerían
-  las cifras ad-hoc. Tabla y lectura de 7.4 ya actualizadas con las cifras
-  reproducibles. Ver `docs/decisiones.md` (2026-07-21) para el detalle
-  completo de la comparación y la hipótesis de por qué diverge (denominador
-  pequeño de muestras "estables" en las tomas cortas de fix1/fix2, y
-  posible efecto de acercamiento a corta distancia sin `near_gain`, que no
-  existía todavía el 08/07) — hipótesis sin confirmar, no verificada hoy.
-- **N=1 por condición:** cada fila de la tabla 7.4 es una única toma, no una
-  media de repeticiones — no hay todavía medida de varianza entre pruebas
-  equivalentes. `validation/README.md` recomienda 2-3 repeticiones por
-  escenario para el capítulo final.
-- **Duraciones no comparables directamente:** las tres tomas de la tabla
-  7.4 tienen duraciones muy distintas (759.8s / 249.0s / 53.1s), así que las
-  cifras son proporciones dentro de cada toma, no valores normalizados a un
-  mismo tiempo o misma distancia recorrida.
-- **`near_gain` sin aislar:** ninguna toma actual aísla específicamente el
-  caso que motivó ese parámetro (giro a corta distancia, 0.5-0.7m) — las
-  tomas de movimiento mezclan alejarse/acercarse/lateral/giro.
-- **Gate de continuidad reforzado (2026-07-09) sin validar:** el cambio de
-  `docs/decisiones.md` (confirmación por consistencia,
-  `continuity_confirm_frames`) se preparó sin robot y solo se verificó con
-  pruebas de lógica aisladas — la tabla 7.4 es anterior a ese cambio y no lo
-  refleja.
-- **Gesto de activación no utilizado:** las tomas de movimiento se activaron
-  con un workaround manual por SSH, no con el gesto real (encuadre de
-  cámara pendiente de corregir) — el objetivo específico 1 del TFM no está
-  representado en estos resultados todavía.
+*Revisada por completo el 2026-09-23. Las entradas de julio que los fixes de
+las Sesiones 4-5 habían dejado obsoletas (gate de continuidad sin validar,
+`near_gain` sin aislar, gesto no utilizado) se han retirado: están resueltas
+y documentadas en §7.4-§7.4bis.*
+
+**Metodología**
+
+- **Tamaño de muestra pequeño.** La mayoría de escenarios tienen N=2-3 (N=1
+  en `parada`/`oclusion`), y el gesto "casa" 12 activaciones en una sola
+  sesión. Son suficientes para mostrar que el comportamiento funciona y es
+  repetible, no para estimar tasas con precisión estadística.
+- **Saturación angular reproducible pero alta en las tomas del 08/07**
+  (§7.4). El pipeline reproducible no confirmó la mejora 94.5%→12.4% del
+  script ad-hoc original. Hipótesis sin confirmar: pocas muestras "estables"
+  en tomas cortas y acercamiento sin `near_gain`, que entonces no existía.
+- **Un solo entorno.** Todo se ha medido en el mismo laboratorio, con la
+  misma persona y la misma iluminación.
+- **Sin ground truth externo.** Las posiciones del robot salen de
+  odometría/AMCL y las de la persona del propio detector. No hay sistema de
+  captura de movimiento que mida el error absoluto.
+
+**Percepción y seguimiento**
+
+- **Límite de altura del LIDAR 2D.** Un obstáculo que sobresale por encima
+  del plano de escaneo (~47 cm), como el asiento de una silla de patas
+  finas, no se detecta. Confirmado con 5 contactos reales (§7.4ter). Mitigación
+  pendiente de sensor (cámara RGBD Orbbec, segundo LIDAR).
+- **La evasión de obstáculos no distingue a la persona seguida.** Si la
+  persona se acerca a menos de ~0.4 m, el robot la trata como obstáculo y
+  frena o dispara el rodeo contra ella (Sesión 8). Por diseño, la persona
+  seguida no debería estar tan cerca (`target_distance`=1.0 m).
+- **Pérdidas de detección al girar.** Al girar, una pierna tapa a la otra y
+  la persona sale del campo de la cámara: huecos de 1-8 s. Se han mitigado
+  (fallback de pierna única, giro de búsqueda, reenganche frontal), no
+  eliminado. Si la persona se queda detrás del robot, este no la retoma:
+  tiene que volver a ponerse delante.
+- **Gesto de espaldas más lento.** La cabeza tapa una muñeca y su
+  visibilidad cae por debajo del umbral. El tejado de espaldas se reconoce,
+  pero puede tardar varios segundos más (peor caso ~13 s, estando además
+  demasiado cerca de la cámara).
+
+**Navegación y gesto "casa"**
+
+- **Vuelta a casa desde junto a un obstáculo.** Si la pose estimada del
+  robot cae en la zona inflada de un obstáculo del mapa, Nav2 no planifica
+  y la vuelta falla (2/11). No se ha implementado ninguna maniobra previa
+  para "despegarse" del obstáculo.
+- **Precisión de AMCL.** σ≈0.5 m durante toda la sesión del 23/09, con saltos
+  de hasta 0.4 m en recuperaciones. Condiciona el error de llegada (0.27 m
+  de media) y los fallos anteriores.
+- **Casa es una única pose fija.** El objetivo 5 completo (guiado a varios
+  destinos del edificio) queda como trabajo futuro. La arquitectura
+  (`control_node` + `NavigateToPose`) lo admite añadiendo gestos o destinos.
+- **Nav2 no se activa solo** si se lanza antes de dar la pose inicial. Hay
+  que activarlo con `scripts/activate_nav2.sh`.
+- **Condición de carrera rara en preemptions** (Sesión 7, 1 caso en 10+):
+  se autorrecupera.
 
 ## 7.6 Pendiente para completar este capítulo
 
@@ -373,10 +469,10 @@ mapa oficial. Todos los resultados de esta tabla usan ya el mapa nuevo.
 - [x] ~~Repetir `obstaculo_v7`/`v8` con mobiliario sólido (sin la silla
   fina) una vez más para no quedarse en N=1 con la maniobra de rodeo~~ —
   hecho 2026-07-23 (`obstaculo_v9_mueble`): sin contacto, N=2 confirmado.
-- [ ] Actualizar §7.5 (limitaciones) — varias de las entradas actuales están
-  desactualizadas por los fixes de las Sesiones 4-5 (gate de continuidad,
-  `near_gain`, gesto real) y necesitan una revisión completa antes de
-  cerrar el capítulo, no solo añadir 7.4bis.
+- [x] ~~Actualizar §7.5 (limitaciones)~~ — revisada por completo el
+  2026-09-23.
+- [x] ~~Incorporar el gesto "casa" (objetivo 5, primer paso)~~ — hecho
+  2026-09-23, ver §7.4quinquies.
 - [x] ~~Incorporar resultados de Nav2~~ — hecho 2026-07-27 (Sesión 7), ver
   §7.4quater: objetivo 3 completado (fase A + fase B + remapeo).
 - [ ] Sustituir este borrador por prosa de memoria una vez el conjunto de

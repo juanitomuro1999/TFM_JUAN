@@ -6,6 +6,20 @@ control_node:
     camera_enabled: True
     # Tiempo (s) que el robot sigue moviéndose tras perder la detección antes de parar
     tracking_loss_timeout: 1.5
+    # ── Gesto "casa" (go_home, tejado) → estado HOMING con Nav2 ──────────
+    # Requiere Nav2 + AMCL en marcha y localizados (bringup_home.launch.py).
+    # Pose casa en el frame del mapa (maps/mapa_laboratorio.yaml). MEDIR EN
+    # EL LAB: aparcar el robot en casa, localizar con AMCL y ejecutar
+    # scripts/print_home_pose.py — imprime estas tres líneas listas para pegar.
+    home_enabled: True
+    # Medida en el lab el 2026-09-23 (mapa_laboratorio del 2026-07-27): punto
+    # de salida del robot en esa sesión. Error de llegada medido 0.21-0.33 m.
+    home_x: 5.100
+    home_y: -7.758
+    home_yaw_deg: -140.6
+    home_frame: map
+    nav_action_name: navigate_to_pose
+    nav_cmd_vel_topic: /nav2/cmd_vel
 
 tracking_node:
   ros__parameters:
@@ -76,6 +90,17 @@ tracking_node:
     # girar, y extrapolar todo ese hueco hacía que el robot "girara al lado
     # contrario" persiguiendo una posición ya poco fiable.
     extrapolation_limit_s: 0.6
+    # Añadido 2026-09-23 (lab, gesto casa): tras extrapolation_limit_s sin
+    # observación, durante lost_search_s gira sin avanzar (lost_search_wz)
+    # hacia el lado de la última observación, en vez de quedarse quieto
+    # mirando al frente mientras la persona sale de su vista por un lado al
+    # girar. No gira si la perdió casi de frente (< lost_search_min_angle_deg).
+    # control_node pasa a IDLE ~2.3 s tras la pérdida (detection_loss_frames +
+    # tracking_loss_timeout), así que el giro real es de ~1.7 s (≈ 50°).
+    # Ver docs/decisiones.md.
+    lost_search_s: 2.0
+    lost_search_wz: 0.5
+    lost_search_min_angle_deg: 10.0
 
 visual_detection_node:
   ros__parameters:
@@ -98,6 +123,10 @@ visual_detection_node:
     gesture_cooldown_s: 2.0     # s mínimos entre comandos de gesto
     gesture_min_visibility: 0.5 # visibilidad mínima muñeca/hombro/cadera (bajado de 0.6 en sesión 2026-07-09: geometría del gesto ya correcta, visibilidad de muñeca izquierda quedaba pegada al umbral)
     gesture_margin_ratio: 0.15  # margen sobre el hombro, relativo al torso
+    # Gesto "casa" (tejado): ambas muñecas sobre la nariz y con separación
+    # horizontal < este ratio × altura del torso (hombro→cadera). Ver
+    # person_follower/visual_detection_node/gestures.py.
+    gesture_roof_max_sep_ratio: 0.6
     # Fusión cámara+LIDAR: rumbo horizontal de la persona
     camera_hfov_deg: 51.0       # FOV horizontal del C270 (~51° en 4:3)
 
@@ -125,6 +154,13 @@ detection_node:
     # Un objeto debe verse N scans seguidos para ser "persona".
     # Sillas estáticas generan detecciones intermitentes → quedan filtradas.
     max_detection_distance: 2.5    # reducido de 6.0 — elimina pares de piernas lejanos erróneos
+    # Añadido 2026-09-23 (lab, gesto casa): antes sin fijar (default 0.1m).
+    # Con 0.1 el detector se reenganchaba a retornos a 0.10-0.15m del LIDAR
+    # (dentro/pegados al chasis, radio ~0.15m) mientras la persona real
+    # estaba a 2.2-2.7m → el robot "se rallaba" frenando contra ello. La
+    # persona seguida llega legítimamente a 0.49m como mínimo (near_gain,
+    # 2026-07-15), así que 0.30 deja margen. Ver docs/decisiones.md.
+    min_detection_distance: 0.30
     detection_confirm_frames: 3   # scans consecutivos para confirmar persona
     detection_loss_frames: 8      # aumentado de 4 — evita IDLE↔TRACKING rápido
     # ── Fusión cámara+LIDAR (fallback cuando no hay par de piernas) ────────
@@ -161,6 +197,18 @@ detection_node:
     # patas de una silla) puede "caminar" salto a salto, cada uno plausible
     # por separado, y trazar un barrido de varios metros alrededor del robot.
     continuity_window_s: 1.0
+    # Añadido 2026-09-23 (lab, hallazgo nº 2 de la Sesión 8): sin ancla
+    # (arranque o tras perder a la persona) solo se re-engancha a candidatos
+    # dentro de ±reacquire_sector_deg del frente del robot, y confirmados
+    # continuity_confirm_frames scans. Antes: cualquier par de piernas en
+    # cualquier dirección al primer scan → el robot se enganchaba a patas de
+    # mobiliario detrás/al lado y giraba sobre sí mismo. Ver docs/decisiones.md.
+    reacquire_sector_deg: 90.0   # 60 → 90 en el lab (reenganches laterales al girar)
+    # Mismo tratamiento tras > reacquire_after_s sin publicar posición, aunque
+    # quede un ancla antigua (el radio "plausible" pasa de 2 m tras ~0.9 s:
+    # era la vía real del salto). 0.5 s, coherente con extrapolation_limit_s
+    # (0.6 s) de tracking_node, que ya para el robot pasado ese tiempo.
+    reacquire_after_s: 0.5
 
 user_interface_node:
   ros__parameters:

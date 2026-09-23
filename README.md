@@ -4,7 +4,7 @@
 **Tutor:** Enric Cervera  
 **Universidad:** Universitat Jaume I (UJI)  
 **Curso:** 2025–2026  
-**Versión actual:** 0.5.0 | Fases 1-3 completadas (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara + navegación autónoma con Nav2) — validación experimental (Fase 4) avanzada, quedan 2 sesiones de laboratorio (8-9) para demo final y cierre
+**Versión actual:** 0.6.0 | Fases 1-4 completadas (interacción por gestos + SLAM + fusión sensorial LiDAR-cámara + navegación autónoma con Nav2 + gesto "casa" que integra seguimiento y navegación, validado en el robot el 2026-09-23). Laboratorio cerrado; queda el cierre de la memoria y la defensa
 
 ---
 
@@ -19,6 +19,7 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
 - Módulo de interacción humano-robot basado en gestos (MediaPipe)
 - Cartografía autónoma del entorno mediante SLAM (SLAM Toolbox + LiDAR RPLIDAR)
 - Navegación autónoma completa con Nav2 (localización, planificación de rutas, navegación a objetivos)
+- Gesto "casa": el usuario ordena con un gesto que el robot deje de seguirle y vuelva solo, con Nav2, a una pose predefinida
 - Fusión sensorial LiDAR + cámara para detección de personas
 - Arquitectura ROS 2 modular, extensible y documentada
 
@@ -74,7 +75,7 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
          │ control_node │◄───────────────────────────┘
          │    (FSM)     │  /odom
          │IDLE/TRACKING │
-         │MANUAL/SHTDWN │
+         │HOMING/MANUAL │
          └──────┬───────┘
                 │enable_tracking (srv)
                 ▼
@@ -109,9 +110,9 @@ El proyecto extiende un sistema previo de seguimiento de personas sobre un Turtl
 | Nodo | Función | Topics entrada | Topics salida |
 |---|---|---|---|
 | `detection_node` | Detección por LiDAR (DBSCAN propio sobre `scipy.cKDTree`) + fusión por rumbo de cámara cuando no hay par de piernas | `/scan`, `/person_detected_visual`, `/person_bearing` | `/person_detected`, `/person_position` |
-| `visual_detection_node` | Detección por cámara (MediaPipe) + gestos + rumbo de la persona | `/image_raw` | `/person_detected_visual`, `/gesture_command`, `/person_bearing` |
+| `visual_detection_node` | Detección por cámara (MediaPipe) + gestos (inicio, parada, casa) + rumbo de la persona | `/image_raw` | `/person_detected_visual`, `/gesture_command`, `/person_bearing` |
 | `tracking_node` | Seguimiento con filtro Kalman + evasión obstáculos | `/person_position`, `/scan` | `/tracking/velocity_cmd` |
-| `control_node` | FSM central de estados | `/person_detected`, `/gesture_command` | `/commands/velocity` |
+| `control_node` | FSM central de estados (IDLE/TRACKING/HOMING/MANUAL/SHUTDOWN); arbitra la velocidad de seguimiento y de Nav2 | `/person_detected`, `/gesture_command`, `/tracking/velocity_cmd`, `/nav2/cmd_vel` | `/commands/velocity` |
 | `user_interface_node` | Diagnóstico, RViz markers, HUD | múltiples status | `/visualization/*`, `/diagnostics` |
 | `collision_handling_node` | Detección de colisión por LiDAR | `/scan` | `/collision_detected` |
 | `slam_node` | SLAM básico propio (desactivado por defecto) | `/scan` | `/map` |
@@ -143,7 +144,7 @@ source install/setup.bash
 ### Conexión al robot
 
 ```bash
-# Red WiFi: conectar a PIROBOTNET6 o PIROBOTNET6_5G
+# Red WiFi: conectar a turtlebot2-24 (red del propio robot)
 ssh user@10.48.0.1   # contraseña: qwerty
 ```
 
@@ -179,6 +180,33 @@ export ROS_DOMAIN_ID=24
 ros2 launch person_follower start_person_follower.launch.py
 ```
 
+### Seguimiento + gesto "casa" (Nav2 integrado)
+
+En vez de los terminales 3, 5 y 6: un solo launch con el seguimiento, AMCL,
+Nav2 y la TF estática. Tras lanzarlo, "2D Pose Estimate" en RViz y esperar a
+que AMCL converja. Gestos: mano derecha = seguir, mano izquierda = parar /
+cancelar, ambas manos juntas sobre la cabeza ("tejado") = volver a casa
+(`home_x/home_y/home_yaw_deg` en `config.yaml`; medirla con
+`scripts/print_home_pose.py`).
+
+```bash
+ros2 launch person_follower bringup_home.launch.py
+# Tras "2D Pose Estimate" en RViz, si la navegación no llegó a activarse sola
+# (se lanzó antes de dar la pose inicial):
+bash ~/ros2_ws/src/person_follower/scripts/activate_nav2.sh
+```
+
+RViz sin ROS instalado en el portátil (probado el 2026-09-23 con una imagen
+Docker de Jazzy que trae `rviz2`):
+
+```bash
+xhost +local:docker
+docker run --rm --net=host -e DISPLAY=$DISPLAY -e ROS_DOMAIN_ID=24 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix -v $PWD/rviz:/rviz:ro \
+  ghcr.io/open-rmf/rmf/rmf_demos:jazzy-rmf-latest \
+  bash -c "source /opt/ros/jazzy/setup.bash && rviz2 -d /rviz/config.rviz"
+```
+
 ### O usando el script unificado
 
 ```bash
@@ -203,8 +231,8 @@ bash ~/ros2_ws/src/person_follower/scripts/launch_robot.bash {kobuki|lidar|tf|ca
 | Fase 1 – Base y definición | Hasta mayo 2026 | ✅ Completada |
 | Fase 2 – Módulo de interacción + SLAM + fusión sensorial | Junio 2026 | ✅ Completada (fusión LiDAR-cámara validada sin movimiento el 25/06; gesto real con ambas manos validado en movimiento el 09/07 tras bajar el umbral de visibilidad y cambiar de cámara, ver `docs/decisiones.md`) |
 | Fase 3 – Navegación autónoma (Nav2) | Julio 2026 (Sesión 7 de 9, 2026-07-27) | ✅ Completada — localización (AMCL) y navegación (planificador + controlador + comportamientos) probadas en el robot real por primera vez: 6/7 objetivos de navegación logrados, incluida evasión de un obstáculo real no presente en el mapa. Mapa del laboratorio regrabado con SLAM Toolbox de camino. Ver `docs/decisiones.md` (2026-07-27) y `docs/07_resultados.md` §7.4quater |
-| Fase 4 – Validación experimental | Julio 2026 (Sesiones 2-7 de 9) | 🔄 Avanzada — gesto real, fusión LiDAR-cámara, evasión de obstáculos (con maniobra de rodeo) y Nav2 validados en el robot con datos reales para el Capítulo 7; quedan repeticiones menores (`parada`/`oclusión` en N=1) y actualizar las limitaciones (§7.5) antes de cerrar el capítulo — ver `docs/07_resultados.md` |
-| Fase 5 – Cierre y defensa | Agosto-septiembre 2026 | ⏳ Pendiente — agosto sin lab (redacción de memoria); septiembre con lab reservado a cierre, no a validación nueva |
+| Fase 4 – Validación experimental | Julio–septiembre 2026 (9 sesiones de julio + sesión final 23/09) | ✅ Completada — gesto real, fusión LiDAR-cámara, evasión de obstáculos, Nav2 y gesto "casa" validados en el robot con datos reales (`docs/07_resultados.md` §7.3-§7.4quinquies, limitaciones en §7.5) |
+| Fase 5 – Cierre y defensa | Septiembre 2026 | 🔄 En curso — laboratorio cerrado el 23/09; memoria y presentación (figuras en `docs/figuras/gesto_casa/`) |
 
 ---
 

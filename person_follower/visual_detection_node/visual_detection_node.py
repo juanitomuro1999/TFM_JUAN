@@ -5,7 +5,7 @@
 # Detección visual de persona usando HOG de OpenCV (sin MediaPipe ni cv_bridge).
 # Captura directamente desde /dev/video0 en un hilo, publica:
 #   /person_detected_visual  → Bool  (fusión con LIDAR en detection_node)
-#   /gesture_command         → String ("start_tracking" / "stop_tracking")
+#   /gesture_command         → String ("start_tracking" / "stop_tracking" / "go_home")
 #   /camera/status           → String (info de estado)
 #
 # Fallback automático: si MediaPipe está disponible lo usa; si no, usa HOG.
@@ -18,6 +18,9 @@ import math
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Bool, Float32, String
+
+from person_follower.visual_detection_node.gestures import (
+    GestureDebouncer, classify_gesture)
 
 # ── Dependencias opcionales ──────────────────────────────────────────────────
 try:
@@ -72,6 +75,8 @@ class VisualDetectionNode(Node):
         self.declare_parameter('gesture_cooldown_s', 2.0)     # s mínimos entre comandos de gesto
         self.declare_parameter('gesture_min_visibility', 0.6) # visibilidad mínima de muñeca/hombro/cadera
         self.declare_parameter('gesture_margin_ratio', 0.15)  # margen sobre el hombro, relativo al torso
+        # Gesto "casa": separación horizontal máx. entre muñecas, relativa al torso
+        self.declare_parameter('gesture_roof_max_sep_ratio', 0.6)
         # Fusión cámara+LIDAR: rumbo horizontal de la persona para que detection_node
         # pueda dar posición aunque el LIDAR no separe las piernas.
         self.declare_parameter('camera_hfov_deg', 51.0)       # FOV horizontal del C270 (~51° en 4:3)
@@ -97,9 +102,9 @@ class VisualDetectionNode(Node):
         self.gesture_min_visibility = self.get_parameter('gesture_min_visibility').value
         self.gesture_margin_ratio   = self.get_parameter('gesture_margin_ratio').value
         self.camera_hfov_rad        = math.radians(self.get_parameter('camera_hfov_deg').value)
-        self._start_gesture_streak  = 0
-        self._stop_gesture_streak   = 0
-        self._last_gesture_pub_time = None
+        self.gesture_roof_max_sep_ratio = self.get_parameter('gesture_roof_max_sep_ratio').value
+        self._gesture_debouncer = GestureDebouncer(
+            self.gesture_confirm_frames, self.gesture_cooldown_s)
 
         # ── Publicadores comunes (siempre se crean) ──────────────────────────
         self.status_pub = self.create_publisher(String, '/camera/status', 10)
@@ -126,7 +131,7 @@ class VisualDetectionNode(Node):
         self.get_logger().info(f"Detector seleccionado: {self._detector_name}")
         if not self._use_mp:
             self.get_logger().warn(
-                "Sin MediaPipe: los gestos start_tracking/stop_tracking no estarán "
+                "Sin MediaPipe: los gestos start_tracking/stop_tracking/go_home no estarán "
                 "disponibles (requieren landmarks de pose)."
             )
 
@@ -293,63 +298,41 @@ class VisualDetectionNode(Node):
         """
         Gesto de inicio: mano DERECHA levantada por encima del hombro.
         Gesto de parada: mano IZQUIERDA levantada por encima del hombro.
-        Requiere gesture_confirm_frames consecutivos y respeta un cooldown
-        entre comandos para evitar falsos positivos al caminar o gesticular.
+        Gesto "casa" (go_home): ambas muñecas juntas por encima de la cabeza
+        (tejado). Clasificación en gestures.py (sin ROS, verificable con
+        validation/verify_home_gesture.py). Requiere gesture_confirm_frames
+        consecutivos del mismo gesto y respeta un cooldown entre comandos.
         """
-        def lm(idx):
-            p = landmarks[idx]
-            return p if p.visibility >= self.gesture_min_visibility else None
-
-        # Índices MediaPipe Pose: 11=L_SHOULDER 12=R_SHOULDER 15=L_WRIST 16=R_WRIST 23=L_HIP 24=R_HIP
-        l_shoulder, r_shoulder = lm(11), lm(12)
-        l_wrist,    r_wrist    = lm(15), lm(16)
-        l_hip,      r_hip      = lm(23), lm(24)
-
-        scale = None
-        if l_shoulder and l_hip:
-            scale = abs(l_hip.y - l_shoulder.y)
-        elif r_shoulder and r_hip:
-            scale = abs(r_hip.y - r_shoulder.y)
-        margin = scale * self.gesture_margin_ratio if scale else 0.05
-
-        start_now = bool(r_wrist and r_shoulder and r_wrist.y < r_shoulder.y - margin)
-        stop_now  = bool(l_wrist and l_shoulder and l_wrist.y < l_shoulder.y - margin)
+        gesture, margin = classify_gesture(
+            landmarks,
+            self.gesture_min_visibility,
+            self.gesture_margin_ratio,
+            self.gesture_roof_max_sep_ratio,
+        )
 
         # Diagnóstico (1 Hz): visibilidad/posición CRUDAS de muñecas y hombros, para
-        # ver por qué (no) se detecta el gesto. lm() filtra por gesture_min_visibility,
-        # así que aquí leemos los landmarks directos. En imagen, y crece hacia ABAJO →
+        # ver por qué (no) se detecta el gesto. En imagen, y crece hacia ABAJO →
         # "muñeca por encima del hombro" = wrist.y < shoulder.y - margin.
         rw, rs = landmarks[16], landmarks[12]
         lw, ls = landmarks[15], landmarks[11]
         self.get_logger().info(
             f"[GESTO-DBG] minvis={self.gesture_min_visibility:.2f} margin={margin:.3f} | "
-            f"DER muñeca(v={rw.visibility:.2f} y={rw.y:.2f}) hombro(v={rs.visibility:.2f} y={rs.y:.2f}) start={start_now} | "
-            f"IZQ muñeca(v={lw.visibility:.2f} y={lw.y:.2f}) hombro(v={ls.visibility:.2f} y={ls.y:.2f}) stop={stop_now} | "
-            f"streak(start={self._start_gesture_streak} stop={self._stop_gesture_streak})",
+            f"DER muñeca(v={rw.visibility:.2f} x={rw.x:.2f} y={rw.y:.2f}) hombro(v={rs.visibility:.2f} y={rs.y:.2f}) | "
+            f"IZQ muñeca(v={lw.visibility:.2f} x={lw.x:.2f} y={lw.y:.2f}) hombro(v={ls.visibility:.2f} y={ls.y:.2f}) | "
+            f"nariz y={landmarks[0].y:.2f} | gesto={gesture} streak={self._gesture_debouncer.streak}",
             throttle_duration_sec=1.0,
         )
 
-        self._start_gesture_streak = self._start_gesture_streak + 1 if start_now else 0
-        self._stop_gesture_streak  = self._stop_gesture_streak + 1 if stop_now else 0
-
-        now = time.time()
-        cooldown_ok = (
-            self._last_gesture_pub_time is None
-            or (now - self._last_gesture_pub_time) >= self.gesture_cooldown_s
-        )
-        if not cooldown_ok:
+        cmd = self._gesture_debouncer.update(gesture, time.time())
+        if cmd is None:
             return
-
-        if self._start_gesture_streak >= self.gesture_confirm_frames:
-            self.gesture_pub.publish(String(data='start_tracking'))
-            self.get_logger().info("[GESTO] start_tracking (mano derecha levantada)")
-            self._last_gesture_pub_time = now
-            self._start_gesture_streak = 0
-        elif self._stop_gesture_streak >= self.gesture_confirm_frames:
-            self.gesture_pub.publish(String(data='stop_tracking'))
-            self.get_logger().info("[GESTO] stop_tracking (mano izquierda levantada)")
-            self._last_gesture_pub_time = now
-            self._stop_gesture_streak = 0
+        self.gesture_pub.publish(String(data=cmd))
+        desc = {
+            'start_tracking': 'mano derecha levantada',
+            'stop_tracking': 'mano izquierda levantada',
+            'go_home': 'tejado: ambas manos juntas sobre la cabeza',
+        }[cmd]
+        self.get_logger().info(f"[GESTO] {cmd} ({desc})")
 
     # ── Utilidades ───────────────────────────────────────────────────────────
 

@@ -1,6 +1,43 @@
 # Prompt — Próxima sesión
 
-## OBJETIVO de la Sesión 9 (última sesión de lab): cierre — decidir si arreglar los dos hallazgos de hoy, rematar `parada`/`oclusión` limpias, y trabajo de escritorio pendiente
+## ESTADO: laboratorio CERRADO (2026-09-23) — solo queda trabajo de escritorio
+
+La sesión final de laboratorio (2026-09-23) cumplió su objetivo: **gesto
+"casa" validado e integrado en el robot real** (9 vueltas completadas de 11
+pedidas, cancelación, 0 falsos positivos). Además se corrigieron tres
+problemas del seguimiento encontrados en vivo (`min_detection_distance`,
+reenganche solo por delante, giro de búsqueda). Detalle en `PROGRESO.md`,
+`docs/decisiones.md` (2026-09-23) y `docs/07_resultados.md` §7.4quinquies.
+**No hay más sesiones de robot planificadas antes de la defensa.**
+
+### Qué queda (sin robot)
+
+1. **Memoria:** pasar a prosa final los capítulos que siguen como andamiaje
+   (sobre todo el 7, ver §7.6). Las figuras de la sesión final están en
+   `docs/figuras/gesto_casa/`.
+2. **Presentación:** guion, cifras y figuras en
+   `docs/presentacion_gesto_casa.md`. Los vídeos los tiene el autor.
+3. **Tag `v1.0.0`** del repositorio cuando la memoria esté cerrada.
+4. **Opcional:** si se vuelve a encender el NUC, copiar el bag de la toma
+   final (`~/tfm_bags/20260923_182239_final_giros_casa`). Solo está allí,
+   aunque la toma está completa en los logs de la sesión.
+
+### Si alguna vez hay que volver a levantar el robot (referencia rápida)
+
+- WiFi `turtlebot2-24`, `ssh user@10.48.0.1`, **`ROS_DOMAIN_ID=24`**.
+- Kobuki y LiDAR (`scripts/launch_robot.bash kobuki|lidar`) con la sesión
+  SSH abierta (sin `nohup`), y luego
+  `ros2 launch person_follower bringup_home.launch.py`.
+- RViz (`Fixed Frame: map`) → "2D Pose Estimate" → `bash
+  scripts/activate_nav2.sh` si la navegación no se activó sola.
+- Casa: `python3 scripts/print_home_pose.py` con el robot aparcado y
+  `ros2 param set /control_node home_x <x.x>` (e igual `home_y` y
+  `home_yaw_deg`), con decimales. La del 23/09, (5.100, −7.758, −140.6),
+  ya está guardada en `config.yaml`.
+- Gestos: derecha = seguir · izquierda = parar/cancelar · tejado = casa (a
+  ~2 m, las dos manos a la vez; lejos de paredes).
+
+## Histórico — plan de la Sesión 9 (superado por la sesión final del 23/09)
 
 La Sesión 8 (2026-07-29) se da por completada: **vídeo de demostración
 grabado con las tres escenas previstas** (seguimiento+gesto, evasión de
