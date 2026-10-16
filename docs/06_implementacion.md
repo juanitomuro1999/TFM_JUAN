@@ -377,13 +377,44 @@ Dynamic Window Approach real** (simulación de trayectorias en el espacio
 de velocidades admisibles, §5.8) — la implementación real de DWA vive en
 un fichero separado, no registrado (`DWA.py`, §6.11). `_obstacle_avoidance()`
 es un método reactivo más simple, de tipo campo de repulsión: para cada
-punto del sector frontal ±50° dentro de `obstacle_threshold` (0.35m),
-acumula un peso `w = (obstacle_threshold - r)·cos(ángulo)` que pondera más
+punto del sector frontal ±50° dentro de `obstacle_threshold` (0.40 m, subido
+desde 0.35 m el 2026-07-22, ver más abajo), acumula un peso
+`w = (obstacle_threshold - r)·cos(ángulo)` que pondera más
 los obstáculos más cercanos y más frontales; el ajuste angular final es la
 media ponderada de `-ángulo` sobre esos puntos (empuja hacia el lado
-contrario al obstáculo), acotado a ±1.5 rad/s, y el factor de reducción de
-velocidad lineal decrece de 1.0 a un mínimo de 0.3 según la "amenaza"
-acumulada. Es intencionadamente más barato computacionalmente que un DWA
+contrario al obstáculo), acotado a ±1.5 rad/s.
+
+**Factor de reducción de velocidad lineal (`lin_factor`), corregido el
+2026-07-22:** la fórmula original, `max(0.3, 1.0-0.6·min(1.0,threat/0.5))`,
+nunca bajaba de 0.4 en la práctica —el suelo `max(0.3,...)` era código
+muerto, ya que `threat/0.5` satura en 1.0 dando `1.0-0.6=0.4`— por lo que
+el robot nunca frenaba del todo ante un obstáculo sostenido, resultando en
+dos contactos leves reales con mobiliario pese a detectarlo correctamente
+(ver `docs/decisiones.md`, 2026-07-21/22). La fórmula actual usa la
+distancia mínima real del sector frontal (`r_min`, no una suma de
+"amenaza" acumulada): `lin_factor = clip((r_min - obstacle_stop_distance)
+/ (obstacle_threshold - obstacle_stop_distance), 0, 1)`, una rampa lineal
+que vale 1.0 en `obstacle_threshold` y llega genuinamente a 0.0 (parada
+dura) en `obstacle_stop_distance` (0.25 m) — con margen real de 0.10 m
+hasta el borde físico del robot antes del contacto.
+
+**Maniobra de rodeo, añadida el 2026-07-22:** si `lin_factor` se mantiene
+por debajo de `detour_stuck_lin_factor` (0.5) durante
+`detour_stuck_trigger_s` (1.5 s) seguidos —obstáculo sostenido en el
+sector frontal, típicamente una persona rodeando mobiliario cerca del
+robot—, `tracking_node` ejecuta una maniobra de dos fases gestionada por
+una máquina de estados interna (`_detour_phase`: `None → 'turn' →
+'forward' → None`): un giro cerrado de `detour_turn_s` (1.5 s) a
+`detour_turn_speed` (0.5 rad/s), en el sentido que ya indicaba el ajuste
+angular de la evasión, seguido de un avance recto corto a
+`detour_forward_speed` (0.12 m/s). La maniobra aborta a la fase de giro si
+`lin_factor` vuelve a caer por debajo del umbral durante el avance
+(obstáculo nuevo). Es la alternativa a seguir "arrastrando" indefinidamente
+a velocidad reducida sin resolver el punto muerto. Primera versión, sin
+validar todavía en condiciones repetidas de forma sistemática (ver
+resultados en el Capítulo 7).
+
+Es intencionadamente más barato computacionalmente que un DWA
 completo (sin simular trayectorias candidatas), a costa de no razonar
 sobre las restricciones cinemáticas del robot ni sobre el futuro a varios
 pasos — suficiente para el caso de uso actual (evasión reactiva mientras

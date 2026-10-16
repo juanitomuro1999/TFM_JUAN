@@ -5,6 +5,26 @@
 > es narrativo, para la memoria) con un registro corto y consultable.
 > Entrada nueva arriba.
 
+## 2026-10-15 — Confirmado con el tutor: el límite de 25-30 páginas es orientativo, no vinculante
+
+**Contexto:** tras aplicar toda la reestructuración pedida por Enric
+Cervera (capítulos, figuras, estimación de costes, voz impersonal), la
+memoria había crecido por encima del margen de 25-30 páginas que se venía
+tratando como restricción dura — tanto que el 2026-09-29 se había llegado
+a recortar de 36 a 28 páginas por esa razón, sacrificando contenido ya
+verificado.
+
+**Decisión:** se preguntó directamente al tutor antes de seguir
+recortando. Enric Cervera confirma que el margen de 25-30 páginas es
+orientativo, no una norma oficial del máster con tope duro.
+
+**Motivo:** no tiene sentido sacrificar secciones ya corregidas (contexto
+de hardware, estimación de costes, limitaciones honestas, el gesto
+"casa") para encajar en una cifra que resulta ser una referencia, no un
+requisito.
+
+**Estado a esta fecha:** la memoria en español está en 38 páginas.
+
 ## 2026-09-23 (lab, sesión final) — Gesto "casa" validado en el robot + tres fixes de seguimiento encontrados en vivo
 
 **Contexto:** última sesión de laboratorio antes de la defensa. Objetivo:

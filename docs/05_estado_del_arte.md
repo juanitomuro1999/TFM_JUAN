@@ -31,9 +31,9 @@ sensor principal empleado:
   oclusiones, iluminación y campo de visión limitado.
 - **Fusión multisensor:** combinan LiDAR y cámara (y en ocasiones sensores
   de tiempo de vuelo o térmicos) para compensar las debilidades de cada
-  modalidad por separado. Zhao et al. (2023) fusionan sensores de tiempo de
+  modalidad por separado. Sarmento et al. (2023) fusionan sensores de tiempo de
   vuelo con una cámara monocular para un robot seguidor de personas,
-  mostrando mejoras de robustez frente al uso de una sola modalidad; Zhang
+  mostrando mejoras de robustez frente al uso de una sola modalidad; Kitamoto
   et al. (2025) proponen seguimiento humano robusto con LiDAR 3D y
   proyección de nube de puntos para robots seguidores de personas.
 
@@ -41,7 +41,7 @@ Los robots comerciales y de investigación de esta familia suelen operar en
 bases diferenciales de interior (como el TurtleBot 2/Kobuki usado en este
 TFM), donde la maniobrabilidad es alta y el problema de percepción domina
 sobre el de cinemática; en cambio, en bases tipo Ackermann para exteriores
-(p. ej. Xu et al., 2025, "Auto-Follower") la propia maniobrabilidad limitada
+(p. ej. Li et al., 2025, "Auto-Follower") la propia maniobrabilidad limitada
 del vehículo introduce restricciones adicionales que no aplican a este
 proyecto.
 
@@ -64,14 +64,14 @@ consiste en:
    seguir su trayectoria en el tiempo para distinguir el patrón de marcha
    humano de objetos estáticos con geometría similar.
 
-Kim et al. (2020) proponen detección de piernas humanas en un espacio de
+Cha y Chung (2020) proponen detección de piernas humanas en un espacio de
 características 3D específicamente para robots seguidores de personas con
-LiDAR 2D; Chung et al. (2023) abordan el reto de diferenciar múltiples
+LiDAR 2D; Yao et al. (2023) abordan el reto de diferenciar múltiples
 objetivos en escenarios con varias personas. Un reto documentado de forma
 recurrente en la literatura es la ambigüedad geométrica: patas de mesas o
 sillas, columnas y otros objetos cilíndricos pueden generar falsos
 positivos, y las oclusiones parciales (una pierna tapando a la otra durante
-un giro) rompen el emparejamiento. Yan et al. (2018) exploran redes
+un giro) rompen el emparejamiento. Guerrero-Higueras et al. (2018) exploran redes
 neuronales totalmente convolucionales sobre los propios barridos 2D como
 alternativa a los detectores basados en características geométricas
 hechas a mano, precisamente para mejorar la robustez en entornos con
@@ -83,15 +83,15 @@ sobre `scipy.spatial.cKDTree` por una incompatibilidad de `scikit-learn` en
 el NUC, ver `docs/decisiones.md`), filtrado por tamaño/radio de clúster y
 emparejamiento por distancia coherente entre piernas. Es una decisión
 consciente de mantenerse en la familia de métodos clásicos —frente a
-alternativas basadas en aprendizaje profundo como la de Yan et al.
+alternativas basadas en aprendizaje profundo como la de Guerrero-Higueras et al.
 (2018)— por simplicidad de despliegue sin GPU dedicada en el NUC y
 por reutilizar el detector ya validado del sistema original (Fase 1). La
 limitación de ambigüedad geométrica descrita arriba es exactamente la que
 motiva el fallback de fusión con cámara de la Sección 5.5, y el hallazgo,
 sin resolver a fecha de este capítulo, de pérdida conjunta de detección
 LiDAR+cámara durante giros (`docs/sesion_siguiente.md`, 2026-07-15) es una
-instancia concreta del problema de oclusión parcial descrito por Kim et al.
-(2020) y Chung et al. (2023).
+instancia concreta del problema de oclusión parcial descrito por Cha y Chung
+(2020) y Yao et al. (2023).
 
 ## 5.4 Estimación de pose humana por visión
 
@@ -125,8 +125,8 @@ mientras que la cámara ofrece semántica rica pero es sensible a oclusiones
 e iluminación y no aporta distancia fiable con una sola cámara monocular.
 Los enfoques de fusión en la literatura van desde el "vision-LiDAR servo
 tracking" con sensores LiDAR motorizados de 360° combinados con histogramas
-de verosimilitud, hasta arquitecturas más recientes de fusión profunda
-(p. ej. Dual-Stream Transformer para seguimiento de personas combinando
+de verosimilitud (Li et al., 2025), hasta arquitecturas más recientes de fusión profunda
+(p. ej. el Dual-Stream Transformer de Minase y Tanaka, 2026, para seguimiento de personas combinando
 LiDAR e imagen térmica). En general, la literatura reciente confirma que la
 fusión LiDAR-cámara mejora la robustez de la detección de peatones/personas
 frente a condiciones adversas respecto al uso de una sola modalidad.
@@ -157,7 +157,7 @@ constituye el objetivo de trabajo abierto de la Sesión 4 de laboratorio.
 ## 5.6 Interacción humano-robot basada en gestos
 
 El reconocimiento de gestos de mano/brazo como canal de interacción
-humano-robot es un área extensamente revisada; Cheng et al. (2022) ofrecen
+humano-robot es un área extensamente revisada; Wang et al. (2022) ofrecen
 una revisión general de interacción por gestos de mano y brazo, cubriendo
 tanto métodos basados en sensores portátiles como en visión. Dentro de los
 métodos por visión, la tendencia reciente favorece el uso de landmarks
@@ -167,7 +167,7 @@ datos de entrenamiento propios: el gesto se define como una regla geométrica
 sobre puntos clave ya extraídos (p. ej., "muñeca por encima del hombro") en
 lugar de una clase aprendida end-to-end. Trabajos recientes de control por
 gestos con MediaPipe reportan tasas de éxito superiores al 94-96% en tareas
-de manipulación/entrega dirigidas por gestos estáticos y dinámicos.
+de manipulación/entrega dirigidas por gestos estáticos y dinámicos (Zhang et al., 2025).
 
 El sistema de este TFM sigue exactamente este enfoque basado en reglas
 sobre landmarks: dos gestos discretos (mano derecha levantada por encima
@@ -177,7 +177,7 @@ Pose, con un número mínimo de fotogramas de confirmación consecutivos
 (`gesture_confirm_frames`) y un tiempo de espera entre comandos
 (`gesture_cooldown_s`) para reducir falsos positivos (§2.3.2). Es un
 vocabulario de gestos deliberadamente mínimo (dos gestos, frente a los
-vocabularios más amplios de trabajos como Cheng et al., 2022), justificado
+vocabularios más amplios de trabajos como Wang et al., 2022), justificado
 por que la interacción requerida en este TFM se limita a iniciar y detener
 el seguimiento, no a un control fino del robot.
 
@@ -189,10 +189,10 @@ robusta frente a ruido y detecciones perdidas. La familia de filtros de
 Bayes —Kalman, su variante extendida (EKF), la no perfumada (UKF) y los
 filtros de partículas— es el enfoque estándar en la literatura de
 seguimiento de personas con robots móviles desde hace más de dos décadas
-(Urrea y Kern, 2021, ofrecen una revisión histórica del uso del filtro de
-Kalman en robótica). Schulz et al. y trabajos posteriores comparan filtros
+(Urrea y Agramonte, 2021, ofrecen una revisión histórica del uso del filtro de
+Kalman en robótica). Schulz et al. (2003) y trabajos posteriores comparan filtros
 de Kalman frente a filtros de partículas para seguimiento de personas con
-robot móvil, y Wang et al. (2010) evalúan la eficiencia computacional de
+robot móvil, y Bellotto y Hu (2010) evalúan la eficiencia computacional de
 varios filtros bayesianos para la misma tarea, mostrando que el UKF puede
 igualar el rendimiento de un filtro de partículas con mucho menor coste
 computacional. Este es un factor relevante para plataformas embarcadas
@@ -301,22 +301,33 @@ experimentales del Capítulo 7.
 - Bazarevsky, V., Grishchenko, I., Raveendran, K., Zhu, T., Zhang, F., y
   Grundmann, M. (2020). *BlazePose: On-device Real-time Body Pose Tracking*.
   arXiv:2006.10204. https://arxiv.org/pdf/2006.10204
-- Chung, W. et al. (2023). *Leg Detection for Socially Assistive Robots:
-  Differentiating Multiple Targets with 2D LiDAR*. En: Springer, LNCS.
-  https://link.springer.com/chapter/10.1007/978-981-99-8018-5_7
-- Cheng, H., Zhu, Y., Sun, C., y Vieira, A. W. (2022). *Hand and Arm
-  Gesture-based Human-Robot Interaction: A Review*. arXiv:2209.08229.
-  https://arxiv.org/pdf/2209.08229
+- Bellotto, N., y Hu, H. (2010). *Computationally efficient solutions for
+  tracking people with a mobile robot: an experimental evaluation of
+  Bayesian filters*. Autonomous Robots, 28(4), 425-438.
+  https://link.springer.com/article/10.1007/s10514-009-9167-2
+- Cha, D., y Chung, W. (2020). *Human-Leg Detection in 3D Feature Space for a
+  Person-Following Mobile Robot Using 2D LiDARs*. International Journal of
+  Precision Engineering and Manufacturing.
+  https://link.springer.com/article/10.1007/s12541-020-00343-7
 - Fox, D., Burgard, W., y Thrun, S. (1997). *The Dynamic Window Approach to
   Collision Avoidance*. IEEE Robotics & Automation Magazine, 4(1), 23-33.
   https://www.ri.cmu.edu/publications/the-dynamic-window-approach-to-collision-avoidance/
 - Grishchenko, I., Bazarevsky, V., et al. (2022). *BlazePose GHUM Holistic:
   Real-time 3D Human Landmarks and Pose Estimation*. arXiv:2206.11678.
   https://arxiv.org/pdf/2206.11678
-- Kim, B., et al. (2020). *Human-Leg Detection in 3D Feature Space for a
-  Person-Following Mobile Robot Using 2D LiDARs*. International Journal of
-  Precision Engineering and Manufacturing.
-  https://link.springer.com/article/10.1007/s12541-020-00343-7
+- Guerrero-Higueras, Á. M., Álvarez-Aparicio, C., Calvo Olivera, M. C.,
+  Rodríguez-Lera, F. J., Fernández-Llamas, C., Martín Rico, F., y Matellán,
+  V. (2018). *Tracking People in a Mobile Robot From 2D LIDAR Scans Using
+  Full Convolutional Neural Networks for Security in Cluttered
+  Environments*. Frontiers in Neurorobotics, 12, 85.
+  https://www.frontiersin.org/articles/10.3389/fnbot.2018.00085
+- Kitamoto, S., Hiroi, Y., Miyawaki, K., y Ito, A. (2025). *Robust Human
+  Tracking Using a 3D LiDAR and Point Cloud Projection for Human-Following
+  Robots*. Sensors, 25(6), 1754. https://www.mdpi.com/1424-8220/25/6/1754
+- Li, Z., Kou, D., Wang, Y., Li, W., Dong, Z., y Zhang, L. (2025).
+  *Auto-Follower: A Person-Following System for Urban Ackermann
+  Human–Machine Collaborative Robotics*. ACM Transactions on Autonomous and
+  Adaptive Systems. https://dl.acm.org/doi/10.1145/3787977
 - Macenski, S., y Jambrecic, I. (2021). *SLAM Toolbox: SLAM for the dynamic
   world*. Journal of Open Source Software, 6(61), 2783.
   https://doi.org/10.21105/joss.02783
@@ -324,26 +335,31 @@ experimentales del Capítulo 7.
   Marathon 2: A Navigation System*. IEEE/RSJ International Conference on
   Intelligent Robots and Systems (IROS). arXiv:2003.00368.
   https://arxiv.org/abs/2003.00368
-- Macenski, S., et al. (2023). *From the desks of ROS maintainers: A survey
-  of modern & capable mobile robotics algorithms in the robot operating
-  system 2*. Robotics and Autonomous Systems.
-- Urrea, C., y Kern, J. (2021). *Kalman Filter: Historical Overview and
-  Review of Its Use in Robotics 60 Years after Its Creation*. Journal of
-  Sensors, 2021, 9674015. https://onlinelibrary.wiley.com/doi/10.1155/2021/9674015
-- Wang, Z., et al. (2010). *Computationally efficient solutions for
-  tracking people with a mobile robot: an experimental evaluation of
-  Bayesian filters*. Autonomous Robots, 28(4).
-  https://link.springer.com/article/10.1007/s10514-009-9167-2
-- Xu, et al. (2025). *Auto-Follower: A Person-Following System for Urban
-  Ackermann Human–Machine Collaborative Robotics*. ACM Transactions on
-  Autonomous and Adaptive Systems. https://dl.acm.org/doi/10.1145/3787977
-- Yan, Z., Duckett, T., y Bellotto, N. (2018). *Tracking People in a Mobile
-  Robot From 2D LIDAR Scans Using Full Convolutional Neural Networks for
-  Security in Cluttered Environments*. Frontiers in Neurorobotics, 12, 85.
-  https://www.frontiersin.org/articles/10.3389/fnbot.2018.00085
-- Zhang, et al. (2025). *Robust Human Tracking Using a 3D LiDAR and Point
-  Cloud Projection for Human-Following Robots*. Sensors, 25(6), 1754.
-  https://www.mdpi.com/1424-8220/25/6/1754
-- Zhao, et al. (2023). *Fusion of Time-of-Flight Based Sensors with
+- Macenski, S., Moore, T., Lu, D. V., Merzlyakov, A., y Ferguson, M. (2023).
+  *From the desks of ROS maintainers: A survey of modern & capable mobile
+  robotics algorithms in the robot operating system 2*. Robotics and
+  Autonomous Systems, 168, 104493.
+- Minase, Y., y Tanaka, K. (2026). *A Dual-Stream Transformer Architecture
+  for Illumination-Invariant TIR-LiDAR Person Tracking*. arXiv:2604.00363.
+  https://arxiv.org/html/2604.00363
+- Sarmento, J., Neves dos Santos, F., Silva Pinto de Aguiar, A., Filipe, V.,
+  y Valente, A. (2023). *Fusion of Time-of-Flight Based Sensors with
   Monocular Cameras for a Robotic Person Follower*. Journal of Intelligent
   & Robotic Systems. https://link.springer.com/article/10.1007/s10846-023-02037-4
+- Schulz, D., Burgard, W., Fox, D., y Cremers, A. B. (2003). *People Tracking
+  with Mobile Robots Using Sample-Based Joint Probabilistic Data Association
+  Filters*. International Journal of Robotics Research, 22(2), 99-116.
+  https://journals.sagepub.com/doi/10.1177/0278364903022002002
+- Urrea, C., y Agramonte, R. (2021). *Kalman Filter: Historical Overview and
+  Review of Its Use in Robotics 60 Years after Its Creation*. Journal of
+  Sensors, 2021, 9674015. https://onlinelibrary.wiley.com/doi/10.1155/2021/9674015
+- Wang, X., Shen, H., Yu, H., Guo, J., y Wei, X. (2022). *Hand and Arm
+  Gesture-based Human-Robot Interaction: A Review*. arXiv:2209.08229.
+  https://arxiv.org/pdf/2209.08229
+- Yao, H., Peng, J., Liao, Z., Zhao, R., y Dai, H. (2023). *Leg Detection for
+  Socially Assistive Robots: Differentiating Multiple Targets with 2D
+  LiDAR*. En: Proceedings ICCSIP 2023, Springer, LNCS.
+  https://link.springer.com/chapter/10.1007/978-981-99-8018-5_7
+- Zhang, G., Su, J., Zhang, S., Qi, J., Hou, Z., y Lin, Q. (2025). *Research
+  on Deep Learning-Based Human–Robot Static/Dynamic Gesture-Driven Control
+  Framework*. Sensors, 25(23), 7203. https://doi.org/10.3390/s25237203

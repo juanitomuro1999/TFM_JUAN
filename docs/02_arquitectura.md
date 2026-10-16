@@ -53,7 +53,7 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 **Algoritmo:**
 1. Se aplica un filtro de mediana a las medidas del LiDAR para reducir ruido.
 2. Se interpolan los puntos para aumentar la resolución angular.
-3. Los puntos 2D se clusterizán con DBSCAN (eps=0.1 m, min_samples=15).
+3. Los puntos 2D se clusterizán con DBSCAN (eps=0.12 m, min_samples=4).
 4. Se filtran clusters con características de pierna humana (tamaño, radio, forma).
 5. Se buscan pares de clusters (dos piernas) dentro de una distancia coherente.
 6. **Fallback de fusión cámara+LiDAR (desde 2026-06-25):** si no se encuentra un
@@ -76,14 +76,15 @@ Todo el sistema se empaqueta bajo el paquete ROS 2 `person_follower` (`ament_pyt
 > arreglarlo sin internet. Ver `docs/decisiones.md`.
 
 **Parámetros configurables (config.yaml):**
-- `max_detection_distance`: 6.0 m
-- `dbscan_eps`: 0.1 m
-- `min/max_leg_cluster_size`: 30–80 puntos
+- `max_detection_distance`: 2.5 m (reducido de 6.0 m — elimina pares de piernas lejanos erróneos)
+- `dbscan_eps`: 0.12 m
+- `dbscan_min_samples`: 4
+- `min/max_leg_cluster_size`: 4–200 puntos
 - `camera_timeout`: 1.0 s
 - `camera_hfov_deg`: 51 (campo de visión horizontal de la Logitech C270)
 - `fusion_enabled`, `fusion_angle_tol_deg` (25°), `fusion_max_distance` (4 m)
 - `bearing_sign`: -1.0 (signo de calibración del rumbo, confirmado en vivo)
-- `bearing_timeout`
+- `bearing_timeout`: 1.5 s
 
 **Topics suscritos:** `/scan`, `/person_detected_visual`, `/person_bearing`  
 **Topics publicados:** `/person_detected`, `/person_position`, `/clusters/general`, `/clusters/legs`

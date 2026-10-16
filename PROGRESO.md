@@ -1,5 +1,16 @@
 # Diario de progreso — TFM Person Follower
 
+## Sesión 2026-10-15 (trabajo de escritorio, consulta al tutor) — Confirmado: el límite de 25-30 páginas es orientativo, no vinculante
+
+**Consulta resuelta.** Tras recortar la memoria de 36 a 28 páginas el
+2026-09-29 asumiendo que el margen de 25-30 páginas era una norma dura del
+máster, se preguntó directamente a Enric Cervera antes de seguir
+recortando contra la reestructuración ya aplicada (capítulos, figuras,
+costes, voz impersonal, gesto "casa"). Respuesta: el margen es
+orientativo, no vinculante — no hace falta ajustar el contenido para
+encajar en él. Con la reestructuración completa, la memoria en español
+está en 38 páginas. Detalle y motivo en `docs/decisiones.md` (2026-10-15).
+
 ## Sesión 2026-09-23 (lab, sesión final) — Gesto "casa" validado en el robot (9/11) + tres fixes de seguimiento encontrados en vivo
 
 **Objetivo cumplido: el gesto "casa" queda probado e integrado en el robot
@@ -583,9 +594,12 @@ código y no solo contra la documentación existente:**
    trayectorias en RViz) existe en el repositorio (`tracking_node/DWA.py`)
    pero **no está registrada en `setup.py`** — es código anterior, no en
    ejecución. Documentado en `docs/06_implementacion.md` §6.5 y §6.11.
-   Queda pendiente corregir la etiqueta "DWA" del diagrama del Capítulo 2
-   para que no contradiga al Capítulo 6 — no se ha tocado hoy para no
-   mezclar el alcance de ambos capítulos en la misma sesión.
+   **Corregido:** la etiqueta "DWA" del diagrama del Capítulo 2
+   (`docs/02_arquitectura.md` §2.2 y §2.3.3) ya dice "Kalman + evasión
+   reactiva" — verificado 2026-08-17 al preparar la memoria en Word, sin
+   fecha exacta registrada de cuándo se aplicó el cambio en
+   `docs/02_arquitectura.md`. `README.md` no contenía la etiqueta "DWA" en
+   ningún sitio, así que no requería cambio.
 2. **Tres nodos más tienen una versión no registrada conviviendo en el
    mismo directorio** (`control_node/C_man.py` y `cierre_seguro.py`,
    `user_interface_node/UI_man.py`), con el mismo patrón que `DWA.py`:
@@ -651,8 +665,9 @@ principio: verificar el sector de `_obstacle_avoidance` (barato, ver
 arriba) antes de entrar en el resto (fallback de fusión en vivo + hueco de
 detección al girar + gate de continuidad con mobiliario + reproducibilidad
 de Capítulo 7). De escritorio sigue pendiente: revisar `DWA.py` y los
-ficheros `_man`/`cierre_seguro` legado (decidir limpieza) y corregir la
-etiqueta "DWA" del diagrama del Capítulo 2.
+ficheros `_man`/`cierre_seguro` legado (decidir limpieza). La etiqueta
+"DWA" del diagrama del Capítulo 2 ya no está pendiente — ver corrección
+registrada más arriba.
 
 ---
 

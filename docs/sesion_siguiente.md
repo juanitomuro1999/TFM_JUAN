@@ -326,9 +326,10 @@ hacer cualquier día, incluidos los días sin lab):** el objetivo 6 (QR,
 exploratorio) y ya redactados los Capítulos 5-6 de la memoria (pendientes
 de revisión del autor, no de escritura); revisar `DWA.py`/`C_man.py`/
 `cierre_seguro.py`/`UI_man.py` y decidir su limpieza (`docs/06_implementacion.md`
-§6.11); corregir la etiqueta "DWA" del diagrama del Capítulo 2, que ahora
-contradice al Capítulo 6. Nada de esto compite por tiempo de robot salvo
-que sobre alguna sesión de las 9.
+§6.11). La etiqueta "DWA" del diagrama del Capítulo 2 ya no contradice al
+Capítulo 6 — corregida a "Kalman + evasión reactiva" (ver `PROGRESO.md`).
+Nada de esto compite por tiempo de robot salvo que sobre alguna sesión de
+las 9.
 
 ## Estado heredado de la sesión 2026-07-13 (no repetir, solo verificar)
 

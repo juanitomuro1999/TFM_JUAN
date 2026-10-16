@@ -24,7 +24,12 @@ con esa salvedad.
 ## 7.2 Configuración experimental
 
 - **Robot:** TurtleBot 2 / base Kobuki, NUC `nuc-224`, ROS 2 Jazzy.
-- **Sensores:** RPLIDAR A2M8 + cámara Logitech C270.
+- **Sensores:** RPLIDAR A2M8 + cámara RGB. La cámara cambió a mitad de la
+  campaña de validación (ver `docs/01_introduccion.md` §1.3): la toma de
+  fusión sin movimiento (25/06) y las tres tomas del 08/07 (§7.4) se
+  grabaron con la Logitech C270 original; todas las tomas a partir del
+  09/07 (§7.4bis, §7.4ter, §7.4quater) se grabaron ya con la SPCA2650 que
+  la sustituyó.
 - **Entorno:** laboratorio de robótica UJI (interior, suelo de baldosas).
 - **Distancia objetivo (`target_distance`):** 1.50 m en la toma del 25/06;
   1.00 m en las tomas del 08/07 (parámetro ajustado entre sesiones).
