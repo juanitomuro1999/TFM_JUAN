@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — Revisión del TFM</title>
+<style>
+  :root {
+    --navy: #10233F;
+    --navy-light: #16304F;
+    --teal: #0E7A70;
+    --teal-light: #E4F3F1;
+    --amber: #B8860B;
+    --amber-light: #FDF4E3;
+    --red: #C23B3B;
+    --red-light: #FDECEC;
+    --green: #1E8E5A;
+    --green-light: #E9F7EF;
+    --bg: #F7F6F1;
+    --card: #FFFFFF;
+    --border: #E3E1D8;
+    --text: #10233F;
+    --muted: #5B6570;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+  header { margin-bottom: 40px; }
+  .eyebrow {
+    display: inline-block;
+    background: var(--navy);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 30px; margin: 0 0 8px; line-height: 1.25; }
+  .subtitle { color: var(--muted); font-size: 15px; margin: 0; }
+  .question-box {
+    background: var(--navy);
+    color: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin: 28px 0 40px;
+  }
+  .question-box h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #8FC7C0; }
+  .question-box p { margin: 0 0 10px; font-size: 15px; color: #EAF1F0; }
+  .question-box ol { margin: 8px 0 0; padding-left: 20px; font-size: 15px; color: #EAF1F0; }
+  .question-box li { margin-bottom: 6px; }
+
+  .verdict-section { margin-bottom: 32px; }
+  .verdict-section h2 {
+    font-size: 20px;
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  .verdict-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 14px;
+  }
+  .verdict-card.agree { border-left: 5px solid var(--green); }
+  .verdict-card.clash { border-left: 5px solid var(--amber); }
+  .verdict-card.blind { border-left: 5px solid var(--navy); }
+  .verdict-card.rec { border-left: 5px solid var(--teal); background: var(--teal-light); }
+  .verdict-card.first { border-left: 5px solid var(--red); background: var(--red-light); }
+  .verdict-card ul, .verdict-card ol { margin: 8px 0 0; padding-left: 20px; }
+  .verdict-card li { margin-bottom: 10px; }
+  .verdict-card p { margin: 0 0 10px; }
+  .verdict-card p:last-child { margin-bottom: 0; }
+  .big-callout {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .spectrum {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 18px 0 8px;
+  }
+  .spectrum-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .spectrum-name { width: 150px; flex-shrink: 0; font-weight: 600; font-size: 14px; }
+  .spectrum-bar { flex: 1; height: 10px; background: #EEECE3; border-radius: 6px; position: relative; overflow: hidden; }
+  .spectrum-fill { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+  .spectrum-label { width: 190px; flex-shrink: 0; font-size: 13px; color: var(--muted); text-align: right; }
+  .tag-strong { background: var(--green); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px; margin-left: 8px; }
+  .tag-blindspot { background: var(--red); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px; margin-left: 8px; }
+
+  details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  summary {
+    cursor: pointer;
+    padding: 16px 20px;
+    font-weight: 600;
+    font-size: 15px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+";
+    font-size: 20px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  details[open] summary::after { content: "–"; }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  .details-body { padding: 18px 20px 22px; font-size: 14.5px; color: #2A3644; }
+  .details-body p { margin: 0 0 12px; }
+  .details-body ul, .details-body ol { padding-left: 20px; }
+  .details-body li { margin-bottom: 8px; }
+
+  .advisor-icon { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:8px; }
+  .c-contrarian { background:#C23B3B; }
+  .c-firstprinciples { background:#10233F; }
+  .c-expansionist { background:#B8860B; }
+  .c-outsider { background:#0E7A70; }
+  .c-executor { background:#5B6570; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">LLM Council · 5 asesores + revisión por pares</span>
+    <h1>¿Está el TFM listo para defenderse?</h1>
+    <p class="subtitle">Revisión de <strong>TFM_Memoria_reducida.docx</strong> antes de aplicar 3 cambios solicitados — 29 sept. 2026</p>
+  </header>
+
+  <div class="question-box">
+    <h3>La pregunta llevada al consejo</h3>
+    <p>Juan defiende su TFM de forma inminente. Pide tres cambios antes de defender:</p>
+    <ol>
+      <li>Reescribir §7.9 "Trabajo pendiente" — ya no tiene sentido decir que quedan tareas si va a presentar ya.</li>
+      <li>Convertir las 5 figuras del Capítulo 2 (diagramas en texto ASCII) en imágenes reales.</li>
+      <li>Añadir una limitación de hardware: el NUC no soportaba bien tantos procesos a la vez, con desconexiones, obligando a optimizar el código al máximo.</li>
+    </ol>
+    <p style="margin-top:14px"><strong>No señalado por el usuario:</strong> §7.8 / Cap. 1 / §5.10 siguen diciendo "objetivo 5 sin probar", pero el "gesto casa" — validado en el robot real el 23/09 (9/11 vueltas, 82%, 0.27 m / 8° de error, cancelación en 20 ms, 0 falsos positivos) — no aparece en la memoria.</p>
+  </div>
+
+  <div class="verdict-section">
+    <h2>Veredicto del consejo</h2>
+    <div class="verdict-card first">
+      <p class="big-callout">No está lista para defender — pero no por lo que Juan pidió arreglar.</p>
+      <p>El problema real no son los tres cambios solicitados: es que el Capítulo 7, la tabla de objetivos del Capítulo 1 y el §5.10 siguen diciendo "objetivo 5 sin probar" y "Fase 4 en curso", mientras el resultado más completo y novedoso del TFM — el gesto casa — no aparece en ningún sitio del documento. Los 5 asesores y las 5 revisiones por pares coincidieron en esto de forma independiente.</p>
+    </div>
+  </div>
+
+  <div class="verdict-section">
+    <h2>Dónde coincide el consejo</h2>
+    <div class="verdict-card agree">
+      <ul>
+        <li>Reescribir solo §7.9 <strong>empeora</strong> el documento: diría que la validación está cerrada mientras §7.8 sigue diciendo que está sin terminar — una contradicción que un tribunal detecta.</li>
+        <li>El cambio 2 (figuras como imágenes) es correcto en principio pero es el de <strong>menor prioridad y mayor riesgo</strong>: rehacer 5 diagramas bajo presión de tiempo puede introducir errores de nomenclatura, y las imágenes ocupan más espacio que el texto monoespaciado — el documento ya está en 28 de un margen de 25-30 páginas.</li>
+        <li>El cambio 3 (limitación del NUC) es legítimo pero <strong>necesita cifras concretas</strong> (qué procesos, qué carga de CPU/RAM, qué se desconectaba, qué se optimizó y cuánto) o suena a excusa.</li>
+        <li><strong>Antes de tocar nada:</strong> confirmar si la memoria ya está depositada formalmente en la universidad. Si es así, el arreglo tiene que ir en las diapositivas y en la defensa oral, no en el .docx.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="verdict-section">
+    <h2>Dónde choca el consejo</h2>
+    <div class="verdict-card clash">
+      <p><strong>La única discrepancia real es de tono, no de hechos.</strong> El Expansionist propone ir a por todas: sustituir §7.9 por una sección "Validación integrada" que presente el gesto casa como si hubiera "cerrado el círculo" del objetivo 5.</p>
+      <p>Los otros 4 asesores — y 4 de 5 revisiones por pares, de forma independiente — señalan esto como el mayor punto ciego del consejo: 11 intentos y ~4 minutos de prueba de gestos son <strong>una muestra demasiado pequeña</strong> para reclamar que el objetivo está resuelto. Un tribunal académico premia mucho más un resultado bueno presentado con honestidad que una victoria declarada que invita a la pregunta fácil "¿n=11?".</p>
+      <p><strong>Resolución:</strong> el consejo se decanta por la mayoría cautelosa — presentar el gesto casa como "primer paso validado", nombrando la muestra pequeña en el propio texto.</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:15px; margin: 28px 0 4px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Espectro de posturas de los asesores</h3>
+  <div class="spectrum">
+    <div class="spectrum-row">
+      <div class="spectrum-name"><span class="advisor-icon c-expansionist"></span>Expansionist</div>
+      <div class="spectrum-bar"><div class="spectrum-fill" style="left:78%; width:20%; background:var(--amber);"></div></div>
+      <div class="spectrum-label">Presentarlo como victoria <span class="tag-blindspot">punto ciego</span></div>
+    </div>
+    <div class="spectrum-row">
+      <div class="spectrum-name"><span class="advisor-icon c-outsider"></span>Outsider</div>
+      <div class="spectrum-bar"><div class="spectrum-fill" style="left:40%; width:20%; background:var(--teal);"></div></div>
+      <div class="spectrum-label">Honesto, medio párrafo</div>
+    </div>
+    <div class="spectrum-row">
+      <div class="spectrum-name"><span class="advisor-icon c-firstprinciples"></span>First Principles</div>
+      <div class="spectrum-bar"><div class="spectrum-fill" style="left:35%; width:20%; background:var(--teal);"></div></div>
+      <div class="spectrum-label">"Primera integración validada"</div>
+    </div>
+    <div class="spectrum-row">
+      <div class="spectrum-name"><span class="advisor-icon c-executor"></span>Executor<span class="tag-strong">más fuerte</span></div>
+      <div class="spectrum-bar"><div class="spectrum-fill" style="left:32%; width:20%; background:var(--green);"></div></div>
+      <div class="spectrum-label">Plan ejecutable, cauteloso</div>
+    </div>
+    <div class="spectrum-row">
+      <div class="spectrum-name"><span class="advisor-icon c-contrarian"></span>Contrarian</div>
+      <div class="spectrum-bar"><div class="spectrum-fill" style="left:10%; width:20%; background:var(--red);"></div></div>
+      <div class="spectrum-label">Máxima cautela ante el tribunal</div>
+    </div>
+  </div>
+
+  <div class="verdict-section" style="margin-top:36px">
+    <h2>Puntos ciegos que solo salieron en la revisión por pares</h2>
+    <div class="verdict-card blind">
+      <ol>
+        <li><strong>El resumen/abstract y las Conclusiones</strong> probablemente repiten el mismo "objetivo 5 sin probar" — y el resumen es la primera página que lee cualquier examinador. Ningún asesor lo incluyó en su alcance inicial.</li>
+        <li><strong>Si la memoria ya está depositada</strong> en la universidad. Si es así, ningún cambio en el .docx llega al tribunal — la corrección tiene que ir en las diapositivas y en lo que Juan diga en la defensa.</li>
+        <li><strong>El tutor (Enric Cervera) debería dar el visto bueno</strong> antes de añadir un resultado nuevo días antes de la defensa — es contenido académico nuevo, no solo maquetación.</li>
+        <li><strong>El recorte de ayer (36→28 páginas) nunca se revisó</strong> por si dejó referencias cruzadas huérfanas o figuras/secciones renumeradas mal.</li>
+        <li><strong>La limitación del NUC y los 2 fallos del gesto casa pueden ser la misma historia:</strong> compartir una sola CPU entre LiDAR, cámara/MediaPipe, SLAM/Nav2 y seguimiento es una causa muy plausible de la imprecisión de AMCL (±0.5 m) detrás de ambos fallos. Contado junto, el apartado de hardware deja de sonar a excusa y pasa a ser la explicación causal de un resultado ya documentado.</li>
+        <li><strong>El tiempo es el recurso más escaso hoy.</strong> Cada minuto editando el documento es un minuto menos ensayando las respuestas a las 3 preguntas obvias del tribunal (por qué solo 11 intentos, por qué falló AMCL, qué se optimizó exactamente en el NUC) — y ese ensayo puede pesar más en la nota que seguir puliendo el texto.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="verdict-section">
+    <h2>La recomendación</h2>
+    <div class="verdict-card rec">
+      <p><strong>No ejecutar los tres cambios tal y como se pidieron por separado.</strong> Tratarlos como un solo arreglo, anclado en reconciliar lo que la memoria dice de sí misma sobre el objetivo 5:</p>
+      <ol>
+        <li><strong>Primero, una sola pregunta que lo condiciona todo:</strong> ¿está la memoria ya depositada formalmente? Si sí, todo el esfuerzo va a las diapositivas y a la defensa oral, no al .docx.</li>
+        <li>Trabajar sobre una copia nueva, nunca sobre el archivo que pueda estar ya en manos del tribunal.</li>
+        <li>Añadir el gesto casa de forma compacta (una tabla + un párrafo corto) en el Capítulo 7, actualizar la fila del objetivo 5 en la tabla del Capítulo 1 y la síntesis del §5.10 — con tono de "primer paso validado", nombrando la muestra pequeña — y revisar si el resumen/abstract y las Conclusiones repiten el mismo lenguaje obsoleto.</li>
+        <li>Reescribir §7.9 como "Trabajo futuro", coherente con el §7.8 ya actualizado — no como un arreglo cosmético aislado.</li>
+        <li>Añadir la limitación del NUC con cifras concretas, conectada explícitamente con los 2 fallos del gesto casa si la explicación causal se sostiene.</li>
+        <li>Hacer la conversión de diagramas a imágenes al final, y comprobar que el recuento de páginas se mantiene en 25-30.</li>
+        <li>Reservar tiempo real para ensayar las respuestas a las 3 preguntas que el tribunal hará casi con seguridad.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="verdict-section">
+    <h2>Lo primero que hacer</h2>
+    <div class="verdict-card first">
+      <p class="big-callout">Preguntar a Juan, antes de tocar el documento otra vez: ¿está la memoria ya depositada/entregada formalmente en la universidad?</p>
+      <p>Esa única respuesta decide si el trabajo de hoy ocurre en el .docx — o entero en las diapositivas y en lo que diga en voz alta durante la defensa.</p>
+    </div>
+  </div>
+
+  <h2 style="font-size:20px; margin: 40px 0 14px; padding-bottom:10px; border-bottom:2px solid var(--border);">Respuestas completas de los asesores</h2>
+
+  <details>
+    <summary><span class="advisor-icon c-contrarian"></span>El Contrarian</summary>
+    <div class="details-body">
+      <p><strong>Not ready to defend.</strong> The three fixes he asked for are cosmetic, and the real problem is somewhere else: Chapter 7 says objective 5 is "untested" and Phase 4 is "ongoing," while his strongest result (gesto casa) is missing entirely. If he shows it in slides, the examiners see a thesis that contradicts itself.</p>
+      <p>Change 1 only hides the symptom — turn §7.9 into "Trabajo futuro" and clean up §7.8 in the same pass. Change 2 risks new errors under time pressure (use real rqt_graph/view_frames output where possible); images also take more space — 28 pages could become 31. Change 3 invites attack unless it has numbers (which processes, CPU/RAM load, what disconnected).</p>
+      <p><strong>Unasked question:</strong> has the memoria already been formally deposited? If so, the fix has to go in the slides. <strong>Overclaim risk:</strong> 11 attempts is too few for firm conclusions — present as a first integration, not validation.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-icon c-firstprinciples"></span>El First Principles Thinker</summary>
+    <div class="details-body">
+      <p>He's asking the wrong question — the real one is "does this document honestly show the tribunal the most I achieved?" Right now it doesn't. The memoria stops before his best result: 9/11 home returns, 0.27m/8° error, 0 false positives, nowhere in the document.</p>
+      <p>Rewriting §7.9 alone makes things worse — it would contradict §7.8. Honest fix: delete §7.9, move "more repetitions" into limitations, face the "andamiaje" (scaffolding) admission head-on.</p>
+      <p><strong>Priority order:</strong> 1) confirm whether the document can still change, 2) add gesto casa to Ch.7/objectives table/§5.10 as "first integration validated" (~1 page, room exists), 3) remove §7.9 and reconcile §7.8, 4) add the NUC limitation with evidence, 5) replace the figures.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-icon c-expansionist"></span>El Expansionist</summary>
+    <div class="details-body">
+      <p>He's about to defend a thesis that leaves out its best result. Gesto casa is the first working integration of tracking and navigation — 9/11 (82%), 0.27m/8°, 20ms cancellation, zero false positives. That's objective 5's first real step.</p>
+      <p><strong>The upside play:</strong> replace §7.9 with "§7.9 Validación integrada: retorno autónomo a casa por gesto," a compact metrics table, and two sentences on the AMCL cause of the 2 failures — same page space, stays inside 30 pages. Update the §7.8 bullet, the Ch.1 objectives table ("parcialmente alcanzado"), and §5.10.</p>
+      <p>Frame the NUC limitation as engineering work, not confession. Rebuild the Ch.2 figures as clean vector images and reuse them in the defense slides — the FSM figure should show the new HOME state. For the defense itself: open or close with a 20-second clip of the robot returning home.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-icon c-outsider"></span>El Outsider</summary>
+    <div class="details-body">
+      <p>Reading this cold, the memoria looks unfinished, and his three changes only fix what it looks like. §7.8 says "sin probar," §7.9 lists pending tasks, and item (3) admits the chapter is still tables-and-notes scaffolding. Juan reads it as "pretty good" because he knows what was really done — an examiner won't.</p>
+      <p>The biggest problem is missing, not wrong: the home-gesture result is the only thing joining person-following with navigation — exactly objective 5. If he demos it, the first question will be "why isn't this in your written work?" Minimum fix: change "sin probar" to "partially validated" with numbers, one row in the objectives table, one short paragraph — about half a page.</p>
+      <p>On his three changes: don't delete §7.9, rename it "Trabajo futuro"; diagrams are worth doing but least urgent and cost page space; NUC limitation needs concrete facts or it reads as "our computer was bad."</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-icon c-executor"></span>El Executor</summary>
+    <div class="details-body">
+      <p>Not ready yet, but fixable today. §7.8's objective-5 contradiction is the real risk — fix it first, the three requested changes come after.</p>
+      <p><strong>Order for today (~3-4h):</strong> 0) save a copy as v2 first — every edit goes there. 1) §7.9 (15 min): replace with "Estado final de la validación," move repeat-scenarios to Future Work, delete the scaffolding admission entirely. 2) Gesto casa (45 min, <strong>ask Juan first</strong> — outside his three requests): a metrics subsection, update the objectives table to "Parcial," one sentence in §5.10, rewrite the §7.8 bullet — ~1 page, 2 pages of margin exist. 3) NUC limitation (15 min): one bullet, get one concrete fact from Juan first. 4) Figures (90 min, highest risk): Graphviz → PNG 300dpi via python-docx, order 2.2 FSM → 2.1 → 2.5 → 2.3 → 2.4; FSM must show the HOME state; if time runs out, ASCII stays. 5) Close out (20 min): TOC, page count ≤30, cross-references. Then make the slides match.</p>
+    </div>
+  </details>
+
+  <h2 style="font-size:20px; margin: 40px 0 14px; padding-bottom:10px; border-bottom:2px solid var(--border);">Puntos destacados de la revisión por pares</h2>
+  <details>
+    <summary>Consenso: el Executor (D) es la respuesta más fuerte, por unanimidad</summary>
+    <div class="details-body">
+      <p>Los 5 revisores, de forma independiente y anonimizada, señalaron la misma respuesta (Executor) como la más fuerte: es la única que convierte el diagnóstico en un plan ordenado, con tiempos, con una copia de seguridad como primer paso, que pregunta antes de añadir contenido no solicitado, y que deja una salida de emergencia (las figuras se quedan en ASCII si no da tiempo) sin comprometer lo importante.</p>
+      <p>Su único hueco, señalado por 4 de 5 revisores: nunca pregunta si la memoria ya está depositada — algo que sí plantean el Contrarian y el First Principles Thinker.</p>
+    </div>
+  </details>
+  <details>
+    <summary>Consenso: el Expansionist (A) es el punto ciego más grande, por unanimidad</summary>
+    <div class="details-body">
+      <p>Los 5 revisores coincidieron en que la respuesta del Expansionist es la que más se sobrevende: convierte 11 intentos en "cerramos el círculo", atribuye ambos fallos a AMCL sin verificarlo, ignora la propia admisión de la memoria de que el capítulo es "andamiaje", y nunca pregunta si el documento aún se puede editar.</p>
+    </div>
+  </details>
+
+  <footer>
+    Generado el 2026-09-29 · Metodología: LLM Council (Karpathy), adaptación con 5 sub-agentes de pensamiento independiente + revisión por pares anonimizada + síntesis del presidente.<br>
+    Transcripción completa: <code>council-transcript-20260929.md</code>
+  </footer>
+
+</div>
+</body>
+</html>

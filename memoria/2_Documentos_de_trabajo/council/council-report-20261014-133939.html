@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Council — Valoración del TFM</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --border: #e3e1dc;
+    --text: #1f2420;
+    --muted: #6b6f66;
+    --accent-dark: #1a2744;
+    --ok: #1e7a4a;
+    --warn: #b4530a;
+    --block: #a4302a;
+    --contrarian: #a4302a;
+    --firstprinciples: #5b3f94;
+    --expansionist: #1e7a4a;
+    --outsider: #0f7d82;
+    --executor: #1a5fa8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { margin-bottom: 28px; }
+  .kicker {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  h1 { font-size: 26px; margin: 0 0 10px; color: var(--accent-dark); }
+  .question-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-dark);
+    border-radius: 6px;
+    padding: 16px 18px;
+    font-size: 14.5px;
+    color: #33382f;
+  }
+  .question-box b { color: var(--accent-dark); }
+
+  .verdict-banner {
+    margin: 28px 0;
+    background: linear-gradient(135deg, #fff8ef, #fff);
+    border: 1px solid #e8d9b8;
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+  .verdict-banner .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--warn);
+    margin-bottom: 6px;
+  }
+  .verdict-banner .headline {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    margin-bottom: 10px;
+  }
+  .verdict-banner p { margin: 6px 0; font-size: 15px; }
+  .first-step {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed #e0cfa0;
+    font-size: 14.5px;
+  }
+  .first-step .tag {
+    display: inline-block;
+    background: var(--accent-dark);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 6px;
+  }
+
+  section { margin: 30px 0; }
+  h2 {
+    font-size: 17px;
+    color: var(--accent-dark);
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    font-size: 14.5px;
+  }
+  .panel p { margin: 0 0 10px; }
+  .panel p:last-child { margin-bottom: 0; }
+
+  /* agreement grid */
+  .grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .grid-table th, .grid-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+  .grid-table th {
+    background: #f1efe9;
+    font-weight: 700;
+    color: var(--accent-dark);
+    font-size: 12.5px;
+  }
+  .grid-table tr:last-child td { border-bottom: none; }
+  .advisor-name { font-weight: 700; white-space: nowrap; }
+  .pill {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .pill.block { background: #fbe9e7; color: var(--block); }
+  .pill.soft { background: #eaf3ec; color: var(--ok); }
+
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+
+  details {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  summary {
+    cursor: pointer;
+    padding: 13px 16px;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--accent-dark);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:before {
+    content: "▸";
+    display: inline-block;
+    transition: transform 0.15s ease;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  details[open] summary:before { transform: rotate(90deg); }
+  .details-body {
+    padding: 4px 18px 16px;
+    font-size: 14px;
+    color: #33382f;
+    border-top: 1px solid var(--border);
+  }
+  .details-body p { margin: 10px 0 0; white-space: pre-line; }
+
+  .verified-box {
+    background: #eef6f2;
+    border: 1px solid #c9e3d4;
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-size: 14px;
+  }
+  .verified-box .tag {
+    display: inline-block;
+    background: var(--ok);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 10px;
+  }
+  .verified-box ul { margin: 8px 0 0; padding-left: 20px; }
+  .verified-box li { margin-bottom: 6px; }
+  code {
+    background: #eceae3;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">LLM Council · Claude Code</div>
+    <h1>¿Está el TFM listo para depositar y defender?</h1>
+    <div class="question-box">
+      <b>Proyecto:</b> Seguimiento de personas y navegación autónoma en un robot móvil (TurtleBot 2 + ROS 2 Jazzy) — Juan Muñoz Rovira, Máster en Sistemas Inteligentes, UJI.<br>
+      <b>Estado evaluado:</b> memoria de 32 páginas, reestructurada según la lista completa del tutor (Enric Cervera), 18 referencias con DOI verificado, versión EN sincronizada, 4/5 objetivos específicos completados y 1 con primer paso validado (82%, n=11).<br>
+      <b>Pregunta al consejo:</b> veredicto claro, distinguiendo "imprescindible antes de entregar" de "mejora opcional" — sin asumir que todo lo ya aplicado está necesariamente bien.
+    </div>
+  </header>
+
+  <div class="verdict-banner">
+    <div class="label">Veredicto del Chairman</div>
+    <div class="headline">Depositable en contenido. No depositable en proceso — todavía.</div>
+    <p>La memoria en sí (estructura, rigor técnico, redacción, honestidad sobre sus propias limitaciones) <b>no es el obstáculo</b> y no necesita más trabajo de fondo. El obstáculo real son dos preguntas administrativas sin resolver — y ambas ya habían sido señaladas por un consejo anterior sobre este mismo proyecto, hace exactamente dos semanas.</p>
+    <div class="first-step">
+      <div class="tag">Lo primero que hay que hacer</div>
+      <p>Escribir hoy a Enric Cervera adjuntando la versión final y pidiendo dos cosas en una frase cada una: (1) confirmación explícita de que esta versión incorpora todo lo que pidió y está lista para depositar, y (2) si sabe si el límite de páginas del máster es una norma oficial con tope duro. Es la misma persona quien puede cerrar ambos frentes a la vez.</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>Hallazgo central: esto ya se dijo hace dos semanas</h2>
+    <div class="verified-box">
+      <div class="tag">Verificado directamente contra el repositorio</div>
+      <p>Cuatro de los cinco revisores de pares, sin que se les pidiera, fueron más allá del texto que se les entregó y encontraron un consejo LLM anterior sobre este mismo TFM: <code>memoria/2_Documentos_de_trabajo/council/council-transcript-20260929.md</code>, de hace dos semanas. Se ha comprobado línea por línea que es real:</p>
+      <ul>
+        <li>El 29 de septiembre la memoria se recortó deliberadamente <b>de 36 a 28 páginas</b> "para caber en el margen de 25-30" — ese margen sí se trató como una restricción real y vinculante en su momento, no como una cifra arbitraria.</li>
+        <li>Ese mismo consejo ordenó explícitamente re-chequear el recuento de páginas tras cualquier cambio posterior.</li>
+        <li>Ese mismo consejo señaló, como punto ciego: <i>"El tutor (Enric Cervera) debería dar su visto bueno antes de añadir un nuevo resultado validado, días antes de la defensa — es contenido académico nuevo, no solo un ajuste de formato."</i></li>
+        <li>Hoy, dos semanas y una reestructuración completa después: la memoria está en <b>32 páginas</b> (de nuevo por encima del margen que antes sí se respetó), y no hay ningún rastro en <code>PROGRESO.md</code> ni <code>docs/sesion_siguiente.md</code> de que el tutor haya dado su visto bueno sobre la versión final, ni de que se haya repetido el recuento de páginas.</li>
+      </ul>
+      <p style="margin-top:12px"><b>Esto no es una sospecha nueva de este consejo — es la misma advertencia hecha sobre este mismo trabajo hace dos semanas, y que sigue sin cerrarse.</b></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dónde se posiciona cada advisor</h2>
+    <table class="grid-table">
+      <tr>
+        <th>Advisor</th>
+        <th>Visto bueno del tutor</th>
+        <th>Límite de páginas</th>
+        <th>Postura general</th>
+      </tr>
+      <tr>
+        <td class="advisor-name" style="color:var(--contrarian)"><span class="swatch" style="background:var(--contrarian)"></span>Contrarian</td>
+        <td><span class="pill block">Imprescindible</span></td>
+        <td><span class="pill block">Imprescindible</span></td>
+        <td>No depositar sin cerrar ambos puntos primero.</td>
+      </tr>
+      <tr>
+        <td class="advisor-name" style="color:var(--firstprinciples)"><span class="swatch" style="background:var(--firstprinciples)"></span>First Principles</td>
+        <td><span class="pill block">Imprescindible</span></td>
+        <td><span class="pill soft">Resolver en paralelo</span></td>
+        <td>Dos huecos de proceso, no de contenido — el único marco correcto.</td>
+      </tr>
+      <tr>
+        <td class="advisor-name" style="color:var(--expansionist)"><span class="swatch" style="background:var(--expansionist)"></span>Expansionist</td>
+        <td><span class="pill soft">No lo prioriza</span></td>
+        <td><span class="pill soft">Resolver en paralelo</span></td>
+        <td>El contenido se infravalora; depositable ya salvo confirmar páginas.</td>
+      </tr>
+      <tr>
+        <td class="advisor-name" style="color:var(--outsider)"><span class="swatch" style="background:var(--outsider)"></span>Outsider</td>
+        <td><span class="pill block">Lo único que bloquea</span></td>
+        <td><span class="pill soft">No es problema real</span></td>
+        <td>Depositable salvo confirmar el visto bueno y aclarar jerarquía de objetivos.</td>
+      </tr>
+      <tr>
+        <td class="advisor-name" style="color:var(--executor)"><span class="swatch" style="background:var(--executor)"></span>Executor</td>
+        <td><span class="pill block">Imprescindible</span></td>
+        <td><span class="pill block">Imprescindible</span></td>
+        <td>Listo para depositar en cuanto se cierren las dos acciones (un día de trabajo).</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Dónde coincide el consejo</h2>
+    <div class="panel">
+      <p>Los 5 advisors, de forma independiente, no señalaron ningún defecto de contenido, rigor técnico o redacción como bloqueante. La reestructuración pedida por Enric, la verificación de DOIs, la sincronización ES/EN — todo eso pasa el filtro.</p>
+      <p>Los 5 coinciden en que la muestra pequeña (n=11 en el objetivo 5, sesión única de Nav2, sin repeticiones en oclusión/parada) <b>no es un defecto que corregir</b> antes de depositar, sino honestidad metodológica ya declarada por escrito en las conclusiones — y así debe quedarse.</p>
+      <p>Los 5 señalan el límite de páginas como algo a <b>verificar</b>, no a resolver recortando por la vía rápida. Y 3 de 5 (Contrarian, First Principles, Executor) califican explícitamente el visto bueno del tutor sobre la versión final como imprescindible; los otros 2 lo tratan como lo único que de verdad podría bloquear, aunque no lo prioricen tan alto.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dónde choca el consejo</h2>
+    <div class="panel">
+      <p>Contrarian y Executor dicen "no depositar sin cerrar esto" (puerta dura); Expansionist y Outsider dicen "depositable ya, esto se confirma en paralelo" (puerta blanda). La diferencia real es de <b>secuencia</b>, no de contenido: todos coinciden en qué hay que cerrar, discrepan en si bloquea el envío o puede ir a la vez.</p>
+      <p>Más de fondo: Expansionist propone reencuadrar el objetivo 5 como gancho de publicación (IROS/ICRA) y subir el repo a GitHub ya — pero la verificación directa muestra que el repo <b>ya está en GitHub</b>, y que convertir un resultado de n=11 en gancho de publicación es exactamente el error que el consejo del 29-sep ya señaló como su propio mayor punto ciego. Este consejo estuvo a punto de repetirlo.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Otros puntos verificados</h2>
+    <div class="panel">
+      <p><b>Objetivo QR:</b> el Outsider dijo que no estaba claramente separado de los 5 objetivos específicos. Verificado en <code>docs/01_introduccion.md</code>, línea 55 — sí lo está, etiquetado como "6. Objetivo exploratorio". Ese punto concreto no aplica, al menos en el capítulo fuente.</p>
+      <p><b>Trabajo sin commitear:</b> el último commit del repositorio es del 31 de julio. Toda la reestructuración de Enric, el consejo del 29-sep y los cambios de esta semana llevan más de dos meses sin commitear. No es parte del veredicto de depósito, pero es un riesgo aparte (pérdida de trabajo) que vale la pena cerrar.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Respuestas completas de los advisors</h2>
+
+    <details>
+      <summary><span class="swatch" style="background:var(--contrarian)"></span>The Contrarian</summary>
+      <div class="details-body">
+        <p>Veredicto: no se deposita todavía, pero no por el contenido — por dos agujeros administrativos que nadie ha cerrado, y que son más peligrosos que cualquier limitación metodológica porque pueden tumbar el depósito sin que el tribunal llegue a leer una sola línea.
+
+(a) Imprescindible antes de entregar:
+1. El límite de 25-30 páginas. El propio enunciado admite que no se sabe si es normativa oficial del máster o una cifra que el autor se puso a sí mismo. Si es norma oficial con tope duro, depositar en 32 páginas es un fallo puramente formal, ajeno a la calidad del trabajo, y se resuelve en diez minutos consultando la normativa del TFM. No depositar sin cerrar esto primero.
+2. La verificación de los cambios del tutor se hizo "releyendo el documento final" — pero ¿quién dio el visto bueno, el autor o el tutor? Autoverificación no es autorización.
+
+(b) No bloquea el depósito, pero sí la defensa: las tres preguntas ya están servidas en bandeja: Nav2 validado en una sola sesión, el objetivo 5 con 11 intentos totales, el QR nunca probado. Sin respuestas concretas y ensayadas para esas tres, la defensa cojea aunque la memoria esté impecable. De propina: cambiar "completado" por "validado" en Nav2 cuesta una palabra y quita munición al tribunal.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="swatch" style="background:var(--firstprinciples)"></span>The First Principles Thinker</summary>
+      <div class="details-body">
+        <p>"¿Está lista la memoria?" da por hecho que la respuesta vive en el contenido. No es así: hay dos huecos de proceso —no de contenido— y son los únicos bloqueantes reales.
+
+Uno: el margen de 25-30 páginas es una referencia que el propio autor se puso. Lo imprescindible no es recortar — es una pregunta de dos minutos a secretaría o al tutor.
+
+Dos, y más grave: el tutor pidió una lista larga de cambios sobre una versión anterior; el autor la aplicó y la verificó él mismo. Pero autoverificarse no es lo mismo que la aprobación del tutor sobre ESTA versión final. Esto no es una alerta nueva: un consejo anterior (29-sep, mismo repo) ya señaló que el tutor debía dar el visto bueno antes de defender, y semanas después sigue sin resolverse.
+
+Sobre el fondo: la muestra pequeña no es un defecto, es honestidad metodológica bien declarada.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="swatch" style="background:var(--expansionist)"></span>The Expansionist</summary>
+      <div class="details-body">
+        <p>Este TFM no es "4 de 5 objetivos cumplidos": es SLAM, fusión LiDAR-cámara, Nav2 y reconocimiento gestual funcionando integrados sobre hardware limitado. La aportación es hacer que los módulos funcionen juntos con recursos escasos — eso debería ser el titular de la defensa, no una disculpa envuelta en limitaciones.
+
+El objetivo 5 al 82% (9/11, 0,27 m de error) es una prueba de concepto con número real, lista para un workshop (IROS/ICRA), una semilla de TFG/TFM de continuación, o portfolio. La versión inglesa en paralelo es un activo que casi nadie en un TFM explota: sube el repo a GitHub ahora.
+
+Sobre las 32 páginas: ese límite ni siquiera está confirmado como norma oficial. No recortes contenido honesto por una autoimposición dudosa.
+
+Veredicto: lo único imprescindible es confirmar la norma real de páginas.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="swatch" style="background:var(--outsider)"></span>The Outsider</summary>
+      <div class="details-body">
+        <p>Leo esto sin saber nada del campo. Lo único que de verdad podría bloquear esto: ¿el tutor ha visto y aprobado esta versión FINAL, o solo dio el visto bueno conceptual a la lista de cambios? Sin eso, nada más importa.
+
+Segundo: mezclas "5 objetivos específicos" con un "objetivo exploratorio" (QR) sin marcar con claridad cuál es compromiso formal y cuál es extra. Arreglo de una frase.
+
+Tercero: el límite de páginas es autoimpuesto, no verificado — 32 páginas es razonable, no es un TFM inflado.
+
+Cuarto, lo que NO me preocupa: el N=1 en casi todas las validaciones. El documento ya lo admite por escrito — admitirlo es la jugada correcta.
+
+Veredicto: depositable. Imprescindible solo: visto bueno del tutor y aclarar jerarquía de objetivos.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="swatch" style="background:var(--executor)"></span>The Executor</summary>
+      <div class="details-body">
+        <p>Veredicto: LISTO PARA DEPOSITAR. El contenido no es el problema.
+
+Imprescindible (dos acciones de un día):
+1. Confirmar si el límite de 25-30 páginas es normativa oficial o autoimpuesto. Verifiqué PROGRESO.md y docs/sesion_siguiente.md (grep "tutor", "visto bueno", "páginas") y no hay rastro de que esté documentado como norma ni de un visto bueno final del tutor — ambos puntos abiertos sin dueño.
+2. Conseguir el visto bueno explícito del tutor sobre ESTA versión final.
+
+Todo lo demás ya pasó el filtro de ejecución: cambios aplicados y releídos uno a uno, 18 referencias con DOI verificado, inglés sincronizado. Las limitaciones admitidas por escrito no son trabajo pendiente sino honestidad ya declarada.
+
+Opcional: pulir figuras, una frase de trabajo futuro, preparar respuestas orales a las 3 preguntas obvias del tribunal.</p>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Puntos destacados de la revisión por pares</h2>
+    <details>
+      <summary>Ver los 5 resúmenes de revisión (anonimizados A–E durante la revisión)</summary>
+      <div class="details-body">
+        <p><b>Convergencia:</b> las 5 revisiones de pares, de forma independiente, señalaron la Respuesta B (First Principles) como la más sólida — por anclar lo imprescindible en un hecho verificable (el consejo del 29-sep) en lugar de una suposición — y la Respuesta C (Expansionist) como la de mayor punto ciego, por omitir por completo el visto bueno del tutor y recomendar acciones (subir a GitHub) que ya estaban hechas.</p>
+        <p><b>Lo que los 5 revisores coinciden en que el consejo completo se saltó:</b> ninguno de los 5 advisors originales encontró el consejo del 29-sep antes de responder — pese a que ya contenía las mismas dos recomendaciones ("imprescindibles") que este consejo volvió a producir de forma independiente. Un revisor también encontró, al explorar el repo, un archivo de corrección de Marina no mencionado en el brief original, y que la carpeta de envío de hoy (<code>memoria/4_Envios/2026-10-14/</code>) confirma que el envío al tutor ya está en marcha.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    Generado el 2026-10-14 (20261014-133939) · LLM Council sobre la disposición para depósito/defensa del TFM "Seguimiento de personas y navegación autónoma en un robot móvil" · Transcripción completa: <code>council-transcript-20261014-133939.md</code> · Consejo anterior relacionado: <code>council-transcript-20260929.md</code>
+  </footer>
+
+</div>
+</body>
+</html>
