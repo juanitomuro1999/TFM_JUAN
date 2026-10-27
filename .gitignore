@@ -26,3 +26,9 @@ Thumbs.db
 
 # graphify
 graphify-out/cost.json
+
+# Office lock files
+~$*
+
+# Defense videos (large binaries, kept out of git)
+memoria/5_Presentacion/*.mp4
